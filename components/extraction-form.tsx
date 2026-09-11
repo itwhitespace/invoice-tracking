@@ -83,6 +83,7 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
   const isAmountMatching = Math.abs(totalCalculatedAmount - Number(data.totalFee || 0)) < 1;
 
   const totalWeeks = useMemo(() => getTotalWeeks(data.timeFrames), [data.timeFrames]);
+  const hasMissingPaymentWeek = data.paymentTerms.some((pt) => !pt.paymentWeek);
 
   // Handlers for Project Brief
   const handleFieldChange = (field: keyof ExtractedProjectData, value: any) => {
@@ -545,7 +546,7 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
               <tr>
                 <th className="p-2.5">Milestone / Term</th>
                 <th className="p-2.5 w-28 text-right">Payment %</th>
-                <th className="p-2.5 w-32 text-center">เก็บเงินสัปดาห์ที่</th>
+                <th className="p-2.5 w-32 text-center">เก็บเงินสัปดาห์ที่ *</th>
                 <th className="p-2.5 w-36 text-right">Amount (THB)</th>
                 <th className="p-2.5 w-10 text-center"></th>
               </tr>
@@ -593,7 +594,9 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
                             ? "กรอกข้อมูลตาราง Time Frame (หัวข้อ 3) ก่อน เพื่อให้ระบบรู้จำนวนสัปดาห์ทั้งหมด"
                             : undefined
                         }
-                        className="w-full px-2 py-1.5 text-xs text-center font-mono font-semibold text-black bg-transparent border border-slate-200 rounded outline-none focus:bg-white focus:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`w-full px-2 py-1.5 text-xs text-center font-mono font-semibold text-black bg-transparent border rounded outline-none focus:bg-white focus:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          !item.paymentWeek && totalWeeks > 0 ? "border-red-300" : "border-slate-200"
+                        }`}
                       >
                         <option value="">- ยังไม่ระบุ -</option>
                         {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((w) => (
@@ -657,6 +660,16 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
             </tfoot>
           </table>
         </div>
+
+        {/* Missing Payment Week Notice */}
+        {hasMissingPaymentWeek && data.paymentTerms.length > 0 && (
+          <div className="flex items-start gap-2 p-3 bg-red-50/90 border border-red-300 rounded-lg text-xs text-red-900 font-medium">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+            <p>
+              ยังมีงวดที่ยังไม่ได้ระบุ &quot;เก็บเงินสัปดาห์ที่&quot; — ต้องเลือกให้ครบทุกงวดก่อนกด Save to Database
+            </p>
+          </div>
+        )}
 
         {/* Validation Warning Notice if not balanced */}
         {(!isPercentageValid || !isAmountMatching) && (

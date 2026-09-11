@@ -144,6 +144,11 @@ export default function UploadProposalPage() {
       return;
     }
 
+    if (data.paymentTerms.length > 0 && data.paymentTerms.some((pt) => !pt.paymentWeek)) {
+      showToast("warning", "กรุณาระบุ \"เก็บเงินสัปดาห์ที่\" ให้ครบทุกงวดในตาราง Payment Term ก่อนบันทึก");
+      return;
+    }
+
     setIsSaving(true);
     let supabaseStorageFailed = false;
     let supabaseStorageErrorMessage = "";
@@ -239,6 +244,8 @@ export default function UploadProposalPage() {
                 payment_percentage: pt.paymentPercentage,
                 amount: pt.amount,
                 payment_week: pt.paymentWeek ?? null,
+                invoice_date: pt.invoiceDate || null,
+                payment_status: pt.paymentStatus || null,
                 sort_order: i,
               }))
             );

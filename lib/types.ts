@@ -12,6 +12,8 @@ export interface TimeFrameItem {
   duration: string;
 }
 
+export type PaymentStatus = 'wait' | 'invoice' | 'paid';
+
 export interface PaymentTermItem {
   id?: string;
   milestone: string;
@@ -20,6 +22,10 @@ export interface PaymentTermItem {
   // Which week (1-indexed, within the project's total design duration) this
   // milestone is planned to be collected in.
   paymentWeek?: number;
+  // Date the invoice/collection is scheduled for. Setting this is what puts
+  // the milestone into the Wait status; Admin advances it from there.
+  invoiceDate?: string;
+  paymentStatus?: PaymentStatus;
 }
 
 export interface ExtractedProjectData {

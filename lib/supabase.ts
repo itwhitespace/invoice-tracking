@@ -119,6 +119,8 @@ function mapProjectRowToRecord(row: any): SavedRecord {
         paymentPercentage: Number(pt.payment_percentage) || 0,
         amount: Number(pt.amount) || 0,
         paymentWeek: pt.payment_week ?? undefined,
+        invoiceDate: pt.invoice_date ?? undefined,
+        paymentStatus: pt.payment_status ?? undefined,
       })),
     pdfUrl: row.pdf_url || "",
     pdfFileName: row.pdf_file_name || "",
@@ -193,6 +195,8 @@ export async function updateRecordRemote(
           payment_percentage: pt.paymentPercentage,
           amount: pt.amount,
           payment_week: pt.paymentWeek ?? null,
+          invoice_date: pt.invoiceDate || null,
+          payment_status: pt.paymentStatus || null,
           sort_order: i,
         }))
       );

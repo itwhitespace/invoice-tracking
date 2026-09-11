@@ -1,6 +1,6 @@
 "use client";
 
-import { SavedRecord, Department } from "@/lib/types";
+import { SavedRecord, Department, PaymentStatus } from "@/lib/types";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
 import {
   X,
@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Percent,
   ClipboardCheck,
+  HelpCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -26,6 +27,18 @@ const DEPARTMENT_OPTIONS: Department[] = [
   "Signage",
   "Branding",
 ];
+
+const PAYMENT_STATUS_OPTIONS: { value: PaymentStatus; label: string }[] = [
+  { value: "wait", label: "Wait" },
+  { value: "invoice", label: "Invoice" },
+  { value: "paid", label: "Paid" },
+];
+
+const PAYMENT_STATUS_SELECT_STYLES: Record<PaymentStatus, string> = {
+  wait: "bg-amber-50 border-amber-300 text-amber-900",
+  invoice: "bg-sky-50 border-sky-300 text-sky-900",
+  paid: "bg-emerald-50 border-emerald-300 text-emerald-900",
+};
 
 interface ProposalDetailModalProps {
   isOpen: boolean;
@@ -44,6 +57,8 @@ export function ProposalDetailModal({
 }: ProposalDetailModalProps) {
   const [activeTab, setActiveTab] = useState<"all" | "fees" | "timeframes" | "payments" | "operations">("all");
   const [localRecord, setLocalRecord] = useState<SavedRecord | null>(record);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showApproveSuccess, setShowApproveSuccess] = useState(false);
 
   useEffect(() => {
     setLocalRecord(record);
@@ -94,13 +109,42 @@ export function ProposalDetailModal({
     onUpdate(updated);
   };
 
+  // Setting an invoice date puts the milestone into "Wait" by default;
+  // clearing the date drops the status too, since there's nothing to track.
+  const handleUpdateInvoiceDate = (idx: number, val: string) => {
+    const updatedTerms = [...(localRecord.paymentTerms || [])];
+    const current = { ...updatedTerms[idx] };
+    current.invoiceDate = val || undefined;
+    if (val && !current.paymentStatus) {
+      current.paymentStatus = "wait";
+    } else if (!val) {
+      current.paymentStatus = undefined;
+    }
+    updatedTerms[idx] = current;
+    const updated = { ...localRecord, paymentTerms: updatedTerms };
+    setLocalRecord(updated);
+    onUpdate(updated);
+  };
+
+  // Admin-only manual override once an invoice date has been scheduled.
+  const handleUpdatePaymentStatus = (idx: number, val: string) => {
+    const updatedTerms = [...(localRecord.paymentTerms || [])];
+    updatedTerms[idx] = {
+      ...updatedTerms[idx],
+      paymentStatus: (val || undefined) as PaymentStatus | undefined,
+    };
+    const updated = { ...localRecord, paymentTerms: updatedTerms };
+    setLocalRecord(updated);
+    onUpdate(updated);
+  };
+
   const handleOperationFieldChange = (field: "startDate" | "department", val: string) => {
     const updated = { ...localRecord, [field]: val };
     setLocalRecord(updated);
     onUpdate(updated);
   };
 
-  const handleApprove = () => {
+  const handleConfirmApprove = () => {
     const updated: SavedRecord = {
       ...localRecord,
       status: "approved",
@@ -108,6 +152,8 @@ export function ProposalDetailModal({
     };
     setLocalRecord(updated);
     onUpdate(updated);
+    setShowApproveConfirm(false);
+    setShowApproveSuccess(true);
   };
 
   return (
@@ -403,6 +449,8 @@ export function ProposalDetailModal({
                       <th className="px-4 py-2.5">เงื่อนไขงวดงาน (Milestone)</th>
                       <th className="px-4 py-2.5 text-center w-28">สัดส่วน (%)</th>
                       <th className="px-4 py-2.5 text-center w-32">เก็บเงินสัปดาห์ที่</th>
+                      <th className="px-4 py-2.5 text-center w-36">วันที่เรียกเก็บ</th>
+                      <th className="px-4 py-2.5 text-center w-28">สถานะ</th>
                       <th className="px-4 py-2.5 text-right w-36">จำนวนเงิน (THB)</th>
                     </tr>
                   </thead>
@@ -443,6 +491,34 @@ export function ProposalDetailModal({
                             ))}
                           </select>
                         </td>
+                        <td className="px-4 py-2.5 text-center">
+                          <input
+                            type="date"
+                            value={pt.invoiceDate || ""}
+                            onChange={(e) => handleUpdateInvoiceDate(idx, e.target.value)}
+                            className="w-full px-2 py-1 text-xs text-center font-mono text-slate-800 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                          />
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {pt.invoiceDate ? (
+                            <select
+                              value={pt.paymentStatus || "wait"}
+                              onChange={(e) => handleUpdatePaymentStatus(idx, e.target.value)}
+                              title="Admin: อัปเดตสถานะการชำระเงิน"
+                              className={`w-full px-2 py-1 text-xs text-center font-bold rounded-md border focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition capitalize ${
+                                PAYMENT_STATUS_SELECT_STYLES[pt.paymentStatus || "wait"]
+                              }`}
+                            >
+                              {PAYMENT_STATUS_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-[11px] text-slate-300">-</span>
+                          )}
+                        </td>
                         <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-700">
                           ฿{Number(pt.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </td>
@@ -452,7 +528,7 @@ export function ProposalDetailModal({
                 </table>
               </div>
               <div className="px-4 py-2 bg-slate-50/60 border-t border-slate-100 text-[11px] text-slate-500">
-                แก้ไข % หรือสัปดาห์ที่เก็บเงินได้เลย ระบบจะคำนวณจำนวนเงินและบันทึกเก็บไว้ให้อัตโนมัติ
+                กำหนดวันที่เรียกเก็บแล้วสถานะจะเริ่มที่ Wait โดยอัตโนมัติ — Admin ปรับเป็น Invoice / Paid ได้ภายหลัง
               </div>
             </div>
           )}
@@ -504,7 +580,7 @@ export function ProposalDetailModal({
                     )}
                   </div>
                   <button
-                    onClick={handleApprove}
+                    onClick={() => setShowApproveConfirm(true)}
                     disabled={localRecord.status === "approved"}
                     className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg flex items-center gap-1.5 shadow-sm transition shrink-0"
                   >
@@ -530,6 +606,61 @@ export function ProposalDetailModal({
           </button>
         </div>
       </div>
+
+      {/* Approve Confirmation Overlay */}
+      {showApproveConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 text-center space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+              <HelpCircle className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">ยืนยันการอนุมัติโครงการ</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                ต้องการอนุมัติการดำเนินงาน &quot;{localRecord.projectName}&quot; ใช่หรือไม่?
+                สถานะจะเปลี่ยนเป็น Approved และไปแสดงที่ Project Roadmap
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setShowApproveConfirm(false)}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              >
+                ไม่ใช่
+              </button>
+              <button
+                onClick={handleConfirmApprove}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition shadow-sm"
+              >
+                ใช่, อนุมัติ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approve Success Overlay */}
+      {showApproveSuccess && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 text-center space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">อนุมัติและบันทึกสำเร็จ</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                โครงการนี้ถูกอนุมัติแล้ว และจะแสดงที่หน้า Project Roadmap
+              </p>
+            </div>
+            <button
+              onClick={() => setShowApproveSuccess(false)}
+              className="w-full px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition shadow-sm"
+            >
+              ตกลง
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

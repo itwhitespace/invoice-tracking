@@ -9,6 +9,7 @@ import {
   Building2,
   Calendar,
   Layers,
+  CreditCard,
 } from "lucide-react";
 
 // Minimal pastel palette
@@ -57,6 +58,27 @@ const MONTH_NAMES = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+// Payment-week marker colors. "planned" is the pre-invoice state — a week is
+// already chosen at Upload time, but no invoice date/status has been set yet.
+const PAYMENT_MARKER_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  planned: { bg: "bg-slate-200", text: "text-slate-700", label: "วางแผนเก็บเงิน" },
+  wait: { bg: "bg-amber-300", text: "text-amber-950", label: "Wait" },
+  invoice: { bg: "bg-sky-300", text: "text-sky-950", label: "Invoice" },
+  paid: { bg: "bg-emerald-300", text: "text-emerald-950", label: "Paid" },
+};
+
+const formatCompactAmount = (amount: number): string => {
+  const abs = Math.abs(amount);
+  if (abs >= 1_000_000) {
+    const val = amount / 1_000_000;
+    return `${Number.isInteger(val) ? val : val.toFixed(1)}M`;
+  }
+  if (abs >= 1_000) {
+    return `${Math.round(amount / 1000)}K`;
+  }
+  return String(Math.round(amount));
+};
+
 export default function ProjectRoadmapPage() {
   const { settings } = useSettings();
   const [records, setRecords] = useState<SavedRecord[]>([]);
@@ -73,6 +95,15 @@ export default function ProjectRoadmapPage() {
     paymentPercentage: number;
     paymentAmount: number;
     monthName: string;
+  } | null>(null);
+
+  const [activePaymentTooltip, setActivePaymentTooltip] = useState<{
+    projectName: string;
+    milestone: string;
+    amount: number;
+    week: number;
+    status: string;
+    invoiceDate?: string;
   } | null>(null);
 
   // Load saved records from Supabase (shared across every device) with the
@@ -160,6 +191,14 @@ export default function ProjectRoadmapPage() {
         return {
           project: proj,
           segments: [],
+          paymentMarkers: [] as {
+            col: number;
+            milestone: string;
+            amount: number;
+            week: number;
+            status: string;
+            invoiceDate?: string;
+          }[],
           startCol: 0,
           totalSpanCols: 0,
           noStartDate: !proj.startDate,
@@ -211,9 +250,24 @@ export default function ProjectRoadmapPage() {
         };
       });
 
+      // Payment-week markers — positioned by the milestone's own planned
+      // week (independent of which phase it happens to line up with).
+      const paymentMarkers = (proj.paymentTerms || [])
+        .filter((pt) => !!pt.paymentWeek)
+        .map((pt) => ({
+          col: projectStartCol + (pt.paymentWeek! - 1),
+          milestone: pt.milestone,
+          amount: pt.amount,
+          week: pt.paymentWeek!,
+          status: pt.paymentStatus || (pt.invoiceDate ? "wait" : "planned"),
+          invoiceDate: pt.invoiceDate,
+        }))
+        .filter((pm) => pm.col >= 0 && pm.col < totalGridColumns);
+
       return {
         project: proj,
         segments,
+        paymentMarkers,
         startCol: projectStartCol,
         totalSpanCols: runningCol - projectStartCol,
         noStartDate: false,
@@ -379,7 +433,7 @@ export default function ProjectRoadmapPage() {
                       </div>
 
                       {/* Right Column: Minimalist Pastel Gantt Bars */}
-                      <div className="flex-1 relative p-3 flex items-center min-h-[76px] bg-white">
+                      <div className="flex-1 relative p-3 flex flex-col justify-center gap-1.5 min-h-[92px] bg-white">
                         {row.segments.length === 0 ? (
                           <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1 font-medium">
                             {row.noStartDate
@@ -394,9 +448,9 @@ export default function ProjectRoadmapPage() {
                           style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
                         />
 
-                        {/* Stacked Solid Pastel Gantt Blocks Container */}
+                        {/* Stacked Solid Pastel Gantt Blocks Container — "Stage All": every week actually worked */}
                         <div
-                          className="relative z-10 grid w-full h-10 items-center"
+                          className="relative z-10 grid w-full h-9 items-center"
                           style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
                         >
                           {row.segments.map((seg, segIdx) => {
@@ -418,18 +472,47 @@ export default function ProjectRoadmapPage() {
                                   })
                                 }
                                 onMouseLeave={() => setActiveTooltip(null)}
-                                className={`h-10 ${seg.color.bg} ${seg.color.text} rounded-md shadow-2xs font-semibold text-xs flex items-center justify-between px-3 cursor-pointer transition-all duration-150 hover:brightness-95 hover:shadow-xs hover:scale-[1.01] hover:z-20 overflow-hidden mx-0.5 border border-black/5`}
+                                className={`h-9 ${seg.color.bg} ${seg.color.text} rounded-md shadow-2xs font-semibold text-xs flex items-center px-3 cursor-pointer transition-all duration-150 hover:brightness-95 hover:shadow-xs hover:scale-[1.01] hover:z-20 overflow-hidden mx-0.5 border border-black/5`}
                               >
                                 <span className="truncate font-bold tracking-tight text-[11px]">
                                   {seg.phaseName}
-                                </span>
-                                <span className="text-[9.5px] font-mono font-bold bg-black/10 px-1.5 py-0.5 rounded shrink-0 ml-1">
-                                  {seg.paymentPercentage}%
                                 </span>
                               </div>
                             );
                           })}
                         </div>
+
+                        {/* Payment Week Markers — colored by status, showing amount instead of % */}
+                        {row.paymentMarkers.length > 0 && (
+                          <div
+                            className="relative z-10 grid w-full h-6"
+                            style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
+                          >
+                            {row.paymentMarkers.map((pm, pmIdx) => {
+                              const style = PAYMENT_MARKER_STYLES[pm.status] || PAYMENT_MARKER_STYLES.planned;
+                              return (
+                                <div
+                                  key={pmIdx}
+                                  style={{ gridColumn: `${pm.col + 1} / span 1` }}
+                                  onMouseEnter={() =>
+                                    setActivePaymentTooltip({
+                                      projectName: proj.projectName,
+                                      milestone: pm.milestone,
+                                      amount: pm.amount,
+                                      week: pm.week,
+                                      status: pm.status,
+                                      invoiceDate: pm.invoiceDate,
+                                    })
+                                  }
+                                  onMouseLeave={() => setActivePaymentTooltip(null)}
+                                  className={`h-6 ${style.bg} ${style.text} rounded shadow-2xs font-mono font-bold text-[10px] flex items-center justify-center cursor-pointer transition-all duration-150 hover:brightness-95 hover:z-20 mx-0.5 border border-black/5`}
+                                >
+                                  {formatCompactAmount(pm.amount)}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                         </>
                         )}
                       </div>
@@ -477,12 +560,49 @@ export default function ProjectRoadmapPage() {
           </div>
         )}
 
+        {/* Hover Detail Tooltip Card — Payment Week Marker */}
+        {activePaymentTooltip && (
+          <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center font-bold text-[10px] border ${
+                  (PAYMENT_MARKER_STYLES[activePaymentTooltip.status] || PAYMENT_MARKER_STYLES.planned).bg
+                } ${(PAYMENT_MARKER_STYLES[activePaymentTooltip.status] || PAYMENT_MARKER_STYLES.planned).text} border-black/5`}
+              >
+                <span>Week</span>
+                <span>{activePaymentTooltip.week}</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold text-slate-900">
+                    {activePaymentTooltip.milestone}
+                  </h4>
+                  <span className="text-[11px] font-medium text-slate-500">
+                    ({activePaymentTooltip.projectName})
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 mt-0.5">
+                  สถานะ:{" "}
+                  <strong className="text-slate-800">
+                    {(PAYMENT_MARKER_STYLES[activePaymentTooltip.status] || PAYMENT_MARKER_STYLES.planned).label}
+                  </strong>
+                  {activePaymentTooltip.invoiceDate ? ` • วันที่เรียกเก็บ: ${activePaymentTooltip.invoiceDate}` : ""}
+                </p>
+              </div>
+            </div>
+
+            <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-800 font-mono font-extrabold text-sm rounded-lg shadow-2xs">
+              ฿{Number(activePaymentTooltip.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            </div>
+          </div>
+        )}
+
         {/* Color Palette Legend */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-3 text-xs">
             <div className="flex items-center gap-1.5 font-bold text-slate-800">
               <Layers className="w-4 h-4 text-slate-600" />
-              <span>Phase & Payment Stages (Minimal Pastel Colors):</span>
+              <span>Stage All — ระยะเวลาดำเนินงานตามเฟส:</span>
             </div>
 
             <div className="flex items-center flex-wrap gap-4">
@@ -490,6 +610,22 @@ export default function ProjectRoadmapPage() {
                 <div key={i} className="flex items-center gap-1.5 text-[11px] text-slate-700">
                   <span className={`w-3.5 h-3.5 rounded-sm ${seg.bg} border border-black/5 shadow-2xs`} />
                   <span>{seg.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between flex-wrap gap-3 text-xs pt-3 border-t border-slate-100">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800">
+              <CreditCard className="w-4 h-4 text-slate-600" />
+              <span>สถานะการเก็บเงินรายสัปดาห์:</span>
+            </div>
+
+            <div className="flex items-center flex-wrap gap-4">
+              {Object.entries(PAYMENT_MARKER_STYLES).map(([key, style]) => (
+                <div key={key} className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                  <span className={`w-3.5 h-3.5 rounded-sm ${style.bg} border border-black/5 shadow-2xs`} />
+                  <span>{style.label}</span>
                 </div>
               ))}
             </div>
