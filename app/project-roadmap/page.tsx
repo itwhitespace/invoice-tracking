@@ -1,50 +1,16 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { SavedRecord } from "@/lib/types";
+import { SavedRecord, PaymentStatus } from "@/lib/types";
 import { getSupabaseClient, getSavedRecords } from "@/lib/supabase";
+import { getTotalWeeks } from "@/lib/timeframe-utils";
 import { useSettings } from "@/lib/settings-context";
 import {
   CalendarRange,
   Building2,
   Calendar,
   Layers,
-  CreditCard,
 } from "lucide-react";
-
-// Minimal pastel palette
-const MINIMAL_PASTEL_COLORS = [
-  {
-    bg: "bg-[#7DD3FC]", // Pastel Sky Blue
-    text: "text-slate-900",
-    name: "Phase 1: Concept / Deposit",
-  },
-  {
-    bg: "bg-[#FEF08A]", // Soft Butter Cream
-    text: "text-slate-900",
-    name: "Phase 2: Schematic / 3D",
-  },
-  {
-    bg: "bg-[#C4B5FD]", // Soft Lavender
-    text: "text-slate-900",
-    name: "Phase 3: Design Development",
-  },
-  {
-    bg: "bg-[#FDA4AF]", // Soft Coral / Pink
-    text: "text-slate-900",
-    name: "Phase 4: Working Drawings",
-  },
-  {
-    bg: "bg-[#6EE7B7]", // Mint Green
-    text: "text-slate-900",
-    name: "Phase 5: Site Supervision",
-  },
-  {
-    bg: "bg-[#FDBA74]", // Soft Peach
-    text: "text-slate-900",
-    name: "Phase 6: Final Handover",
-  },
-];
 
 interface MonthConfig {
   name: string; // e.g. "Jul-26"
@@ -58,10 +24,13 @@ const MONTH_NAMES = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-// Payment-week marker colors. "planned" is the pre-invoice state — a week is
-// already chosen at Upload time, but no invoice date/status has been set yet.
-const PAYMENT_MARKER_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  planned: { bg: "bg-slate-200", text: "text-slate-700", label: "วางแผนเก็บเงิน" },
+// "Stage All" background — one flat bar spanning every week actually worked.
+const STAGE_ALL_STYLE = { bg: "bg-slate-200", text: "text-slate-500", label: "Stage All (ระยะเวลาทำงานทั้งหมด)" };
+
+// Payment-week markers overlap on top of the Stage All bar at their planned
+// week. A marker with no explicit status yet (no invoice date set) defaults
+// to Wait, since gray is now reserved for the Stage All background.
+const PAYMENT_MARKER_STYLES: Record<PaymentStatus, { bg: string; text: string; label: string }> = {
   wait: { bg: "bg-amber-300", text: "text-amber-950", label: "Wait" },
   invoice: { bg: "bg-sky-300", text: "text-sky-950", label: "Invoice" },
   paid: { bg: "bg-emerald-300", text: "text-emerald-950", label: "Paid" },
@@ -87,22 +56,12 @@ export default function ProjectRoadmapPage() {
   const [startMonthIndex, setStartMonthIndex] = useState<number>(6); // Default to Jul (Jul-26 to Dec-26)
   const [monthsToShow, setMonthsToShow] = useState<number>(6);
 
-  const [activeTooltip, setActiveTooltip] = useState<{
-    projectName: string;
-    phaseName: string;
-    duration: string;
-    paymentMilestone: string;
-    paymentPercentage: number;
-    paymentAmount: number;
-    monthName: string;
-  } | null>(null);
-
   const [activePaymentTooltip, setActivePaymentTooltip] = useState<{
     projectName: string;
     milestone: string;
     amount: number;
     week: number;
-    status: string;
+    status: PaymentStatus;
     invoiceDate?: string;
   } | null>(null);
 
@@ -146,20 +105,6 @@ export default function ProjectRoadmapPage() {
     return monthHeaders.reduce((acc, m) => acc + m.weeksCount, 0);
   }, [monthHeaders]);
 
-  // Helper to parse weeks
-  const parseWeeks = (str: string): number => {
-    if (!str) return 3;
-    const match = str.match(/(\d+)\s*(week|month|day|สัปดาห์|เดือน|วัน)/i);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      const unit = match[2].toLowerCase();
-      if (unit.startsWith("month") || unit.startsWith("เดือน")) return Math.max(1, num * 4);
-      if (unit.startsWith("day") || unit.startsWith("วัน")) return Math.max(1, Math.round(num / 7));
-      return Math.max(1, num);
-    }
-    return 3;
-  };
-
   // Map a project's real Start Date (from the Operations tab) onto the
   // currently visible month/week grid. Returns null when there is no Start
   // Date set yet, or it falls outside the visible year/month range.
@@ -190,13 +135,13 @@ export default function ProjectRoadmapPage() {
       if (startCol === null) {
         return {
           project: proj,
-          segments: [],
+          hasStage: false,
           paymentMarkers: [] as {
             col: number;
             milestone: string;
             amount: number;
             week: number;
-            status: string;
+            status: PaymentStatus;
             invoiceDate?: string;
           }[],
           startCol: 0,
@@ -206,70 +151,31 @@ export default function ProjectRoadmapPage() {
         };
       }
 
-      const projectStartCol = startCol;
-      let runningCol = projectStartCol;
+      // Stage All — one flat bar spanning every week actually worked,
+      // clamped so it never overruns the visible grid.
+      const totalWeeksWorked = Math.max(1, getTotalWeeks(proj.timeFrames));
+      const spanCols = Math.min(totalWeeksWorked, Math.max(1, totalGridColumns - startCol));
 
-      const timeFrames = proj.timeFrames && proj.timeFrames.length > 0
-        ? proj.timeFrames
-        : [
-            { phase: "Concept Design", description: "Design concept", duration: "3 Weeks" },
-            { phase: "3D Perspective", description: "3D Visuals", duration: "4 Weeks" },
-            { phase: "Working Drawings", description: "Construction docs", duration: "4 Weeks" },
-          ];
-
-      const paymentTerms = proj.paymentTerms && proj.paymentTerms.length > 0
-        ? proj.paymentTerms
-        : [
-            { milestone: "Deposit", paymentPercentage: 30, amount: proj.totalFee * 0.3 },
-            { milestone: "3D Approval", paymentPercentage: 40, amount: proj.totalFee * 0.4 },
-            { milestone: "Final Delivery", paymentPercentage: 30, amount: proj.totalFee * 0.3 },
-          ];
-
-      const segments = timeFrames.map((tf, segIdx) => {
-        const segWeeks = parseWeeks(tf.duration);
-        const startCol = runningCol;
-        const endCol = Math.min(totalGridColumns, runningCol + segWeeks);
-        runningCol = endCol;
-
-        const color = MINIMAL_PASTEL_COLORS[segIdx % MINIMAL_PASTEL_COLORS.length];
-        const payment = paymentTerms[segIdx] || paymentTerms[paymentTerms.length - 1];
-
-        return {
-          index: segIdx,
-          phaseName: tf.phase.replace(/Phase \d+:\s*/i, ""),
-          fullPhaseName: tf.phase,
-          duration: tf.duration,
-          weeks: segWeeks,
-          startCol,
-          endCol,
-          spanCols: Math.max(1, endCol - startCol),
-          color,
-          paymentMilestone: payment?.milestone || `งวดที่ ${segIdx + 1}`,
-          paymentPercentage: payment?.paymentPercentage || 25,
-          paymentAmount: payment?.amount || (proj.totalFee * 0.25),
-        };
-      });
-
-      // Payment-week markers — positioned by the milestone's own planned
-      // week (independent of which phase it happens to line up with).
+      // Payment-week markers overlap on top of the Stage All bar, positioned
+      // by each milestone's own planned week.
       const paymentMarkers = (proj.paymentTerms || [])
         .filter((pt) => !!pt.paymentWeek)
         .map((pt) => ({
-          col: projectStartCol + (pt.paymentWeek! - 1),
+          col: startCol + (pt.paymentWeek! - 1),
           milestone: pt.milestone,
           amount: pt.amount,
           week: pt.paymentWeek!,
-          status: pt.paymentStatus || (pt.invoiceDate ? "wait" : "planned"),
+          status: (pt.paymentStatus || "wait") as PaymentStatus,
           invoiceDate: pt.invoiceDate,
         }))
         .filter((pm) => pm.col >= 0 && pm.col < totalGridColumns);
 
       return {
         project: proj,
-        segments,
+        hasStage: true,
         paymentMarkers,
-        startCol: projectStartCol,
-        totalSpanCols: runningCol - projectStartCol,
+        startCol,
+        totalSpanCols: spanCols,
         noStartDate: false,
         outOfRange: false,
       };
@@ -432,9 +338,9 @@ export default function ProjectRoadmapPage() {
                         </div>
                       </div>
 
-                      {/* Right Column: Minimalist Pastel Gantt Bars */}
-                      <div className="flex-1 relative p-3 flex flex-col justify-center gap-1.5 min-h-[92px] bg-white">
-                        {row.segments.length === 0 ? (
+                      {/* Right Column: Stage All background + Payment Week Markers */}
+                      <div className="flex-1 relative p-3 flex items-center min-h-[76px] bg-white">
+                        {!row.hasStage ? (
                           <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1 font-medium">
                             {row.noStartDate
                               ? "ยังไม่ได้ระบุ Start Date — ไปตั้งค่าที่แท็บ \"รายละเอียดการดำเนินงาน\" ในหน้า Proposal Preview"
@@ -448,71 +354,54 @@ export default function ProjectRoadmapPage() {
                           style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
                         />
 
-                        {/* Stacked Solid Pastel Gantt Blocks Container — "Stage All": every week actually worked */}
-                        <div
-                          className="relative z-10 grid w-full h-9 items-center"
-                          style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
-                        >
-                          {row.segments.map((seg, segIdx) => {
-                            return (
-                              <div
-                                key={segIdx}
-                                style={{
-                                  gridColumn: `${seg.startCol + 1} / span ${seg.spanCols}`,
-                                }}
-                                onMouseEnter={() =>
-                                  setActiveTooltip({
-                                    projectName: proj.projectName,
-                                    phaseName: seg.fullPhaseName,
-                                    duration: seg.duration,
-                                    paymentMilestone: seg.paymentMilestone,
-                                    paymentPercentage: seg.paymentPercentage,
-                                    paymentAmount: seg.paymentAmount,
-                                    monthName: monthHeaders[Math.floor(seg.startCol / 4)]?.name || "",
-                                  })
-                                }
-                                onMouseLeave={() => setActiveTooltip(null)}
-                                className={`h-9 ${seg.color.bg} ${seg.color.text} rounded-md shadow-2xs font-semibold text-xs flex items-center px-3 cursor-pointer transition-all duration-150 hover:brightness-95 hover:shadow-xs hover:scale-[1.01] hover:z-20 overflow-hidden mx-0.5 border border-black/5`}
-                              >
-                                <span className="truncate font-bold tracking-tight text-[11px]">
-                                  {seg.phaseName}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Payment Week Markers — colored by status, showing amount instead of % */}
-                        {row.paymentMarkers.length > 0 && (
+                        <div className="relative w-full h-9">
+                          {/* Stage All — flat gray background spanning every week worked */}
                           <div
-                            className="relative z-10 grid w-full h-6"
+                            className="absolute inset-0 grid w-full h-9"
                             style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
                           >
-                            {row.paymentMarkers.map((pm, pmIdx) => {
-                              const style = PAYMENT_MARKER_STYLES[pm.status] || PAYMENT_MARKER_STYLES.planned;
-                              return (
-                                <div
-                                  key={pmIdx}
-                                  style={{ gridColumn: `${pm.col + 1} / span 1` }}
-                                  onMouseEnter={() =>
-                                    setActivePaymentTooltip({
-                                      projectName: proj.projectName,
-                                      milestone: pm.milestone,
-                                      amount: pm.amount,
-                                      week: pm.week,
-                                      status: pm.status,
-                                      invoiceDate: pm.invoiceDate,
-                                    })
-                                  }
-                                  onMouseLeave={() => setActivePaymentTooltip(null)}
-                                  className={`h-6 ${style.bg} ${style.text} rounded shadow-2xs font-mono font-bold text-[10px] flex items-center justify-center cursor-pointer transition-all duration-150 hover:brightness-95 hover:z-20 mx-0.5 border border-black/5`}
-                                >
-                                  {formatCompactAmount(pm.amount)}
-                                </div>
-                              );
-                            })}
+                            <div
+                              style={{ gridColumn: `${row.startCol + 1} / span ${row.totalSpanCols}` }}
+                              className={`h-9 ${STAGE_ALL_STYLE.bg} ${STAGE_ALL_STYLE.text} rounded-md flex items-center px-3 mx-0.5 border border-black/5`}
+                            >
+                              <span className="truncate font-semibold text-[11px]">
+                                Stage All • {row.totalSpanCols} Weeks
+                              </span>
+                            </div>
                           </div>
-                        )}
+
+                          {/* Payment Week Markers — overlap on top, colored by status, showing amount instead of % */}
+                          {row.paymentMarkers.length > 0 && (
+                            <div
+                              className="absolute inset-0 z-10 grid w-full h-9"
+                              style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
+                            >
+                              {row.paymentMarkers.map((pm, pmIdx) => {
+                                const style = PAYMENT_MARKER_STYLES[pm.status];
+                                return (
+                                  <div
+                                    key={pmIdx}
+                                    style={{ gridColumn: `${pm.col + 1} / span 1` }}
+                                    onMouseEnter={() =>
+                                      setActivePaymentTooltip({
+                                        projectName: proj.projectName,
+                                        milestone: pm.milestone,
+                                        amount: pm.amount,
+                                        week: pm.week,
+                                        status: pm.status,
+                                        invoiceDate: pm.invoiceDate,
+                                      })
+                                    }
+                                    onMouseLeave={() => setActivePaymentTooltip(null)}
+                                    className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono font-bold text-[10px] flex items-center justify-center cursor-pointer transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5`}
+                                  >
+                                    {formatCompactAmount(pm.amount)}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                         </>
                         )}
                       </div>
@@ -524,50 +413,12 @@ export default function ProjectRoadmapPage() {
           </div>
         </div>
 
-        {/* Hover Detail Tooltip Card */}
-        {activeTooltip && (
-          <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 text-slate-800 flex flex-col items-center justify-center font-bold text-xs">
-                <span>{activeTooltip.monthName}</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-slate-900">
-                    {activeTooltip.phaseName}
-                  </h4>
-                  <span className="text-[11px] font-medium text-slate-500">
-                    ({activeTooltip.projectName})
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  ระยะเวลาดำเนินงาน: <strong className="text-slate-800">{activeTooltip.duration}</strong>
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 text-right">
-              <div>
-                <span className="text-[11px] text-slate-400 block font-medium">รอบค่างวดชำระ (Payment Term)</span>
-                <span className="text-xs font-bold text-slate-800">
-                  {activeTooltip.paymentMilestone} ({activeTooltip.paymentPercentage}%)
-                </span>
-              </div>
-              <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono font-extrabold text-sm rounded-lg shadow-2xs">
-                ฿{Number(activeTooltip.paymentAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Hover Detail Tooltip Card — Payment Week Marker */}
         {activePaymentTooltip && (
           <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center font-bold text-[10px] border ${
-                  (PAYMENT_MARKER_STYLES[activePaymentTooltip.status] || PAYMENT_MARKER_STYLES.planned).bg
-                } ${(PAYMENT_MARKER_STYLES[activePaymentTooltip.status] || PAYMENT_MARKER_STYLES.planned).text} border-black/5`}
+                className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center font-bold text-[10px] border ${PAYMENT_MARKER_STYLES[activePaymentTooltip.status].bg} ${PAYMENT_MARKER_STYLES[activePaymentTooltip.status].text} border-black/5`}
               >
                 <span>Week</span>
                 <span>{activePaymentTooltip.week}</span>
@@ -584,7 +435,7 @@ export default function ProjectRoadmapPage() {
                 <p className="text-[11px] text-slate-600 mt-0.5">
                   สถานะ:{" "}
                   <strong className="text-slate-800">
-                    {(PAYMENT_MARKER_STYLES[activePaymentTooltip.status] || PAYMENT_MARKER_STYLES.planned).label}
+                    {PAYMENT_MARKER_STYLES[activePaymentTooltip.status].label}
                   </strong>
                   {activePaymentTooltip.invoiceDate ? ` • วันที่เรียกเก็บ: ${activePaymentTooltip.invoiceDate}` : ""}
                 </p>
@@ -597,31 +448,19 @@ export default function ProjectRoadmapPage() {
           </div>
         )}
 
-        {/* Color Palette Legend */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3">
+        {/* Color Legend */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
           <div className="flex items-center justify-between flex-wrap gap-3 text-xs">
             <div className="flex items-center gap-1.5 font-bold text-slate-800">
               <Layers className="w-4 h-4 text-slate-600" />
-              <span>Stage All — ระยะเวลาดำเนินงานตามเฟส:</span>
+              <span>คำอธิบายสี:</span>
             </div>
 
             <div className="flex items-center flex-wrap gap-4">
-              {MINIMAL_PASTEL_COLORS.map((seg, i) => (
-                <div key={i} className="flex items-center gap-1.5 text-[11px] text-slate-700">
-                  <span className={`w-3.5 h-3.5 rounded-sm ${seg.bg} border border-black/5 shadow-2xs`} />
-                  <span>{seg.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between flex-wrap gap-3 text-xs pt-3 border-t border-slate-100">
-            <div className="flex items-center gap-1.5 font-bold text-slate-800">
-              <CreditCard className="w-4 h-4 text-slate-600" />
-              <span>สถานะการเก็บเงินรายสัปดาห์:</span>
-            </div>
-
-            <div className="flex items-center flex-wrap gap-4">
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                <span className={`w-3.5 h-3.5 rounded-sm ${STAGE_ALL_STYLE.bg} border border-black/5 shadow-2xs`} />
+                <span>{STAGE_ALL_STYLE.label}</span>
+              </div>
               {Object.entries(PAYMENT_MARKER_STYLES).map(([key, style]) => (
                 <div key={key} className="flex items-center gap-1.5 text-[11px] text-slate-700">
                   <span className={`w-3.5 h-3.5 rounded-sm ${style.bg} border border-black/5 shadow-2xs`} />
