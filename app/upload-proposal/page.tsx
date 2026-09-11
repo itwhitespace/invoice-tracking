@@ -12,11 +12,7 @@ import {
   ExtractedProjectData,
   SavedRecord,
 } from "@/lib/types";
-import {
-  EMPTY_PROJECT_DATA,
-  SAMPLE_PROJECT_DATA,
-  SAMPLE_PROJECT_DATA_2,
-} from "@/lib/sample-data";
+import { EMPTY_PROJECT_DATA } from "@/lib/sample-data";
 import {
   getSupabaseClient,
   getSavedRecords,
@@ -83,21 +79,6 @@ export default function UploadProposalPage() {
     extractPDFData(uploadedFile);
   };
 
-  // Sample document switch
-  const handleSelectSample = (sampleType: "villa" | "cafe") => {
-    setFile(null);
-    if (sampleType === "villa") {
-      setSampleName("Villa Horizon Proposal");
-      setData(SAMPLE_PROJECT_DATA);
-    } else {
-      setSampleName("The Urban Loft Cafe Renovation");
-      setData(SAMPLE_PROJECT_DATA_2);
-    }
-    setIsAiExtracted(true);
-    setIsDemoFallback(false);
-    showToast("info", `โหลดเอกสารตัวอย่าง: ${sampleType === "villa" ? "Villa Horizon" : "The Urban Loft"}`);
-  };
-
   // AI Extraction Function
   const extractPDFData = async (pdfFile: File) => {
     setIsExtracting(true);
@@ -152,18 +133,7 @@ export default function UploadProposalPage() {
     if (file) {
       extractPDFData(file);
     } else {
-      // Simulate quick re-extraction on sample
-      setIsExtracting(true);
-      setIsExtractCompleted(false);
-      setTimeout(() => {
-        setIsExtractCompleted(true);
-        setTimeout(() => {
-          setIsExtracting(false);
-          setIsExtractCompleted(false);
-          setIsAiExtracted(true);
-          showToast("success", "AI สกัดข้อมูลจากเอกสารตัวอย่างสำเร็จ");
-        }, 750);
-      }, 1000);
+      showToast("warning", "กรุณาอัปโหลดไฟล์ PDF ก่อนเริ่มสกัดข้อมูล");
     }
   };
 
@@ -390,11 +360,7 @@ export default function UploadProposalPage() {
       <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
         {/* Left Column: PDF Document Viewer */}
         <section className="h-full overflow-hidden border-r border-slate-200">
-          <PDFViewer
-            file={file}
-            sampleName={sampleName}
-            onSelectSample={handleSelectSample}
-          />
+          <PDFViewer file={file} sampleName={sampleName} />
         </section>
 
         {/* Right Column: Editable Verification Form & Tables */}
