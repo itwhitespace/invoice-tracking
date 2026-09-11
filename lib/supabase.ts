@@ -184,22 +184,26 @@ export async function updateRecordRemote(
 
     if (updateError) return { error: updateError.message };
 
-    // Payment terms are small and simplest to keep in sync by replacing the
-    // whole set rather than diffing row-by-row.
-    await supabase.from("project_payment_terms").delete().eq("project_id", record.id);
-    if (record.paymentTerms.length > 0) {
-      const { error: ptError } = await supabase.from("project_payment_terms").insert(
-        record.paymentTerms.map((pt, i) => ({
-          project_id: record.id,
+    // Update each payment term row in place by its own id — NOT a
+    // delete-then-insert of the whole set. Field edits in the detail modal
+    // fire one onUpdate() per keystroke/selection, so concurrent calls are
+    // expected; delete+insert let two overlapping calls interleave into
+    // duplicate rows (a delete wiping nothing followed by two inserts).
+    // Per-row updates are safe under that race — each just overwrites the
+    // same row regardless of ordering.
+    for (const pt of record.paymentTerms) {
+      if (!pt.id) continue; // no matching remote row yet (shouldn't happen from the edit flow)
+      const { error: ptError } = await supabase
+        .from("project_payment_terms")
+        .update({
           milestone: pt.milestone,
           payment_percentage: pt.paymentPercentage,
           amount: pt.amount,
           payment_week: pt.paymentWeek ?? null,
           invoice_date: pt.invoiceDate || null,
           payment_status: pt.paymentStatus || null,
-          sort_order: i,
-        }))
-      );
+        })
+        .eq("id", pt.id);
       if (ptError) return { error: ptError.message };
     }
 
