@@ -118,6 +118,7 @@ function mapProjectRowToRecord(row: any): SavedRecord {
         milestone: pt.milestone,
         paymentPercentage: Number(pt.payment_percentage) || 0,
         amount: Number(pt.amount) || 0,
+        paymentWeek: pt.payment_week ?? undefined,
       })),
     pdfUrl: row.pdf_url || "",
     pdfFileName: row.pdf_file_name || "",
@@ -191,6 +192,7 @@ export async function updateRecordRemote(
           milestone: pt.milestone,
           payment_percentage: pt.paymentPercentage,
           amount: pt.amount,
+          payment_week: pt.paymentWeek ?? null,
           sort_order: i,
         }))
       );

@@ -7,6 +7,7 @@ import {
   TimeFrameItem,
   PaymentTermItem,
 } from "@/lib/types";
+import { getTotalWeeks } from "@/lib/timeframe-utils";
 import {
   Plus,
   Trash2,
@@ -80,6 +81,8 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
 
   const isPercentageValid = Math.abs(totalPercentage - 100) < 0.01;
   const isAmountMatching = Math.abs(totalCalculatedAmount - Number(data.totalFee || 0)) < 1;
+
+  const totalWeeks = useMemo(() => getTotalWeeks(data.timeFrames), [data.timeFrames]);
 
   // Handlers for Project Brief
   const handleFieldChange = (field: keyof ExtractedProjectData, value: any) => {
@@ -165,7 +168,7 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
 
   const handleUpdatePaymentTerm = (
     index: number,
-    field: "milestone" | "paymentPercentage",
+    field: "milestone" | "paymentPercentage" | "paymentWeek",
     val: string
   ) => {
     const updated = [...data.paymentTerms];
@@ -175,6 +178,8 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
       const pct = parseFloat(val) || 0;
       current.paymentPercentage = pct;
       current.amount = Math.round((data.totalFee * pct) / 100);
+    } else if (field === "paymentWeek") {
+      current.paymentWeek = val ? parseInt(val, 10) : undefined;
     } else {
       current.milestone = val;
     }
@@ -540,6 +545,7 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
               <tr>
                 <th className="p-2.5">Milestone / Term</th>
                 <th className="p-2.5 w-28 text-right">Payment %</th>
+                <th className="p-2.5 w-32 text-center">เก็บเงินสัปดาห์ที่</th>
                 <th className="p-2.5 w-36 text-right">Amount (THB)</th>
                 <th className="p-2.5 w-10 text-center"></th>
               </tr>
@@ -547,7 +553,7 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
             <tbody className="divide-y divide-slate-100">
               {data.paymentTerms.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-4 text-center text-slate-500 text-xs">
+                  <td colSpan={5} className="p-4 text-center text-slate-500 text-xs">
                     ยังไม่มีรายการงวดการจ่ายเงิน
                   </td>
                 </tr>
@@ -576,6 +582,26 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
                         />
                         <span className="text-slate-600 font-mono font-bold">%</span>
                       </div>
+                    </td>
+                    <td className="p-2 text-center">
+                      <select
+                        value={item.paymentWeek ?? ""}
+                        onChange={(e) => handleUpdatePaymentTerm(idx, "paymentWeek", e.target.value)}
+                        disabled={totalWeeks === 0}
+                        title={
+                          totalWeeks === 0
+                            ? "กรอกข้อมูลตาราง Time Frame (หัวข้อ 3) ก่อน เพื่อให้ระบบรู้จำนวนสัปดาห์ทั้งหมด"
+                            : undefined
+                        }
+                        className="w-full px-2 py-1.5 text-xs text-center font-mono font-semibold text-black bg-transparent border border-slate-200 rounded outline-none focus:bg-white focus:border-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="">- ยังไม่ระบุ -</option>
+                        {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((w) => (
+                          <option key={w} value={w}>
+                            Week {w}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="p-2 text-right">
                       <span className="block w-full px-2 py-1.5 text-xs text-right font-mono font-bold text-black">
@@ -613,6 +639,7 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
                     {totalPercentage.toFixed(1)}%
                   </span>
                 </td>
+                <td></td>
                 <td className="p-2.5 text-right font-mono text-sm">
                   <span
                     className={

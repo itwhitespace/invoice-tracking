@@ -238,6 +238,7 @@ export default function UploadProposalPage() {
                 milestone: pt.milestone,
                 payment_percentage: pt.paymentPercentage,
                 amount: pt.amount,
+                payment_week: pt.paymentWeek ?? null,
                 sort_order: i,
               }))
             );

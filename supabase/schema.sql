@@ -66,6 +66,7 @@ create table if not exists public.project_payment_terms (
   milestone           text not null,
   payment_percentage  numeric(6, 2) not null default 0,
   amount              numeric(14, 2) not null default 0,
+  payment_week        int,                                  -- Which week (within the project's total duration) this milestone is planned to be collected
   sort_order          int not null default 0
 );
 
@@ -149,6 +150,7 @@ create policy "Anon manage pdf-documents" on storage.objects
 alter table public.projects add column if not exists start_date  date;
 alter table public.projects add column if not exists department  text;
 alter table public.projects add column if not exists approved_at timestamptz;
+alter table public.project_payment_terms add column if not exists payment_week int;
 
 -- ============================================================================
 -- Done. In the app's Settings page, set:

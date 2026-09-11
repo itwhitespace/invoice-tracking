@@ -17,6 +17,9 @@ export interface PaymentTermItem {
   milestone: string;
   paymentPercentage: number;
   amount: number;
+  // Which week (1-indexed, within the project's total design duration) this
+  // milestone is planned to be collected in.
+  paymentWeek?: number;
 }
 
 export interface ExtractedProjectData {

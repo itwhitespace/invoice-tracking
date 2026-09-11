@@ -1,6 +1,7 @@
 "use client";
 
 import { SavedRecord, Department } from "@/lib/types";
+import { getTotalWeeks } from "@/lib/timeframe-utils";
 import {
   X,
   FileText,
@@ -52,6 +53,7 @@ export function ProposalDetailModal({
 
   const vatAmount = (localRecord.totalFee || 0) * 0.07;
   const grandTotal = (localRecord.totalFee || 0) + vatAmount;
+  const totalWeeks = getTotalWeeks(localRecord.timeFrames || []);
 
   const handleExportJSON = () => {
     const dataStr =
@@ -75,6 +77,17 @@ export function ProposalDetailModal({
       ...updatedTerms[idx],
       paymentPercentage: pct,
       amount: Math.round((localRecord.totalFee * pct) / 100),
+    };
+    const updated = { ...localRecord, paymentTerms: updatedTerms };
+    setLocalRecord(updated);
+    onUpdate(updated);
+  };
+
+  const handleUpdatePaymentWeek = (idx: number, val: string) => {
+    const updatedTerms = [...(localRecord.paymentTerms || [])];
+    updatedTerms[idx] = {
+      ...updatedTerms[idx],
+      paymentWeek: val ? parseInt(val, 10) : undefined,
     };
     const updated = { ...localRecord, paymentTerms: updatedTerms };
     setLocalRecord(updated);
@@ -389,6 +402,7 @@ export function ProposalDetailModal({
                       <th className="px-4 py-2.5 w-12 text-center">#</th>
                       <th className="px-4 py-2.5">เงื่อนไขงวดงาน (Milestone)</th>
                       <th className="px-4 py-2.5 text-center w-28">สัดส่วน (%)</th>
+                      <th className="px-4 py-2.5 text-center w-32">เก็บเงินสัปดาห์ที่</th>
                       <th className="px-4 py-2.5 text-right w-36">จำนวนเงิน (THB)</th>
                     </tr>
                   </thead>
@@ -409,6 +423,26 @@ export function ProposalDetailModal({
                             <span className="text-slate-500 font-mono font-bold text-[11px]">%</span>
                           </div>
                         </td>
+                        <td className="px-4 py-2.5 text-center">
+                          <select
+                            value={pt.paymentWeek ?? ""}
+                            onChange={(e) => handleUpdatePaymentWeek(idx, e.target.value)}
+                            disabled={totalWeeks === 0}
+                            title={
+                              totalWeeks === 0
+                                ? "ยังไม่มีข้อมูล Time Frame ให้อ้างอิงจำนวนสัปดาห์ทั้งหมด"
+                                : undefined
+                            }
+                            className="w-full px-2 py-1 text-xs text-center font-mono font-semibold text-slate-800 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <option value="">- ยังไม่ระบุ -</option>
+                            {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((w) => (
+                              <option key={w} value={w}>
+                                Week {w}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
                         <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-700">
                           ฿{Number(pt.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </td>
@@ -418,7 +452,7 @@ export function ProposalDetailModal({
                 </table>
               </div>
               <div className="px-4 py-2 bg-slate-50/60 border-t border-slate-100 text-[11px] text-slate-500">
-                แก้ไข % แล้วจำนวนเงินจะคำนวณให้อัตโนมัติ และบันทึกเก็บไว้ทันที
+                แก้ไข % หรือสัปดาห์ที่เก็บเงินได้เลย ระบบจะคำนวณจำนวนเงินและบันทึกเก็บไว้ให้อัตโนมัติ
               </div>
             </div>
           )}
