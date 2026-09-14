@@ -70,7 +70,7 @@ create table if not exists public.project_payment_terms (
   amount              numeric(14, 2) not null default 0,
   payment_week        int,                                  -- Which week (within the project's total duration) this milestone is planned to be collected
   invoice_date        date,                                  -- Scheduled invoice/collection date
-  payment_status      text check (payment_status in ('wait', 'invoice', 'paid')),
+  payment_status      text check (payment_status in ('wait', 'invoice', 'paid', 'hold', 'cancelled')),
   invoice_issued_date date,                                  -- Set when status moves to Invoice
   paid_date           date,                                  -- Set when status moves to Paid
   sort_order          int not null default 0
@@ -164,8 +164,11 @@ alter table public.project_payment_terms add constraint project_payment_terms_pa
   check (payment_status in ('wait', 'invoice', 'paid'));
 alter table public.project_payment_terms add column if not exists invoice_issued_date date;
 alter table public.project_payment_terms add column if not exists paid_date date;
-alter table public.projects add column if not exists on_hold boolean not null default false;
+alter table public.projects add column if not exists on_hold boolean not null default false; -- deprecated, no longer written by the app (superseded by per-installment payment_status)
 alter table public.projects add column if not exists roadmap_note text;
+alter table public.project_payment_terms drop constraint if exists project_payment_terms_payment_status_check;
+alter table public.project_payment_terms add constraint project_payment_terms_payment_status_check
+  check (payment_status in ('wait', 'invoice', 'paid', 'hold', 'cancelled'));
 
 -- ============================================================================
 -- Done. In the app's Settings page, set:
