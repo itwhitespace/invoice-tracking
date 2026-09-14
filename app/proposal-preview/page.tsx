@@ -162,20 +162,13 @@ function ProposalPreviewContent() {
                         })}
                       </td>
                       <td className="p-3.5">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize ${
-                              STATUS_STYLES[rec.status] || STATUS_STYLES.pending
-                            }`}
-                          >
-                            {rec.status}
-                          </span>
-                          {rec.status === "approved" && rec.onHold && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-100 text-amber-800 border-amber-300">
-                              Hold
-                            </span>
-                          )}
-                        </div>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize ${
+                            STATUS_STYLES[rec.status] || STATUS_STYLES.pending
+                          }`}
+                        >
+                          {rec.status}
+                        </span>
                       </td>
                       <td className="p-3.5 text-slate-500 font-mono text-[11px]">
                         {new Date(rec.created_at).toLocaleString("th-TH")}

@@ -23,8 +23,8 @@ import {
   Loader2,
   CheckCircle2,
   Filter,
-  PauseCircle,
   StickyNote,
+  HelpCircle,
 } from "lucide-react";
 
 interface MonthConfig {
@@ -44,13 +44,27 @@ const MONTH_NAMES = [
 const STAGE_ALL_STYLE = { bg: "bg-slate-200", text: "text-slate-500", label: "Stage All (ระยะเวลาทำงานทั้งหมด)" };
 
 // Payment-week markers overlap on top of the Stage All bar at their planned
-// week. A marker with no explicit status yet (no invoice date set) defaults
-// to Wait, since gray is now reserved for the Stage All background.
+// week. A marker with no explicit status yet defaults to Wait.
 const PAYMENT_MARKER_STYLES: Record<PaymentStatus, { bg: string; text: string; label: string }> = {
   wait: { bg: "bg-amber-300", text: "text-amber-950", label: "Wait" },
   invoice: { bg: "bg-sky-300", text: "text-sky-950", label: "Invoice" },
   paid: { bg: "bg-emerald-300", text: "text-emerald-950", label: "Paid" },
+  hold: { bg: "bg-violet-300", text: "text-violet-950", label: "Hold" },
+  cancelled: { bg: "bg-red-300", text: "text-red-950", label: "Cancelled" },
 };
+
+// Full-length labels for the status-picker modal (click a marker to open it).
+const STATUS_PICKER_OPTIONS: { value: PaymentStatus; label: string }[] = [
+  { value: "wait", label: "รอเก็บเงิน" },
+  { value: "invoice", label: "วางบิลแล้ว" },
+  { value: "paid", label: "เก็บเงินแล้ว" },
+  { value: "hold", label: "Hold ไว้ก่อน" },
+  { value: "cancelled", label: "ยกเลิกงาน" },
+];
+
+// A minimal pointer movement below this (px) is treated as a click (open the
+// status picker) rather than the start of a drag-to-reschedule gesture.
+const CLICK_MOVE_THRESHOLD = 5;
 
 // Resolves the date that belongs to a payment term's current status — the
 // same rule the detail modal's "วันที่ของสถานะ" column uses.
@@ -146,6 +160,8 @@ function ProjectRoadmapContent() {
     startCol: number;
     rectLeft: number;
     colWidth: number;
+    startX: number;
+    startY: number;
   } | null>(null);
   const [dragOverCol, setDragOverCol] = useState<number | null>(null);
   const [pendingDrop, setPendingDrop] = useState<{
@@ -164,6 +180,21 @@ function ProjectRoadmapContent() {
   // Free-text Roadmap note — opened by clicking a project's department badge
   const [noteEditor, setNoteEditor] = useState<{ recordId: string; projectName: string; value: string } | null>(null);
   const [isSavingNote, setIsSavingNote] = useState(false);
+
+  // Payment-term status picker — opened by clicking (not dragging) a marker
+  const [statusEditor, setStatusEditor] = useState<{
+    recordId: string;
+    ptIdx: number;
+    milestone: string;
+    projectName: string;
+    currentStatus: PaymentStatus;
+  } | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<PaymentStatus>("wait");
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
+
+  useEffect(() => {
+    if (statusEditor) setPendingStatus(statusEditor.currentStatus);
+  }, [statusEditor]);
 
   // Load saved records from Supabase (shared across every device) with the
   // local history as a fallback/merge for anything not yet synced.
@@ -271,17 +302,30 @@ function ProjectRoadmapContent() {
     };
     const handlePointerUp = (e: PointerEvent) => {
       const col = colAt(e.clientX);
-      const { recordId, ptIdx, originalWeek, startCol } = dragState;
+      const { recordId, ptIdx, originalWeek, startCol, startX, startY } = dragState;
       setDragState(null);
       setDragOverCol(null);
-
-      const newWeek = col - startCol + 1;
-      if (newWeek < 1 || newWeek === originalWeek) return;
 
       const proj = filteredProjects.find((p) => p.id === recordId);
       if (!proj) return;
       const pt = proj.paymentTerms[ptIdx];
       if (!pt) return;
+
+      // Barely any movement = a click, not a drag — open the status picker.
+      const movedDistance = Math.hypot(e.clientX - startX, e.clientY - startY);
+      if (movedDistance < CLICK_MOVE_THRESHOLD) {
+        setStatusEditor({
+          recordId: proj.id,
+          ptIdx,
+          milestone: pt.milestone,
+          projectName: proj.projectName,
+          currentStatus: pt.paymentStatus || "wait",
+        });
+        return;
+      }
+
+      const newWeek = col - startCol + 1;
+      if (newWeek < 1 || newWeek === originalWeek) return;
 
       const { status, date: oldDate } = getPaymentStatusInfo(pt);
       const statusField: "invoiceDate" | "invoiceIssuedDate" | "paidDate" =
@@ -402,8 +446,8 @@ function ProjectRoadmapContent() {
 
     const totals = new Array(monthHeaders.length).fill(0);
     for (const row of timelineRows) {
-      if (row.project.onHold) continue; // Held projects stay visible but don't count toward totals
       for (const pm of row.paymentMarkers) {
+        if (pm.status === "hold" || pm.status === "cancelled") continue; // Held/cancelled installments don't count toward totals
         const mIdx = colToMonthIdx[pm.col];
         if (mIdx !== undefined) totals[mIdx] += pm.amount;
       }
@@ -434,6 +478,8 @@ function ProjectRoadmapContent() {
       startCol: rowStartCol,
       rectLeft: rect.left,
       colWidth,
+      startX: e.clientX,
+      startY: e.clientY,
     });
     setDragOverCol(Math.max(0, Math.min(totalGridColumns - 1, Math.floor((e.clientX - rect.left) / colWidth))));
   };
@@ -501,6 +547,47 @@ function ProjectRoadmapContent() {
       setNoteEditor(null);
     } finally {
       setIsSavingNote(false);
+    }
+  };
+
+  // Setting a milestone to "cancelled" also cancels every later installment
+  // (by position) automatically — reverting back is manual, one row at a
+  // time, since there's no reliable "previous status" to restore to.
+  const handleSaveStatus = async () => {
+    if (!statusEditor) return;
+    const record = records.find((r) => r.id === statusEditor.recordId);
+    if (!record) {
+      setStatusEditor(null);
+      return;
+    }
+
+    setIsSavingStatus(true);
+    try {
+      const updatedTerms = record.paymentTerms.map((pt, idx) => {
+        if (idx === statusEditor.ptIdx) {
+          return { ...pt, paymentStatus: pendingStatus };
+        }
+        if (pendingStatus === "cancelled" && idx > statusEditor.ptIdx) {
+          return { ...pt, paymentStatus: "cancelled" as PaymentStatus };
+        }
+        return pt;
+      });
+      const updated: SavedRecord = { ...record, paymentTerms: updatedTerms };
+
+      setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      saveRecordLocally(updated);
+
+      const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+      if (supabase && isRemoteId(updated.id)) {
+        const { error } = await updateRecordRemote(supabase, updated);
+        if (error) {
+          window.alert("อัปเดตขึ้น Supabase ไม่สำเร็จ: " + error);
+        }
+      }
+
+      setStatusEditor(null);
+    } finally {
+      setIsSavingStatus(false);
     }
   };
 
@@ -746,17 +833,6 @@ function ProjectRoadmapContent() {
                         />
 
                         <div className="relative w-full h-9">
-                          {/* Held projects stay on the Roadmap but visually mute — dimmed + a HOLD tag — and are excluded from the monthly totals */}
-                          {proj.onHold && (
-                            <div
-                              className="absolute z-20 -top-2 flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded shadow-sm"
-                              style={{ left: `calc(${(row.startCol / totalGridColumns) * 100}% + 2px)` }}
-                            >
-                              <PauseCircle className="w-2.5 h-2.5" />
-                              HOLD
-                            </div>
-                          )}
-
                           {/* Stage All — flat gray background spanning every week worked */}
                           <div
                             className="absolute inset-0 grid w-full h-9"
@@ -764,9 +840,7 @@ function ProjectRoadmapContent() {
                           >
                             <div
                               style={{ gridColumn: `${row.startCol + 1} / span ${row.totalSpanCols}` }}
-                              className={`h-9 ${STAGE_ALL_STYLE.bg} ${STAGE_ALL_STYLE.text} rounded-md flex items-center px-3 mx-0.5 border border-black/5 ${
-                                proj.onHold ? "opacity-50 grayscale" : ""
-                              }`}
+                              className={`h-9 ${STAGE_ALL_STYLE.bg} ${STAGE_ALL_STYLE.text} rounded-md flex items-center px-3 mx-0.5 border border-black/5`}
                             >
                               <span className="truncate font-semibold text-[11px]">
                                 Stage All • {row.totalSpanCols} Weeks
@@ -805,9 +879,9 @@ function ProjectRoadmapContent() {
                                       });
                                     }}
                                     onMouseLeave={() => setActivePaymentTooltip(null)}
-                                    title="ลากเพื่อย้ายไปสัปดาห์อื่น"
+                                    title="คลิกเพื่อเปลี่ยนสถานะ • ลากเพื่อย้ายไปสัปดาห์อื่น"
                                     className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono flex flex-col items-center justify-center leading-none gap-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5 select-none ${
-                                      isBeingDragged ? "opacity-40" : proj.onHold ? "opacity-50 grayscale" : ""
+                                      isBeingDragged ? "opacity-40" : ""
                                     }`}
                                   >
                                     <span className="text-[8px] font-semibold opacity-80">
@@ -1004,6 +1078,77 @@ function ProjectRoadmapContent() {
                 className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition shadow-sm flex items-center justify-center gap-1.5"
               >
                 {isSavingNote ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Save className="w-3.5 h-3.5" />
+                )}
+                บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Status Picker — click a marker (not drag) to open */}
+      {statusEditor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center shrink-0">
+                <HelpCircle className="w-4 h-4 text-indigo-600" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900">เปลี่ยนสถานะการชำระเงิน</h3>
+                <p className="text-[11px] text-slate-500 truncate">
+                  {statusEditor.milestone} ({statusEditor.projectName})
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              {STATUS_PICKER_OPTIONS.map((opt) => {
+                const style = PAYMENT_MARKER_STYLES[opt.value];
+                const isSelected = pendingStatus === opt.value;
+                return (
+                  <label
+                    key={opt.value}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition ${
+                      isSelected ? "border-indigo-400 bg-indigo-50/60 ring-1 ring-indigo-400" : "border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment-status"
+                      checked={isSelected}
+                      onChange={() => setPendingStatus(opt.value)}
+                      className="shrink-0"
+                    />
+                    <span className={`w-3 h-3 rounded-full shrink-0 ${style.bg} border border-black/10`} />
+                    <span className="text-xs font-semibold text-slate-800">{opt.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {pendingStatus === "cancelled" && (
+              <p className="text-[11px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                หมายเหตุ: งวดถัดไปทั้งหมดหลังจากงวดนี้จะถูกเปลี่ยนเป็น &quot;ยกเลิกงาน&quot; ไปด้วยโดยอัตโนมัติ
+              </p>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setStatusEditor(null)}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleSaveStatus}
+                disabled={isSavingStatus}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition shadow-sm flex items-center justify-center gap-1.5"
+              >
+                {isSavingStatus ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <Save className="w-3.5 h-3.5" />

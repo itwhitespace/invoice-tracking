@@ -21,7 +21,6 @@ import {
   Loader2,
   AlertTriangle,
   XCircle,
-  PauseCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -31,6 +30,8 @@ const PAYMENT_STATUS_BADGE_STYLES: Record<PaymentStatus, string> = {
   wait: "bg-amber-50 border-amber-300 text-amber-900",
   invoice: "bg-sky-50 border-sky-300 text-sky-900",
   paid: "bg-emerald-50 border-emerald-300 text-emerald-900",
+  hold: "bg-violet-50 border-violet-300 text-violet-900",
+  cancelled: "bg-red-50 border-red-300 text-red-900",
 };
 
 interface ProposalDetailModalProps {
@@ -189,12 +190,6 @@ export function ProposalDetailModal({
                   <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
                   {localRecord.status || "pending"}
                 </span>
-                {localRecord.status === "approved" && localRecord.onHold && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
-                    <PauseCircle className="w-3 h-3 mr-1 text-amber-600" />
-                    Hold
-                  </span>
-                )}
               </div>
               <p className="text-[11px] text-slate-500 font-mono mt-0.5">
                 {localRecord.companyName ? `บริษัท: ${localRecord.companyName} • ` : ""}

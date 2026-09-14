@@ -130,7 +130,6 @@ function mapProjectRowToRecord(row: any): SavedRecord {
     startDate: row.start_date || "",
     department: row.department || "",
     approvedAt: row.approved_at || "",
-    onHold: !!row.on_hold,
     roadmapNote: row.roadmap_note || "",
   };
 }
@@ -183,7 +182,6 @@ export async function updateRecordRemote(
         start_date: record.startDate || null,
         department: record.department || null,
         approved_at: record.approvedAt || null,
-        on_hold: !!record.onHold,
         roadmap_note: record.roadmapNote || null,
       })
       .eq("id", record.id);
