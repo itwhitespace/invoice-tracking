@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { SavedRecord, PaymentStatus } from "@/lib/types";
+import { SavedRecord, PaymentStatus, PaymentTermItem } from "@/lib/types";
 import { getSupabaseClient, getSavedRecords } from "@/lib/supabase";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
 import { useSettings } from "@/lib/settings-context";
@@ -34,6 +34,20 @@ const PAYMENT_MARKER_STYLES: Record<PaymentStatus, { bg: string; text: string; l
   wait: { bg: "bg-amber-300", text: "text-amber-950", label: "Wait" },
   invoice: { bg: "bg-sky-300", text: "text-sky-950", label: "Invoice" },
   paid: { bg: "bg-emerald-300", text: "text-emerald-950", label: "Paid" },
+};
+
+// Resolves the date that belongs to a payment term's current status — the
+// same rule the detail modal's "วันที่ของสถานะ" column uses.
+const getPaymentStatusInfo = (pt: PaymentTermItem): { status: PaymentStatus; date?: string } => {
+  const status = pt.paymentStatus || "wait";
+  const date = status === "paid" ? pt.paidDate : status === "invoice" ? pt.invoiceIssuedDate : pt.invoiceDate;
+  return { status, date };
+};
+
+const formatShortDate = (dateStr: string): string => {
+  const date = new Date(`${dateStr}T00:00:00`);
+  if (isNaN(date.getTime())) return dateStr;
+  return date.toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "2-digit" });
 };
 
 const formatCompactAmount = (amount: number): string => {
@@ -335,6 +349,29 @@ export default function ProjectRoadmapPage() {
                             <span>•</span>
                             <span>{proj.area ? proj.area.split("(")[0] : "Active"}</span>
                           </div>
+
+                          {/* Payment cycle schedule: 1/3 : Wait 21/10/69, etc. */}
+                          {proj.paymentTerms && proj.paymentTerms.length > 0 && (
+                            <div className="mt-1.5 space-y-0.5">
+                              {proj.paymentTerms.map((pt, i) => {
+                                const { status, date } = getPaymentStatusInfo(pt);
+                                const style = PAYMENT_MARKER_STYLES[status];
+                                return (
+                                  <div key={i} className="flex items-center gap-1 text-[9.5px] font-mono leading-tight">
+                                    <span className="text-slate-400 shrink-0">
+                                      {i + 1}/{proj.paymentTerms.length}:
+                                    </span>
+                                    <span className={`px-1 rounded ${style.bg} ${style.text} font-bold shrink-0`}>
+                                      {style.label}
+                                    </span>
+                                    <span className="text-slate-500 truncate">
+                                      {date ? formatShortDate(date) : "-"}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
 
