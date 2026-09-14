@@ -236,7 +236,17 @@ export default function ProjectRoadmapPage() {
     });
   }, [allProjects, totalGridColumns, monthHeaders, selectedYear]);
 
-  const handleMarkerDragStart = (recordId: string, ptIdx: number, originalWeek: number) => {
+  const handleMarkerDragStart = (
+    e: React.DragEvent<HTMLDivElement>,
+    recordId: string,
+    ptIdx: number,
+    originalWeek: number
+  ) => {
+    // Some browsers (notably Firefox, and occasionally Chromium) silently
+    // cancel a drag that never calls dataTransfer.setData — the cursor
+    // still flips to "grab" from the CSS class, but no drag actually starts.
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", `${recordId}:${ptIdx}`);
     setDragState({ recordId, ptIdx, originalWeek });
   };
 
@@ -386,6 +396,29 @@ export default function ProjectRoadmapPage() {
           </div>
         ) : (
         <>
+        {/* Color Legend */}
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+          <div className="flex items-center justify-between flex-wrap gap-3 text-xs">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800">
+              <Layers className="w-4 h-4 text-slate-600" />
+              <span>คำอธิบายสี:</span>
+            </div>
+
+            <div className="flex items-center flex-wrap gap-4">
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                <span className={`w-3.5 h-3.5 rounded-sm ${STAGE_ALL_STYLE.bg} border border-black/5 shadow-2xs`} />
+                <span>{STAGE_ALL_STYLE.label}</span>
+              </div>
+              {Object.entries(PAYMENT_MARKER_STYLES).map(([key, style]) => (
+                <div key={key} className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                  <span className={`w-3.5 h-3.5 rounded-sm ${style.bg} border border-black/5 shadow-2xs`} />
+                  <span>{style.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Minimal White Stacked Gantt Chart Container */}
         <div className="bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
@@ -533,7 +566,7 @@ export default function ProjectRoadmapPage() {
                                   <div
                                     key={pmIdx}
                                     draggable
-                                    onDragStart={() => handleMarkerDragStart(proj.id, pm.ptIdx, pm.week)}
+                                    onDragStart={(e) => handleMarkerDragStart(e, proj.id, pm.ptIdx, pm.week)}
                                     onDragEnd={handleMarkerDragEnd}
                                     style={{ gridColumn: `${pm.col + 1} / span 1` }}
                                     onMouseEnter={() =>
@@ -622,29 +655,6 @@ export default function ProjectRoadmapPage() {
             </div>
           </div>
         )}
-
-        {/* Color Legend */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
-          <div className="flex items-center justify-between flex-wrap gap-3 text-xs">
-            <div className="flex items-center gap-1.5 font-bold text-slate-800">
-              <Layers className="w-4 h-4 text-slate-600" />
-              <span>คำอธิบายสี:</span>
-            </div>
-
-            <div className="flex items-center flex-wrap gap-4">
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
-                <span className={`w-3.5 h-3.5 rounded-sm ${STAGE_ALL_STYLE.bg} border border-black/5 shadow-2xs`} />
-                <span>{STAGE_ALL_STYLE.label}</span>
-              </div>
-              {Object.entries(PAYMENT_MARKER_STYLES).map(([key, style]) => (
-                <div key={key} className="flex items-center gap-1.5 text-[11px] text-slate-700">
-                  <span className={`w-3.5 h-3.5 rounded-sm ${style.bg} border border-black/5 shadow-2xs`} />
-                  <span>{style.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
         </>
         )}
       </div>
