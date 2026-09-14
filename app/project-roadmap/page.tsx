@@ -796,7 +796,7 @@ function ProjectRoadmapContent() {
                       className="flex items-stretch hover:bg-slate-50/80 transition-colors group"
                     >
                       {/* Left Column: Project Name from Database */}
-                      <div className="w-64 shrink-0 p-3.5 border-r border-slate-300 flex items-center gap-3 bg-white">
+                      <div className="w-64 shrink-0 p-3.5 border-r border-slate-300 flex items-start gap-3 bg-white">
                         <button
                           type="button"
                           onClick={() =>
@@ -828,12 +828,28 @@ function ProjectRoadmapContent() {
                             <span>{proj.area ? proj.area.split("(")[0] : "Active"}</span>
                           </div>
 
-                          {/* Roadmap note — click the department badge to add/edit */}
-                          <p className="mt-1.5 text-[10px] text-slate-500 leading-snug line-clamp-2">
-                            {proj.roadmapNote || (
-                              <span className="text-slate-300 italic">คลิกกรอบแผนกเพื่อเพิ่มโน้ต</span>
-                            )}
-                          </p>
+                          {/* Roadmap note — click here (or the department badge) to add/edit */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNoteEditor({
+                                recordId: proj.id,
+                                projectName: proj.projectName,
+                                value: proj.roadmapNote || "",
+                              })
+                            }
+                            className="mt-1.5 flex items-start gap-1 text-left w-full group/note"
+                            title="คลิกเพื่อเพิ่ม/แก้ไขโน้ต"
+                          >
+                            <StickyNote className="w-2.5 h-2.5 text-slate-400 group-hover/note:text-indigo-500 shrink-0 mt-0.5 transition-colors" />
+                            <p className="text-[10px] text-slate-500 group-hover/note:text-indigo-600 leading-snug line-clamp-2 transition-colors">
+                              {proj.roadmapNote || (
+                                <span className="text-slate-300 italic group-hover/note:text-indigo-300">
+                                  คลิกเพื่อเพิ่มโน้ต
+                                </span>
+                              )}
+                            </p>
+                          </button>
                         </div>
                       </div>
 
