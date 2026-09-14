@@ -447,7 +447,7 @@ function ProjectRoadmapContent() {
     const totals = new Array(monthHeaders.length).fill(0);
     for (const row of timelineRows) {
       for (const pm of row.paymentMarkers) {
-        if (pm.status === "hold" || pm.status === "cancelled") continue; // Held/cancelled installments don't count toward totals
+        if (pm.status === "cancelled") continue; // Only cancelled installments are excluded — Hold still counts normally
         const mIdx = colToMonthIdx[pm.col];
         if (mIdx !== undefined) totals[mIdx] += pm.amount;
       }
