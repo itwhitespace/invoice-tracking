@@ -246,6 +246,8 @@ export default function UploadProposalPage() {
                 payment_week: pt.paymentWeek ?? null,
                 invoice_date: pt.invoiceDate || null,
                 payment_status: pt.paymentStatus || null,
+                invoice_issued_date: pt.invoiceIssuedDate || null,
+                paid_date: pt.paidDate || null,
                 sort_order: i,
               }))
             );

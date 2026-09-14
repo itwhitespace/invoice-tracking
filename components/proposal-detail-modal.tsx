@@ -16,6 +16,9 @@ import {
   Percent,
   ClipboardCheck,
   HelpCircle,
+  Save,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -45,7 +48,7 @@ interface ProposalDetailModalProps {
   record: SavedRecord | null;
   onClose: () => void;
   onOpenPdf?: (record: SavedRecord) => void;
-  onUpdate: (record: SavedRecord) => void;
+  onUpdate: (record: SavedRecord) => void | Promise<void>;
 }
 
 export function ProposalDetailModal({
@@ -57,11 +60,15 @@ export function ProposalDetailModal({
 }: ProposalDetailModalProps) {
   const [activeTab, setActiveTab] = useState<"all" | "fees" | "timeframes" | "payments" | "operations">("all");
   const [localRecord, setLocalRecord] = useState<SavedRecord | null>(record);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showApproveSuccess, setShowApproveSuccess] = useState(false);
 
   useEffect(() => {
     setLocalRecord(record);
+    setIsDirty(false);
   }, [record]);
 
   if (!isOpen || !localRecord) return null;
@@ -85,6 +92,8 @@ export function ProposalDetailModal({
     downloadAnchor.remove();
   };
 
+  // All field edits below only touch local state — nothing is persisted
+  // until the Save button (shown once something is dirty) is pressed.
   const handleUpdatePaymentPercentage = (idx: number, val: string) => {
     const pct = parseFloat(val) || 0;
     const updatedTerms = [...(localRecord.paymentTerms || [])];
@@ -93,9 +102,8 @@ export function ProposalDetailModal({
       paymentPercentage: pct,
       amount: Math.round((localRecord.totalFee * pct) / 100),
     };
-    const updated = { ...localRecord, paymentTerms: updatedTerms };
-    setLocalRecord(updated);
-    onUpdate(updated);
+    setLocalRecord({ ...localRecord, paymentTerms: updatedTerms });
+    setIsDirty(true);
   };
 
   const handleUpdatePaymentWeek = (idx: number, val: string) => {
@@ -104,13 +112,13 @@ export function ProposalDetailModal({
       ...updatedTerms[idx],
       paymentWeek: val ? parseInt(val, 10) : undefined,
     };
-    const updated = { ...localRecord, paymentTerms: updatedTerms };
-    setLocalRecord(updated);
-    onUpdate(updated);
+    setLocalRecord({ ...localRecord, paymentTerms: updatedTerms });
+    setIsDirty(true);
   };
 
   // Setting an invoice date puts the milestone into "Wait" by default;
-  // clearing the date drops the status too, since there's nothing to track.
+  // clearing the date drops the status (and its Invoice/Paid dates) too,
+  // since there's nothing left to track.
   const handleUpdateInvoiceDate = (idx: number, val: string) => {
     const updatedTerms = [...(localRecord.paymentTerms || [])];
     const current = { ...updatedTerms[idx] };
@@ -119,41 +127,88 @@ export function ProposalDetailModal({
       current.paymentStatus = "wait";
     } else if (!val) {
       current.paymentStatus = undefined;
+      current.invoiceIssuedDate = undefined;
+      current.paidDate = undefined;
     }
     updatedTerms[idx] = current;
-    const updated = { ...localRecord, paymentTerms: updatedTerms };
-    setLocalRecord(updated);
-    onUpdate(updated);
+    setLocalRecord({ ...localRecord, paymentTerms: updatedTerms });
+    setIsDirty(true);
   };
 
   // Admin-only manual override once an invoice date has been scheduled.
+  // Moving into Invoice/Paid defaults that status's date to today — still
+  // editable via the next column.
   const handleUpdatePaymentStatus = (idx: number, val: string) => {
     const updatedTerms = [...(localRecord.paymentTerms || [])];
-    updatedTerms[idx] = {
-      ...updatedTerms[idx],
-      paymentStatus: (val || undefined) as PaymentStatus | undefined,
-    };
-    const updated = { ...localRecord, paymentTerms: updatedTerms };
-    setLocalRecord(updated);
-    onUpdate(updated);
+    const current = { ...updatedTerms[idx] };
+    const newStatus = (val || undefined) as PaymentStatus | undefined;
+    current.paymentStatus = newStatus;
+    const today = new Date().toISOString().slice(0, 10);
+    if (newStatus === "invoice" && !current.invoiceIssuedDate) {
+      current.invoiceIssuedDate = today;
+    } else if (newStatus === "paid" && !current.paidDate) {
+      current.paidDate = today;
+    }
+    updatedTerms[idx] = current;
+    setLocalRecord({ ...localRecord, paymentTerms: updatedTerms });
+    setIsDirty(true);
+  };
+
+  // The status-specific date column: edits invoiceIssuedDate while status is
+  // Invoice, or paidDate while status is Paid.
+  const handleUpdateStatusDate = (idx: number, val: string) => {
+    const updatedTerms = [...(localRecord.paymentTerms || [])];
+    const current = { ...updatedTerms[idx] };
+    if (current.paymentStatus === "paid") {
+      current.paidDate = val || undefined;
+    } else if (current.paymentStatus === "invoice") {
+      current.invoiceIssuedDate = val || undefined;
+    }
+    updatedTerms[idx] = current;
+    setLocalRecord({ ...localRecord, paymentTerms: updatedTerms });
+    setIsDirty(true);
   };
 
   const handleOperationFieldChange = (field: "startDate" | "department", val: string) => {
-    const updated = { ...localRecord, [field]: val };
-    setLocalRecord(updated);
-    onUpdate(updated);
+    setLocalRecord({ ...localRecord, [field]: val });
+    setIsDirty(true);
   };
 
-  const handleConfirmApprove = () => {
+  const handleSaveChanges = async () => {
+    if (!localRecord) return;
+    setIsSaving(true);
+    try {
+      await onUpdate(localRecord);
+      setIsDirty(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleConfirmApprove = async () => {
     const updated: SavedRecord = {
       ...localRecord,
       status: "approved",
       approvedAt: new Date().toISOString(),
     };
     setLocalRecord(updated);
-    onUpdate(updated);
     setShowApproveConfirm(false);
-    setShowApproveSuccess(true);
+    setIsSaving(true);
+    try {
+      await onUpdate(updated);
+      setIsDirty(false);
+      setShowApproveSuccess(true);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -182,26 +237,26 @@ export function ProposalDetailModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {localRecord.pdfUrl && onOpenPdf && (
               <button
                 onClick={() => onOpenPdf(localRecord)}
-                className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg flex items-center gap-1.5 shadow-2xs transition"
+                className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg flex items-center gap-1.5 shadow-2xs transition whitespace-nowrap"
               >
-                <Eye className="w-3.5 h-3.5 text-slate-500" />
-                ดูไฟล์ PDF
+                <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                View PDF
               </button>
             )}
             <button
               onClick={handleExportJSON}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg flex items-center gap-1.5 shadow-2xs transition"
+              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg flex items-center gap-1.5 shadow-2xs transition whitespace-nowrap"
               title="ส่งออกเป็น JSON"
             >
-              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
               JSON
             </button>
             <button
-              onClick={onClose}
+              onClick={handleRequestClose}
               className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition ml-1"
             >
               <X className="w-5 h-5" />
@@ -451,6 +506,7 @@ export function ProposalDetailModal({
                       <th className="px-4 py-2.5 text-center w-32">เก็บเงินสัปดาห์ที่</th>
                       <th className="px-4 py-2.5 text-center w-36">วันที่เรียกเก็บ</th>
                       <th className="px-4 py-2.5 text-center w-28">สถานะ</th>
+                      <th className="px-4 py-2.5 text-center w-36">วันที่ Invoice/Paid</th>
                       <th className="px-4 py-2.5 text-right w-36">จำนวนเงิน (THB)</th>
                     </tr>
                   </thead>
@@ -519,6 +575,18 @@ export function ProposalDetailModal({
                             <span className="text-[11px] text-slate-300">-</span>
                           )}
                         </td>
+                        <td className="px-4 py-2.5 text-center">
+                          {pt.paymentStatus === "invoice" || pt.paymentStatus === "paid" ? (
+                            <input
+                              type="date"
+                              value={(pt.paymentStatus === "paid" ? pt.paidDate : pt.invoiceIssuedDate) || ""}
+                              onChange={(e) => handleUpdateStatusDate(idx, e.target.value)}
+                              className="w-full px-2 py-1 text-xs text-center font-mono text-slate-800 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                            />
+                          ) : (
+                            <span className="text-[11px] text-slate-300">-</span>
+                          )}
+                        </td>
                         <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-700">
                           ฿{Number(pt.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </td>
@@ -529,6 +597,7 @@ export function ProposalDetailModal({
               </div>
               <div className="px-4 py-2 bg-slate-50/60 border-t border-slate-100 text-[11px] text-slate-500">
                 กำหนดวันที่เรียกเก็บแล้วสถานะจะเริ่มที่ Wait โดยอัตโนมัติ — Admin ปรับเป็น Invoice / Paid ได้ภายหลัง
+                พร้อมระบุวันที่ของสถานะนั้น ๆ ในคอลัมป์ถัดไป (อย่าลืมกด &quot;บันทึกข้อมูล&quot; ด้านล่างหลังแก้ไข)
               </div>
             </div>
           )}
@@ -595,17 +664,71 @@ export function ProposalDetailModal({
 
         {/* Modal Footer */}
         <div className="px-6 py-3.5 bg-white border-t border-slate-200 flex items-center justify-between shrink-0">
-          <div className="text-[11px] text-slate-500">
-            ID: <span className="font-mono font-semibold text-slate-700">{localRecord.id}</span>
+          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+            <span>
+              ID: <span className="font-mono font-semibold text-slate-700">{localRecord.id}</span>
+            </span>
+            {isDirty && (
+              <span className="text-amber-700 font-medium">• มีการแก้ไขที่ยังไม่ได้บันทึก</span>
+            )}
           </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-medium transition shadow-xs"
-          >
-            ปิดหน้าต่าง
-          </button>
+          {isDirty ? (
+            <button
+              onClick={handleSaveChanges}
+              disabled={isSaving}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition shadow-xs flex items-center gap-1.5"
+            >
+              {isSaving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              บันทึกข้อมูล
+            </button>
+          ) : (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-medium transition shadow-xs"
+            >
+              ปิดหน้าต่าง
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Discard Changes Confirmation Overlay */}
+      {showDiscardConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 text-center space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 mx-auto rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">ปิดโดยไม่บันทึกข้อมูล?</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                มีการแก้ไขที่ยังไม่ได้บันทึก หากปิดตอนนี้การแก้ไขทั้งหมดจะหายไป
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setShowDiscardConfirm(false)}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              >
+                อยู่ต่อ
+              </button>
+              <button
+                onClick={() => {
+                  setShowDiscardConfirm(false);
+                  onClose();
+                }}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition shadow-sm"
+              >
+                ปิดโดยไม่บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Approve Confirmation Overlay */}
       {showApproveConfirm && (

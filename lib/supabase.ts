@@ -121,6 +121,8 @@ function mapProjectRowToRecord(row: any): SavedRecord {
         paymentWeek: pt.payment_week ?? undefined,
         invoiceDate: pt.invoice_date ?? undefined,
         paymentStatus: pt.payment_status ?? undefined,
+        invoiceIssuedDate: pt.invoice_issued_date ?? undefined,
+        paidDate: pt.paid_date ?? undefined,
       })),
     pdfUrl: row.pdf_url || "",
     pdfFileName: row.pdf_file_name || "",
@@ -185,9 +187,8 @@ export async function updateRecordRemote(
     if (updateError) return { error: updateError.message };
 
     // Update each payment term row in place by its own id — NOT a
-    // delete-then-insert of the whole set. Field edits in the detail modal
-    // fire one onUpdate() per keystroke/selection, so concurrent calls are
-    // expected; delete+insert let two overlapping calls interleave into
+    // delete-then-insert of the whole set. A delete-then-insert lets two
+    // overlapping save calls (e.g. a double-click on Save) interleave into
     // duplicate rows (a delete wiping nothing followed by two inserts).
     // Per-row updates are safe under that race — each just overwrites the
     // same row regardless of ordering.
@@ -202,6 +203,8 @@ export async function updateRecordRemote(
           payment_week: pt.paymentWeek ?? null,
           invoice_date: pt.invoiceDate || null,
           payment_status: pt.paymentStatus || null,
+          invoice_issued_date: pt.invoiceIssuedDate || null,
+          paid_date: pt.paidDate || null,
         })
         .eq("id", pt.id);
       if (ptError) return { error: ptError.message };

@@ -26,6 +26,9 @@ export interface PaymentTermItem {
   // the milestone into the Wait status; Admin advances it from there.
   invoiceDate?: string;
   paymentStatus?: PaymentStatus;
+  // Set when Admin moves the milestone into Invoice / Paid respectively.
+  invoiceIssuedDate?: string;
+  paidDate?: string;
 }
 
 export interface ExtractedProjectData {
