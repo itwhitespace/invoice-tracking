@@ -97,12 +97,20 @@ export default function ProjectRoadmapPage() {
     invoiceDate?: string;
   } | null>(null);
 
-  // Drag-to-reschedule a payment marker to a different week
+  // Drag-to-reschedule a payment marker to a different week. Implemented
+  // with raw Pointer Events (not native HTML5 drag-and-drop) — the native
+  // API turned out unreliable here: it silently cancels the drag in some
+  // browsers/setups with no clear signal why, whereas pointer events give
+  // full control and work identically everywhere.
   const [dragState, setDragState] = useState<{
     recordId: string;
     ptIdx: number;
     originalWeek: number;
+    startCol: number;
+    rectLeft: number;
+    colWidth: number;
   } | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<number | null>(null);
   const [pendingDrop, setPendingDrop] = useState<{
     recordId: string;
     ptIdx: number;
@@ -155,6 +163,58 @@ export default function ProjectRoadmapPage() {
   const totalGridColumns = useMemo(() => {
     return monthHeaders.reduce((acc, m) => acc + m.weeksCount, 0);
   }, [monthHeaders]);
+
+  // While a payment marker is being dragged, track the pointer across the
+  // whole window (not just the element) so the drag keeps working even once
+  // the cursor leaves the small marker/grid area.
+  useEffect(() => {
+    if (!dragState) return;
+
+    const colAt = (clientX: number) =>
+      Math.max(0, Math.min(totalGridColumns - 1, Math.floor((clientX - dragState.rectLeft) / dragState.colWidth)));
+
+    const handlePointerMove = (e: PointerEvent) => {
+      setDragOverCol(colAt(e.clientX));
+    };
+    const handlePointerUp = (e: PointerEvent) => {
+      const col = colAt(e.clientX);
+      const { recordId, ptIdx, originalWeek, startCol } = dragState;
+      setDragState(null);
+      setDragOverCol(null);
+
+      const newWeek = col - startCol + 1;
+      if (newWeek < 1 || newWeek === originalWeek) return;
+
+      const proj = allProjects.find((p) => p.id === recordId);
+      if (!proj) return;
+      const pt = proj.paymentTerms[ptIdx];
+      if (!pt) return;
+
+      const { status, date: oldDate } = getPaymentStatusInfo(pt);
+      const statusField: "invoiceDate" | "invoiceIssuedDate" | "paidDate" =
+        status === "paid" ? "paidDate" : status === "invoice" ? "invoiceIssuedDate" : "invoiceDate";
+      const newDate = proj.startDate ? computeDateForWeek(proj.startDate, newWeek) : "";
+
+      setPendingDrop({
+        recordId: proj.id,
+        ptIdx,
+        milestone: pt.milestone,
+        projectName: proj.projectName,
+        newWeek,
+        oldDate,
+        newDate,
+        statusField,
+      });
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragState, totalGridColumns, allProjects]);
 
   // Map a project's real Start Date (from the Operations tab) onto the
   // currently visible month/week grid. Returns null when there is no Start
@@ -236,51 +296,31 @@ export default function ProjectRoadmapPage() {
     });
   }, [allProjects, totalGridColumns, monthHeaders, selectedYear]);
 
-  const handleMarkerDragStart = (
-    e: React.DragEvent<HTMLDivElement>,
+  // Starts a drag: measure the row's payment-marker grid once so pointermove
+  // (handled by the window-level effect above) can cheaply convert cursor X
+  // into a column index for the rest of the gesture.
+  const handleMarkerPointerDown = (
+    e: React.PointerEvent<HTMLDivElement>,
     recordId: string,
     ptIdx: number,
-    originalWeek: number
+    originalWeek: number,
+    rowStartCol: number
   ) => {
-    // Some browsers (notably Firefox, and occasionally Chromium) silently
-    // cancel a drag that never calls dataTransfer.setData — the cursor
-    // still flips to "grab" from the CSS class, but no drag actually starts.
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", `${recordId}:${ptIdx}`);
-    setDragState({ recordId, ptIdx, originalWeek });
-  };
-
-  const handleMarkerDragEnd = () => {
-    setDragState(null);
-  };
-
-  const handleDropOnColumn = (proj: SavedRecord, colIdx: number) => {
-    if (!dragState || dragState.recordId !== proj.id) return;
-    const { ptIdx, originalWeek } = dragState;
-    setDragState(null);
-
-    const row = timelineRows.find((r) => r.project.id === proj.id);
-    if (!row || !row.hasStage) return;
-
-    const newWeek = colIdx - row.startCol + 1;
-    if (newWeek < 1 || newWeek === originalWeek) return;
-
-    const pt = proj.paymentTerms[ptIdx];
-    const { status, date: oldDate } = getPaymentStatusInfo(pt);
-    const statusField: "invoiceDate" | "invoiceIssuedDate" | "paidDate" =
-      status === "paid" ? "paidDate" : status === "invoice" ? "invoiceIssuedDate" : "invoiceDate";
-    const newDate = proj.startDate ? computeDateForWeek(proj.startDate, newWeek) : "";
-
-    setPendingDrop({
-      recordId: proj.id,
+    e.preventDefault();
+    e.stopPropagation();
+    const gridEl = e.currentTarget.parentElement;
+    if (!gridEl) return;
+    const rect = gridEl.getBoundingClientRect();
+    const colWidth = rect.width / totalGridColumns;
+    setDragState({
+      recordId,
       ptIdx,
-      milestone: pt.milestone,
-      projectName: proj.projectName,
-      newWeek,
-      oldDate,
-      newDate,
-      statusField,
+      originalWeek,
+      startCol: rowStartCol,
+      rectLeft: rect.left,
+      colWidth,
     });
+    setDragOverCol(Math.max(0, Math.min(totalGridColumns - 1, Math.floor((e.clientX - rect.left) / colWidth))));
   };
 
   const handleConfirmDrop = async () => {
@@ -562,14 +602,17 @@ export default function ProjectRoadmapPage() {
                             >
                               {row.paymentMarkers.map((pm, pmIdx) => {
                                 const style = PAYMENT_MARKER_STYLES[pm.status];
+                                const isBeingDragged =
+                                  dragState?.recordId === proj.id && dragState.ptIdx === pm.ptIdx;
                                 return (
                                   <div
                                     key={pmIdx}
-                                    draggable
-                                    onDragStart={(e) => handleMarkerDragStart(e, proj.id, pm.ptIdx, pm.week)}
-                                    onDragEnd={handleMarkerDragEnd}
-                                    style={{ gridColumn: `${pm.col + 1} / span 1` }}
+                                    onPointerDown={(e) =>
+                                      handleMarkerPointerDown(e, proj.id, pm.ptIdx, pm.week, row.startCol)
+                                    }
+                                    style={{ gridColumn: `${pm.col + 1} / span 1`, touchAction: "none" }}
                                     onMouseEnter={() =>
+                                      !dragState &&
                                       setActivePaymentTooltip({
                                         projectName: proj.projectName,
                                         milestone: pm.milestone,
@@ -581,7 +624,9 @@ export default function ProjectRoadmapPage() {
                                     }
                                     onMouseLeave={() => setActivePaymentTooltip(null)}
                                     title="ลากเพื่อย้ายไปสัปดาห์อื่น"
-                                    className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono font-bold text-[10px] flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5`}
+                                    className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono font-bold text-[10px] flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5 select-none ${
+                                      isBeingDragged ? "opacity-40" : ""
+                                    }`}
                                   >
                                     {formatCompactAmount(pm.amount)}
                                   </div>
@@ -590,23 +635,16 @@ export default function ProjectRoadmapPage() {
                             </div>
                           )}
 
-                          {/* Drop targets for dragging a marker to a different week (only while dragging this project's own marker) */}
-                          {dragState && dragState.recordId === proj.id && (
+                          {/* Highlights the column the marker would drop into (this project's row only) */}
+                          {dragState && dragState.recordId === proj.id && dragOverCol !== null && (
                             <div
-                              className="absolute inset-0 z-30 grid w-full h-9"
+                              className="absolute inset-0 z-30 grid w-full h-9 pointer-events-none"
                               style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
                             >
-                              {Array.from({ length: totalGridColumns }, (_, colIdx) => (
-                                <div
-                                  key={colIdx}
-                                  onDragOver={(e) => e.preventDefault()}
-                                  onDrop={(e) => {
-                                    e.preventDefault();
-                                    handleDropOnColumn(proj, colIdx);
-                                  }}
-                                  className="h-9 rounded-md hover:bg-indigo-500/15 hover:outline hover:outline-2 hover:outline-indigo-400 transition-colors"
-                                />
-                              ))}
+                              <div
+                                style={{ gridColumn: `${dragOverCol + 1} / span 1` }}
+                                className="h-9 rounded-md bg-indigo-500/15 outline outline-2 outline-indigo-400"
+                              />
                             </div>
                           )}
                         </div>
