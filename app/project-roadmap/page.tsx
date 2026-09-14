@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import { SavedRecord, PaymentStatus, PaymentTermItem } from "@/lib/types";
 import {
   getSupabaseClient,
@@ -11,7 +11,9 @@ import {
 } from "@/lib/supabase";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation } from "@/lib/department-utils";
+import { getCompanyLabel } from "@/lib/company-utils";
 import { useSettings } from "@/lib/settings-context";
+import { useSearchParams } from "next/navigation";
 import {
   CalendarRange,
   Building2,
@@ -106,7 +108,17 @@ const formatCompactAmount = (amount: number): string => {
 };
 
 export default function ProjectRoadmapPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProjectRoadmapContent />
+    </Suspense>
+  );
+}
+
+function ProjectRoadmapContent() {
   const { settings } = useSettings();
+  const searchParams = useSearchParams();
+  const companyFilter = searchParams.get("company") || "";
   const [records, setRecords] = useState<SavedRecord[]>([]);
   const [departmentFilter, setDepartmentFilter] = useState<string>("");
 
@@ -154,10 +166,13 @@ export default function ProjectRoadmapPage() {
     getSavedRecords(supabase).then(setRecords);
   }, [settings.supabaseUrl, settings.supabaseAnonKey]);
 
-  // Only fully Approved proposals belong on the roadmap
+  // Only fully Approved proposals belong on the roadmap, narrowed further by
+  // the company selected from the sidebar submenu ("Project by"), if any.
   const allProjects: SavedRecord[] = useMemo(() => {
-    return records.filter((r) => r.status === "approved");
-  }, [records]);
+    return records.filter(
+      (r) => r.status === "approved" && (!companyFilter || r.companyName === companyFilter)
+    );
+  }, [records, companyFilter]);
 
   // Department filter narrows the visible set; the timeline, totals and
   // "no projects" messaging all key off this filtered list. The filter's
@@ -467,6 +482,11 @@ export default function ProjectRoadmapPage() {
               <span className="text-[10px] font-semibold px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-300 rounded-full">
                 Monthly & Weekly Minimalist Gantt
               </span>
+              {companyFilter && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">
+                  {getCompanyLabel(companyFilter)}
+                </span>
+              )}
             </h1>
             <p className="text-[11px] text-slate-500">
               แผนงานโครงการดึงจากฐานข้อมูล Proposal แสดงเป็นหัวตารางรายเดือนและสัปดาห์
@@ -512,7 +532,11 @@ export default function ProjectRoadmapPage() {
         {allProjects.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-24">
             <CalendarRange className="w-10 h-10" />
-            <p className="text-xs font-medium">ยังไม่มีโครงการที่มีสถานะ Approved</p>
+            <p className="text-xs font-medium">
+              {companyFilter
+                ? `ยังไม่มีโครงการของ "${getCompanyLabel(companyFilter)}" ที่มีสถานะ Approved`
+                : "ยังไม่มีโครงการที่มีสถานะ Approved"}
+            </p>
             <p className="text-[11px] text-slate-400 max-w-sm text-center">
               โครงการจะปรากฏที่นี่เมื่อ Proposal ถูกเปลี่ยนสถานะเป็น &quot;Approved&quot; จากหน้า Proposal Preview
             </p>

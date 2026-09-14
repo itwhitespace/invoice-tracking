@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { SavedRecord } from "@/lib/types";
 import {
   getSupabaseClient,
@@ -12,10 +12,12 @@ import {
   isRemoteId,
 } from "@/lib/supabase";
 import { useSettings } from "@/lib/settings-context";
+import { getCompanyLabel } from "@/lib/company-utils";
 import { PdfPreviewModal } from "@/components/pdf-preview-modal";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
 import { FileSearch, Eye, Trash2, FileText, ExternalLink } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-300",
@@ -25,11 +27,25 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function ProposalPreviewPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProposalPreviewContent />
+    </Suspense>
+  );
+}
+
+function ProposalPreviewContent() {
   const { settings } = useSettings();
+  const searchParams = useSearchParams();
+  const companyFilter = searchParams.get("company") || "";
   const [records, setRecords] = useState<SavedRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [previewPdfRecord, setPreviewPdfRecord] = useState<SavedRecord | null>(null);
   const [detailRecord, setDetailRecord] = useState<SavedRecord | null>(null);
+
+  const filteredRecords = useMemo(() => {
+    return companyFilter ? records.filter((r) => r.companyName === companyFilter) : records;
+  }, [records, companyFilter]);
 
   useEffect(() => {
     const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
@@ -73,9 +89,14 @@ export default function ProposalPreviewPage() {
         <div className="flex items-center gap-2">
           <FileSearch className="w-4 h-4 text-slate-700" />
           <h1 className="text-sm font-bold text-slate-900 tracking-tight">Proposal Preview</h1>
+          {companyFilter && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">
+              {getCompanyLabel(companyFilter)}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500 font-mono">{records.length} รายการ</span>
+          <span className="text-xs text-slate-500 font-mono">{filteredRecords.length} รายการ</span>
           <Link
             href="/upload-proposal"
             className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
@@ -92,10 +113,14 @@ export default function ProposalPreviewPage() {
             <FileSearch className="w-10 h-10 animate-pulse" />
             <p className="text-xs font-medium">กำลังโหลดข้อมูล...</p>
           </div>
-        ) : records.length === 0 ? (
+        ) : filteredRecords.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400">
             <FileSearch className="w-10 h-10" />
-            <p className="text-xs font-medium">ยังไม่มีรายการที่บันทึกไว้</p>
+            <p className="text-xs font-medium">
+              {companyFilter
+                ? `ยังไม่มีรายการของ "${getCompanyLabel(companyFilter)}"`
+                : "ยังไม่มีรายการที่บันทึกไว้"}
+            </p>
             <p className="text-[11px] text-slate-400">
               บันทึกข้อมูลจากหน้า Upload Proposal เพื่อให้แสดงที่นี่
             </p>
@@ -119,7 +144,7 @@ export default function ProposalPreviewPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {records.map((rec) => (
+                  {filteredRecords.map((rec) => (
                     <tr
                       key={rec.id}
                       className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
