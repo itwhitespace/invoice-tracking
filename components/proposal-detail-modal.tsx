@@ -21,6 +21,8 @@ import {
   Loader2,
   AlertTriangle,
   XCircle,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -61,6 +63,7 @@ export function ProposalDetailModal({
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showApproveSuccess, setShowApproveSuccess] = useState(false);
   const [showUnapproveConfirm, setShowUnapproveConfirm] = useState(false);
+  const [showHoldConfirm, setShowHoldConfirm] = useState(false);
 
   useEffect(() => {
     setLocalRecord(record);
@@ -234,6 +237,24 @@ export function ProposalDetailModal({
     }
   };
 
+  // Toggles Hold — the project stays on the Project Roadmap but its payment
+  // amounts are excluded from the monthly totals there.
+  const handleConfirmHold = async () => {
+    const updated: SavedRecord = {
+      ...localRecord,
+      onHold: !localRecord.onHold,
+    };
+    setLocalRecord(updated);
+    setShowHoldConfirm(false);
+    setIsSaving(true);
+    try {
+      await onUpdate(updated);
+      setIsDirty(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
@@ -252,6 +273,12 @@ export function ProposalDetailModal({
                   <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
                   {localRecord.status || "pending"}
                 </span>
+                {localRecord.status === "approved" && localRecord.onHold && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                    <PauseCircle className="w-3 h-3 mr-1 text-amber-600" />
+                    Hold
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-slate-500 font-mono mt-0.5">
                 {localRecord.companyName ? `บริษัท: ${localRecord.companyName} • ` : ""}
@@ -261,6 +288,28 @@ export function ProposalDetailModal({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {localRecord.status === "approved" && (
+              <button
+                onClick={() => setShowHoldConfirm(true)}
+                title={
+                  localRecord.onHold
+                    ? "ยกเลิก Hold — กลับมานับรวมในยอดรวมต่อเดือนบน Project Roadmap"
+                    : "Hold — ยังแสดงบน Project Roadmap แต่ไม่นับรวมยอดเงิน"
+                }
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-2xs transition whitespace-nowrap border ${
+                  localRecord.onHold
+                    ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500"
+                    : "bg-white hover:bg-amber-50 text-amber-700 border-amber-300"
+                }`}
+              >
+                {localRecord.onHold ? (
+                  <PlayCircle className="w-3.5 h-3.5 shrink-0" />
+                ) : (
+                  <PauseCircle className="w-3.5 h-3.5 shrink-0" />
+                )}
+                {localRecord.onHold ? "ยกเลิก HOLD" : "HOLD"}
+              </button>
+            )}
             {localRecord.pdfUrl && onOpenPdf && (
               <button
                 onClick={() => onOpenPdf(localRecord)}
@@ -874,6 +923,45 @@ export function ProposalDetailModal({
                 className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition shadow-sm"
               >
                 ใช่, ยกเลิกอนุมัติ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hold Confirmation Overlay */}
+      {showHoldConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 text-center space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 mx-auto rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center">
+              {localRecord.onHold ? (
+                <PlayCircle className="w-6 h-6 text-amber-600" />
+              ) : (
+                <PauseCircle className="w-6 h-6 text-amber-600" />
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">
+                {localRecord.onHold ? "ยืนยันการยกเลิก Hold" : "ยืนยันการ Hold โครงการ"}
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                {localRecord.onHold
+                  ? `ต้องการยกเลิก Hold "${localRecord.projectName}" ใช่หรือไม่? ยอดเงินของโครงการนี้จะกลับไปนับรวมในยอดรวมต่อเดือนบน Project Roadmap ตามปกติ`
+                  : `ต้องการ Hold "${localRecord.projectName}" ใช่หรือไม่? โครงการจะยังแสดงบน Project Roadmap อยู่ แต่จะไม่ถูกนับรวมในยอดรวมต่อเดือน`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setShowHoldConfirm(false)}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              >
+                ไม่ใช่
+              </button>
+              <button
+                onClick={handleConfirmHold}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition shadow-sm"
+              >
+                {localRecord.onHold ? "ใช่, ยกเลิก Hold" : "ใช่, Hold"}
               </button>
             </div>
           </div>

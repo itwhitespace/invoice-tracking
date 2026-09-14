@@ -65,6 +65,9 @@ export interface SavedRecord {
   startDate?: string;
   department?: Department | '';
   approvedAt?: string;
+  // Only meaningful once Approved: keeps the project visible on the Project
+  // Roadmap but excludes its payment amounts from the monthly totals.
+  onHold?: boolean;
 }
 
 export interface AppSettings {

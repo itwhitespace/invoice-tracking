@@ -23,6 +23,7 @@ import {
   Loader2,
   CheckCircle2,
   Filter,
+  PauseCircle,
 } from "lucide-react";
 
 interface MonthConfig {
@@ -396,6 +397,7 @@ function ProjectRoadmapContent() {
 
     const totals = new Array(monthHeaders.length).fill(0);
     for (const row of timelineRows) {
+      if (row.project.onHold) continue; // Held projects stay visible but don't count toward totals
       for (const pm of row.paymentMarkers) {
         const mIdx = colToMonthIdx[pm.col];
         if (mIdx !== undefined) totals[mIdx] += pm.amount;
@@ -718,6 +720,17 @@ function ProjectRoadmapContent() {
                         />
 
                         <div className="relative w-full h-9">
+                          {/* Held projects stay on the Roadmap but visually mute — dimmed + a HOLD tag — and are excluded from the monthly totals */}
+                          {proj.onHold && (
+                            <div
+                              className="absolute z-20 -top-2 flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded shadow-sm"
+                              style={{ left: `calc(${(row.startCol / totalGridColumns) * 100}% + 2px)` }}
+                            >
+                              <PauseCircle className="w-2.5 h-2.5" />
+                              HOLD
+                            </div>
+                          )}
+
                           {/* Stage All — flat gray background spanning every week worked */}
                           <div
                             className="absolute inset-0 grid w-full h-9"
@@ -725,7 +738,9 @@ function ProjectRoadmapContent() {
                           >
                             <div
                               style={{ gridColumn: `${row.startCol + 1} / span ${row.totalSpanCols}` }}
-                              className={`h-9 ${STAGE_ALL_STYLE.bg} ${STAGE_ALL_STYLE.text} rounded-md flex items-center px-3 mx-0.5 border border-black/5`}
+                              className={`h-9 ${STAGE_ALL_STYLE.bg} ${STAGE_ALL_STYLE.text} rounded-md flex items-center px-3 mx-0.5 border border-black/5 ${
+                                proj.onHold ? "opacity-50 grayscale" : ""
+                              }`}
                             >
                               <span className="truncate font-semibold text-[11px]">
                                 Stage All • {row.totalSpanCols} Weeks
@@ -766,7 +781,7 @@ function ProjectRoadmapContent() {
                                     onMouseLeave={() => setActivePaymentTooltip(null)}
                                     title="ลากเพื่อย้ายไปสัปดาห์อื่น"
                                     className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono font-bold text-[10px] flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5 select-none ${
-                                      isBeingDragged ? "opacity-40" : ""
+                                      isBeingDragged ? "opacity-40" : proj.onHold ? "opacity-50 grayscale" : ""
                                     }`}
                                   >
                                     {formatCompactAmount(pm.amount)}
