@@ -29,7 +29,8 @@ create table if not exists public.projects (
   start_date             date,                                 -- Operations tab: project kickoff date, drives the Roadmap Gantt position
   department             text,                                 -- Operations tab: studio-1/studio-2/studio-3/studio-4/Signage/Branding
   approved_at            timestamptz,                           -- Set when status is switched to 'approved'
-  on_hold                boolean not null default false        -- Approved only: stays on the Roadmap but excluded from monthly totals
+  on_hold                boolean not null default false,       -- Approved only: stays on the Roadmap but excluded from monthly totals
+  roadmap_note           text                                   -- Free-text note editable from the Project Roadmap page
 );
 
 comment on table public.projects is 'One row per proposal/invoice document extracted or entered in the app.';
@@ -164,6 +165,7 @@ alter table public.project_payment_terms add constraint project_payment_terms_pa
 alter table public.project_payment_terms add column if not exists invoice_issued_date date;
 alter table public.project_payment_terms add column if not exists paid_date date;
 alter table public.projects add column if not exists on_hold boolean not null default false;
+alter table public.projects add column if not exists roadmap_note text;
 
 -- ============================================================================
 -- Done. In the app's Settings page, set:

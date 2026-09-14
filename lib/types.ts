@@ -68,6 +68,9 @@ export interface SavedRecord {
   // Only meaningful once Approved: keeps the project visible on the Project
   // Roadmap but excludes its payment amounts from the monthly totals.
   onHold?: boolean;
+  // Free-text note editable from the Project Roadmap page (click the
+  // department badge), shown under the project name there.
+  roadmapNote?: string;
 }
 
 export interface AppSettings {

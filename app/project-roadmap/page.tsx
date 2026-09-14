@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Filter,
   PauseCircle,
+  StickyNote,
 } from "lucide-react";
 
 interface MonthConfig {
@@ -159,6 +160,10 @@ function ProjectRoadmapContent() {
   } | null>(null);
   const [showDropSuccess, setShowDropSuccess] = useState<{ oldDate?: string; newDate: string } | null>(null);
   const [isSavingDrop, setIsSavingDrop] = useState(false);
+
+  // Free-text Roadmap note — opened by clicking a project's department badge
+  const [noteEditor, setNoteEditor] = useState<{ recordId: string; projectName: string; value: string } | null>(null);
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
   // Load saved records from Supabase (shared across every device) with the
   // local history as a fallback/merge for anything not yet synced.
@@ -470,6 +475,35 @@ function ProjectRoadmapContent() {
     }
   };
 
+  const handleSaveNote = async () => {
+    if (!noteEditor) return;
+    const record = records.find((r) => r.id === noteEditor.recordId);
+    if (!record) {
+      setNoteEditor(null);
+      return;
+    }
+
+    setIsSavingNote(true);
+    try {
+      const updated: SavedRecord = { ...record, roadmapNote: noteEditor.value };
+
+      setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      saveRecordLocally(updated);
+
+      const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+      if (supabase && isRemoteId(updated.id)) {
+        const { error } = await updateRecordRemote(supabase, updated);
+        if (error) {
+          window.alert("อัปเดตขึ้น Supabase ไม่สำเร็จ: " + error);
+        }
+      }
+
+      setNoteEditor(null);
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-100 text-slate-800 overflow-hidden font-sans">
       {/* Top Header */}
@@ -657,12 +691,20 @@ function ProjectRoadmapContent() {
                     >
                       {/* Left Column: Project Name from Database */}
                       <div className="w-64 shrink-0 p-3.5 border-r border-slate-300 flex items-center gap-3 bg-white">
-                        <div
-                          className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 flex items-center justify-center font-bold text-[10px] shrink-0"
-                          title={proj.department ? formatDepartmentLabel(proj.department) : "ยังไม่ได้ระบุแผนก"}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNoteEditor({
+                              recordId: proj.id,
+                              projectName: proj.projectName,
+                              value: proj.roadmapNote || "",
+                            })
+                          }
+                          className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 flex items-center justify-center font-bold text-[10px] shrink-0 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition"
+                          title={`${proj.department ? formatDepartmentLabel(proj.department) : "ยังไม่ได้ระบุแผนก"} — คลิกเพื่อเพิ่ม/แก้ไขโน้ต`}
                         >
                           {getDepartmentAbbreviation(proj.department)}
-                        </div>
+                        </button>
                         <div className="min-w-0">
                           <h3
                             className="text-xs font-bold text-slate-900 leading-tight truncate group-hover:text-indigo-600 transition-colors"
@@ -678,28 +720,12 @@ function ProjectRoadmapContent() {
                             <span>{proj.area ? proj.area.split("(")[0] : "Active"}</span>
                           </div>
 
-                          {/* Payment cycle schedule: 1/3 : Wait 21/10/69, etc. */}
-                          {proj.paymentTerms && proj.paymentTerms.length > 0 && (
-                            <div className="mt-1.5 space-y-0.5">
-                              {proj.paymentTerms.map((pt, i) => {
-                                const { status, date } = getPaymentStatusInfo(pt);
-                                const style = PAYMENT_MARKER_STYLES[status];
-                                return (
-                                  <div key={i} className="flex items-center gap-1 text-[9.5px] font-mono leading-tight">
-                                    <span className="text-slate-400 shrink-0">
-                                      {i + 1}/{proj.paymentTerms.length}:
-                                    </span>
-                                    <span className={`px-1 rounded ${style.bg} ${style.text} font-bold shrink-0`}>
-                                      {style.label}
-                                    </span>
-                                    <span className="text-slate-500 truncate">
-                                      {date ? formatShortDate(date) : "-"}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                          {/* Roadmap note — click the department badge to add/edit */}
+                          <p className="mt-1.5 text-[10px] text-slate-500 leading-snug line-clamp-2">
+                            {proj.roadmapNote || (
+                              <span className="text-slate-300 italic">คลิกกรอบแผนกเพื่อเพิ่มโน้ต</span>
+                            )}
+                          </p>
                         </div>
                       </div>
 
@@ -780,11 +806,14 @@ function ProjectRoadmapContent() {
                                     }}
                                     onMouseLeave={() => setActivePaymentTooltip(null)}
                                     title="ลากเพื่อย้ายไปสัปดาห์อื่น"
-                                    className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono font-bold text-[10px] flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5 select-none ${
+                                    className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono flex flex-col items-center justify-center leading-none gap-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5 select-none ${
                                       isBeingDragged ? "opacity-40" : proj.onHold ? "opacity-50 grayscale" : ""
                                     }`}
                                   >
-                                    {formatCompactAmount(pm.amount)}
+                                    <span className="text-[8px] font-semibold opacity-80">
+                                      {pm.ptIdx + 1}/{proj.paymentTerms.length}
+                                    </span>
+                                    <span className="text-[10px] font-bold">{formatCompactAmount(pm.amount)}</span>
                                   </div>
                                 );
                               })}
@@ -937,6 +966,51 @@ function ProjectRoadmapContent() {
             >
               ตกลง
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Roadmap Note Editor */}
+      {noteEditor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center shrink-0">
+                <StickyNote className="w-4 h-4 text-indigo-600" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900">โน้ตของโครงการ</h3>
+                <p className="text-[11px] text-slate-500 truncate">{noteEditor.projectName}</p>
+              </div>
+            </div>
+            <textarea
+              value={noteEditor.value}
+              onChange={(e) => setNoteEditor({ ...noteEditor, value: e.target.value })}
+              rows={4}
+              placeholder="พิมพ์โน้ตสำหรับโครงการนี้..."
+              autoFocus
+              className="w-full px-3 py-2 text-xs text-slate-800 bg-slate-50/70 border border-slate-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition resize-none"
+            />
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setNoteEditor(null)}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleSaveNote}
+                disabled={isSavingNote}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition shadow-sm flex items-center justify-center gap-1.5"
+              >
+                {isSavingNote ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Save className="w-3.5 h-3.5" />
+                )}
+                บันทึก
+              </button>
+            </div>
           </div>
         </div>
       )}
