@@ -1,7 +1,8 @@
 "use client";
 
-import { SavedRecord, Department, PaymentStatus } from "@/lib/types";
+import { SavedRecord, PaymentStatus } from "@/lib/types";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
+import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-utils";
 import {
   X,
   FileText,
@@ -22,15 +23,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-
-const DEPARTMENT_OPTIONS: Department[] = [
-  "studio-1",
-  "studio-2",
-  "studio-3",
-  "studio-4",
-  "Signage",
-  "Branding",
-];
 
 const PAYMENT_STATUS_OPTIONS: { value: PaymentStatus; label: string }[] = [
   { value: "wait", label: "Wait" },
@@ -663,7 +655,7 @@ export function ProposalDetailModal({
                       <option value="">— ยังไม่ระบุ —</option>
                       {DEPARTMENT_OPTIONS.map((dept) => (
                         <option key={dept} value={dept}>
-                          {dept}
+                          {formatDepartmentLabel(dept)}
                         </option>
                       ))}
                     </select>

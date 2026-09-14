@@ -10,6 +10,7 @@ import {
   isRemoteId,
 } from "@/lib/supabase";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
+import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation } from "@/lib/department-utils";
 import { useSettings } from "@/lib/settings-context";
 import {
   CalendarRange,
@@ -19,6 +20,7 @@ import {
   Save,
   Loader2,
   CheckCircle2,
+  Filter,
 } from "lucide-react";
 
 interface MonthConfig {
@@ -106,6 +108,7 @@ const formatCompactAmount = (amount: number): string => {
 export default function ProjectRoadmapPage() {
   const { settings } = useSettings();
   const [records, setRecords] = useState<SavedRecord[]>([]);
+  const [departmentFilter, setDepartmentFilter] = useState<string>("");
 
   const [activePaymentTooltip, setActivePaymentTooltip] = useState<{
     projectName: string;
@@ -156,14 +159,31 @@ export default function ProjectRoadmapPage() {
     return records.filter((r) => r.status === "approved");
   }, [records]);
 
+  // Department filter narrows the visible set; the timeline, totals and
+  // "no projects" messaging all key off this filtered list. The filter's
+  // own option list stays derived from allProjects (unfiltered) so picking
+  // a department never makes other departments disappear from the dropdown.
+  const filteredProjects: SavedRecord[] = useMemo(() => {
+    if (!departmentFilter) return allProjects;
+    return allProjects.filter((p) => p.department === departmentFilter);
+  }, [allProjects, departmentFilter]);
+
+  const availableDepartments = useMemo(() => {
+    const set = new Set<string>();
+    for (const proj of allProjects) {
+      if (proj.department) set.add(proj.department);
+    }
+    return DEPARTMENT_OPTIONS.filter((d) => set.has(d));
+  }, [allProjects]);
+
   // The timeline auto-fits to the actual data: span from the earliest
-  // approved project's Start Date through the latest project's end (working
+  // visible project's Start Date through the latest project's end (working
   // duration or furthest payment week, whichever runs longer) — no manual
   // year/quarter filter needed, and nothing ever gets cut off at a boundary.
   const dateRange = useMemo(() => {
     let minDate: Date | null = null;
     let maxDate: Date | null = null;
-    for (const proj of allProjects) {
+    for (const proj of filteredProjects) {
       const range = getProjectDateRange(proj);
       if (!range) continue;
       if (!minDate || range.start < minDate) minDate = range.start;
@@ -171,7 +191,7 @@ export default function ProjectRoadmapPage() {
     }
     if (!minDate || !maxDate) return null;
     return { minDate, maxDate };
-  }, [allProjects]);
+  }, [filteredProjects]);
 
   // Generate Month & Week header structure (e.g. Jul-26 -> W1, W2, W3, W4, W5)
   // continuously from dateRange.minDate to dateRange.maxDate, rolling over
@@ -237,7 +257,7 @@ export default function ProjectRoadmapPage() {
       const newWeek = col - startCol + 1;
       if (newWeek < 1 || newWeek === originalWeek) return;
 
-      const proj = allProjects.find((p) => p.id === recordId);
+      const proj = filteredProjects.find((p) => p.id === recordId);
       if (!proj) return;
       const pt = proj.paymentTerms[ptIdx];
       if (!pt) return;
@@ -266,7 +286,7 @@ export default function ProjectRoadmapPage() {
       window.removeEventListener("pointerup", handlePointerUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragState, totalGridColumns, allProjects]);
+  }, [dragState, totalGridColumns, filteredProjects]);
 
   // Map a project's real Start Date (from the Operations tab) onto the
   // auto-fit month/week grid above. The grid is sized to include every
@@ -291,7 +311,7 @@ export default function ProjectRoadmapPage() {
 
   // Build Project Timeline Rows
   const timelineRows = useMemo(() => {
-    return allProjects.map((proj) => {
+    return filteredProjects.map((proj) => {
       const startCol = getStartColumnForDate(proj.startDate);
 
       // No Start Date yet, or it's outside the visible range — don't guess a
@@ -347,7 +367,7 @@ export default function ProjectRoadmapPage() {
         outOfRange: false,
       };
     });
-  }, [allProjects, totalGridColumns, monthHeaders]);
+  }, [filteredProjects, totalGridColumns, monthHeaders]);
 
   // Sum of every project's payment markers landing in each month column —
   // shown as a totals row under the month headers.
@@ -454,6 +474,26 @@ export default function ProjectRoadmapPage() {
           </div>
         </div>
 
+        <div className="flex items-center gap-3">
+        {/* Department Filter */}
+        {allProjects.length > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-1.5 font-medium shadow-2xs">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
+            >
+              <option value="">ทุกแผนก (All Departments)</option>
+              {availableDepartments.map((dept) => (
+                <option key={dept} value={dept}>
+                  {formatDepartmentLabel(dept)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Auto-Fit Range Display — computed from the data, not a filter */}
         {monthHeaders.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-1.5 font-medium shadow-2xs">
@@ -464,6 +504,7 @@ export default function ProjectRoadmapPage() {
             </span>
           </div>
         )}
+        </div>
       </header>
 
       {/* Main Workspace Area */}
@@ -475,6 +516,17 @@ export default function ProjectRoadmapPage() {
             <p className="text-[11px] text-slate-400 max-w-sm text-center">
               โครงการจะปรากฏที่นี่เมื่อ Proposal ถูกเปลี่ยนสถานะเป็น &quot;Approved&quot; จากหน้า Proposal Preview
             </p>
+          </div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-24">
+            <Filter className="w-10 h-10" />
+            <p className="text-xs font-medium">ไม่มีโครงการในแผนก &quot;{formatDepartmentLabel(departmentFilter)}&quot;</p>
+            <button
+              onClick={() => setDepartmentFilter("")}
+              className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold underline"
+            >
+              ล้างตัวกรองเพื่อดูทุกแผนก
+            </button>
           </div>
         ) : (
         <>
@@ -513,7 +565,7 @@ export default function ProjectRoadmapPage() {
                     <Building2 className="w-4 h-4 text-slate-700" />
                     <span>Project Name</span>
                   </div>
-                  <span className="text-[10px] text-slate-600 font-mono">({allProjects.length})</span>
+                  <span className="text-[10px] text-slate-600 font-mono">({filteredProjects.length})</span>
                 </div>
 
                 {/* Right Month Columns */}
@@ -531,16 +583,16 @@ export default function ProjectRoadmapPage() {
               </div>
 
               {/* Header Row 2: Monthly Totals — sum of payment markers landing in each month */}
-              <div className="flex border-b border-slate-300 bg-emerald-50/40">
-                <div className="w-64 shrink-0 border-r border-slate-300 px-3.5 py-1.5 text-slate-500 text-[10px] font-sans bg-emerald-50/30">
+              <div className="flex border-b border-slate-300 bg-emerald-200/70">
+                <div className="w-64 shrink-0 border-r border-slate-300 px-3.5 py-1.5 text-emerald-800 text-[10px] font-sans font-semibold bg-emerald-200/60">
                   ยอดรวมต่อเดือน
                 </div>
-                <div className="flex-1 flex divide-x divide-slate-300 text-center">
+                <div className="flex-1 flex divide-x divide-emerald-300/70 text-center">
                   {monthHeaders.map((m, idx) => (
                     <div
                       key={idx}
                       style={{ flex: m.weeksCount }}
-                      className="py-1.5 px-2 font-mono font-bold text-[11px] text-emerald-800"
+                      className="py-1.5 px-2 font-mono font-bold text-[11px] text-emerald-900"
                     >
                       {monthlyTotals[idx] > 0 ? `฿${monthlyTotals[idx].toLocaleString("en-US")}` : "-"}
                     </div>
@@ -579,8 +631,11 @@ export default function ProjectRoadmapPage() {
                     >
                       {/* Left Column: Project Name from Database */}
                       <div className="w-64 shrink-0 p-3.5 border-r border-slate-300 flex items-center gap-3 bg-white">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
-                          {proj.projectName.slice(0, 2).toUpperCase()}
+                        <div
+                          className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 flex items-center justify-center font-bold text-[10px] shrink-0"
+                          title={proj.department ? formatDepartmentLabel(proj.department) : "ยังไม่ได้ระบุแผนก"}
+                        >
+                          {getDepartmentAbbreviation(proj.department)}
                         </div>
                         <div className="min-w-0">
                           <h3
@@ -739,10 +794,12 @@ export default function ProjectRoadmapPage() {
             ),
           }}
         >
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <h4 className="text-xs font-bold text-slate-900 truncate">{activePaymentTooltip.milestone}</h4>
-              <p className="text-[10.5px] text-slate-500 truncate">{activePaymentTooltip.projectName}</p>
+              <h4 className="text-xs font-bold text-slate-900 leading-snug break-words">
+                {activePaymentTooltip.milestone}
+              </h4>
+              <p className="text-[10.5px] text-slate-500 truncate mt-0.5">{activePaymentTooltip.projectName}</p>
             </div>
             <span
               className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${PAYMENT_MARKER_STYLES[activePaymentTooltip.status].bg} ${PAYMENT_MARKER_STYLES[activePaymentTooltip.status].text}`}
