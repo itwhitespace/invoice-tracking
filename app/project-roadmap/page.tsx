@@ -12,6 +12,7 @@ import {
 import { getTotalWeeks } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation } from "@/lib/department-utils";
 import { getCompanyLabel } from "@/lib/company-utils";
+import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 import { useSettings } from "@/lib/settings-context";
 import { useSearchParams } from "next/navigation";
 import {
@@ -46,21 +47,17 @@ const STAGE_ALL_STYLE = { bg: "bg-slate-200", text: "text-slate-500", label: "St
 // Payment-week markers overlap on top of the Stage All bar at their planned
 // week. A marker with no explicit status yet defaults to Wait.
 const PAYMENT_MARKER_STYLES: Record<PaymentStatus, { bg: string; text: string; label: string }> = {
-  wait: { bg: "bg-amber-300", text: "text-amber-950", label: "Wait" },
-  invoice: { bg: "bg-sky-300", text: "text-sky-950", label: "Invoice" },
-  paid: { bg: "bg-emerald-300", text: "text-emerald-950", label: "Paid" },
-  hold: { bg: "bg-violet-300", text: "text-violet-950", label: "Hold" },
-  cancelled: { bg: "bg-red-300", text: "text-red-950", label: "Cancelled" },
+  wait: { bg: "bg-amber-300", text: "text-amber-950", label: PAYMENT_STATUS_LABELS.wait },
+  invoice: { bg: "bg-sky-300", text: "text-sky-950", label: PAYMENT_STATUS_LABELS.invoice },
+  paid: { bg: "bg-emerald-300", text: "text-emerald-950", label: PAYMENT_STATUS_LABELS.paid },
+  hold: { bg: "bg-violet-300", text: "text-violet-950", label: PAYMENT_STATUS_LABELS.hold },
+  cancelled: { bg: "bg-red-300", text: "text-red-950", label: PAYMENT_STATUS_LABELS.cancelled },
 };
 
-// Full-length labels for the status-picker modal (click a marker to open it).
-const STATUS_PICKER_OPTIONS: { value: PaymentStatus; label: string }[] = [
-  { value: "wait", label: "รอเก็บเงิน" },
-  { value: "invoice", label: "วางบิลแล้ว" },
-  { value: "paid", label: "เก็บเงินแล้ว" },
-  { value: "hold", label: "Hold ไว้ก่อน" },
-  { value: "cancelled", label: "ยกเลิกงาน" },
-];
+// Options for the status-picker modal (click a marker to open it).
+const STATUS_PICKER_OPTIONS: { value: PaymentStatus; label: string }[] = (
+  Object.keys(PAYMENT_STATUS_LABELS) as PaymentStatus[]
+).map((value) => ({ value, label: PAYMENT_STATUS_LABELS[value] }));
 
 // A minimal pointer movement below this (px) is treated as a click (open the
 // status picker) rather than the start of a drag-to-reschedule gesture.

@@ -3,6 +3,7 @@
 import { SavedRecord, PaymentStatus } from "@/lib/types";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-utils";
+import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 import {
   X,
   FileText,
@@ -508,11 +509,11 @@ export function ProposalDetailModal({
                         </td>
                         <td className="px-4 py-2.5 text-center">
                           <span
-                            className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${
+                            className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                               PAYMENT_STATUS_BADGE_STYLES[pt.paymentStatus || "wait"]
                             }`}
                           >
-                            {pt.paymentStatus || "wait"}
+                            {PAYMENT_STATUS_LABELS[pt.paymentStatus || "wait"]}
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-700">
