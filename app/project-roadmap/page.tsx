@@ -23,6 +23,7 @@ import {
 
 interface MonthConfig {
   name: string; // e.g. "Jul-26"
+  year: number;
   monthIndex: number; // 0 to 11
   weeksCount: number; // 4 or 5
   weeks: string[]; // ["W1", "W2", "W3", "W4", "W5"]
@@ -68,6 +69,28 @@ const computeDateForWeek = (startDateStr: string, week: number): string => {
   return start.toISOString().slice(0, 10);
 };
 
+// A project's full visible span: from its Start Date through the later of
+// (a) its total working duration or (b) its furthest-out planned payment
+// week — whichever runs longer. Drives the auto-fit timeline range below.
+const getProjectDateRange = (proj: SavedRecord): { start: Date; end: Date } | null => {
+  if (!proj.startDate) return null;
+  const start = new Date(`${proj.startDate}T00:00:00`);
+  if (isNaN(start.getTime())) return null;
+
+  const totalWeeksWorked = Math.max(1, getTotalWeeks(proj.timeFrames));
+  const maxPaymentWeek = (proj.paymentTerms || []).reduce(
+    (max, pt) => (pt.paymentWeek ? Math.max(max, pt.paymentWeek) : max),
+    0
+  );
+  const totalWeeks = Math.max(totalWeeksWorked, maxPaymentWeek);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + totalWeeks * 7);
+  return { start, end };
+};
+
+const TOOLTIP_WIDTH = 288; // px — matches the w-72 class on the floating tooltip card
+
 const formatCompactAmount = (amount: number): string => {
   const abs = Math.abs(amount);
   if (abs >= 1_000_000) {
@@ -83,10 +106,6 @@ const formatCompactAmount = (amount: number): string => {
 export default function ProjectRoadmapPage() {
   const { settings } = useSettings();
   const [records, setRecords] = useState<SavedRecord[]>([]);
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  // Half year view (0: Jan-Jun, 6: Jul-Dec)
-  const [startMonthIndex, setStartMonthIndex] = useState<number>(6); // Default to Jul (Jul-26 to Dec-26)
-  const [monthsToShow, setMonthsToShow] = useState<number>(6);
 
   const [activePaymentTooltip, setActivePaymentTooltip] = useState<{
     projectName: string;
@@ -95,6 +114,7 @@ export default function ProjectRoadmapPage() {
     week: number;
     status: PaymentStatus;
     invoiceDate?: string;
+    anchorRect: { left: number; width: number; bottom: number };
   } | null>(null);
 
   // Drag-to-reschedule a payment marker to a different week. Implemented
@@ -136,28 +156,60 @@ export default function ProjectRoadmapPage() {
     return records.filter((r) => r.status === "approved");
   }, [records]);
 
+  // The timeline auto-fits to the actual data: span from the earliest
+  // approved project's Start Date through the latest project's end (working
+  // duration or furthest payment week, whichever runs longer) — no manual
+  // year/quarter filter needed, and nothing ever gets cut off at a boundary.
+  const dateRange = useMemo(() => {
+    let minDate: Date | null = null;
+    let maxDate: Date | null = null;
+    for (const proj of allProjects) {
+      const range = getProjectDateRange(proj);
+      if (!range) continue;
+      if (!minDate || range.start < minDate) minDate = range.start;
+      if (!maxDate || range.end > maxDate) maxDate = range.end;
+    }
+    if (!minDate || !maxDate) return null;
+    return { minDate, maxDate };
+  }, [allProjects]);
+
   // Generate Month & Week header structure (e.g. Jul-26 -> W1, W2, W3, W4, W5)
+  // continuously from dateRange.minDate to dateRange.maxDate, rolling over
+  // calendar years as needed.
   const monthHeaders: MonthConfig[] = useMemo(() => {
-    const yrShort = String(selectedYear).slice(-2);
+    if (!dateRange) return [];
     const list: MonthConfig[] = [];
 
-    for (let i = 0; i < monthsToShow; i++) {
-      const mIdx = (startMonthIndex + i) % 12;
-      const mName = `${MONTH_NAMES[mIdx]}-${yrShort}`;
-      // Give Jul and Oct 5 weeks, others 4 weeks for realistic month division
-      const weeksCount = [0, 6, 9].includes(mIdx) ? 5 : 4;
+    let y = dateRange.minDate.getFullYear();
+    let m = dateRange.minDate.getMonth();
+    const endY = dateRange.maxDate.getFullYear();
+    const endM = dateRange.maxDate.getMonth();
+
+    let guard = 0;
+    while ((y < endY || (y === endY && m <= endM)) && guard < 240) {
+      const yrShort = String(y).slice(-2);
+      // Give Jan, Jul and Oct 5 weeks, others 4 weeks for realistic month division
+      const weeksCount = [0, 6, 9].includes(m) ? 5 : 4;
       const weeks = Array.from({ length: weeksCount }, (_, w) => `W${w + 1}`);
 
       list.push({
-        name: mName,
-        monthIndex: mIdx,
+        name: `${MONTH_NAMES[m]}-${yrShort}`,
+        year: y,
+        monthIndex: m,
         weeksCount,
         weeks,
       });
+
+      m++;
+      if (m > 11) {
+        m = 0;
+        y++;
+      }
+      guard++;
     }
 
     return list;
-  }, [selectedYear, startMonthIndex, monthsToShow]);
+  }, [dateRange]);
 
   // Total columns in grid
   const totalGridColumns = useMemo(() => {
@@ -217,16 +269,17 @@ export default function ProjectRoadmapPage() {
   }, [dragState, totalGridColumns, allProjects]);
 
   // Map a project's real Start Date (from the Operations tab) onto the
-  // currently visible month/week grid. Returns null when there is no Start
-  // Date set yet, or it falls outside the visible year/month range.
+  // auto-fit month/week grid above. The grid is sized to include every
+  // approved project's full span, so this should always find a match — null
+  // only means no Start Date is set, or a date-math edge case.
   const getStartColumnForDate = (dateStr?: string): number | null => {
     if (!dateStr) return null;
     const date = new Date(`${dateStr}T00:00:00`);
-    if (isNaN(date.getTime()) || date.getFullYear() !== selectedYear) return null;
+    if (isNaN(date.getTime())) return null;
 
     let colOffset = 0;
     for (const m of monthHeaders) {
-      if (date.getMonth() === m.monthIndex) {
+      if (date.getFullYear() === m.year && date.getMonth() === m.monthIndex) {
         const dayOfMonth = date.getDate();
         const weekInMonth = Math.min(m.weeksCount, Math.ceil(dayOfMonth / 7));
         return colOffset + (weekInMonth - 1);
@@ -294,7 +347,27 @@ export default function ProjectRoadmapPage() {
         outOfRange: false,
       };
     });
-  }, [allProjects, totalGridColumns, monthHeaders, selectedYear]);
+  }, [allProjects, totalGridColumns, monthHeaders]);
+
+  // Sum of every project's payment markers landing in each month column —
+  // shown as a totals row under the month headers.
+  const monthlyTotals = useMemo(() => {
+    let colOffset = 0;
+    const colToMonthIdx: number[] = [];
+    monthHeaders.forEach((m, mIdx) => {
+      for (let w = 0; w < m.weeksCount; w++) colToMonthIdx[colOffset + w] = mIdx;
+      colOffset += m.weeksCount;
+    });
+
+    const totals = new Array(monthHeaders.length).fill(0);
+    for (const row of timelineRows) {
+      for (const pm of row.paymentMarkers) {
+        const mIdx = colToMonthIdx[pm.col];
+        if (mIdx !== undefined) totals[mIdx] += pm.amount;
+      }
+    }
+    return totals;
+  }, [timelineRows, monthHeaders]);
 
   // Starts a drag: measure the row's payment-marker grid once so pointermove
   // (handled by the window-level effect above) can cheaply convert cursor X
@@ -381,47 +454,16 @@ export default function ProjectRoadmapPage() {
           </div>
         </div>
 
-        {/* View Range & Year Controls */}
-        <div className="flex items-center gap-3">
-          {/* Half Year Range Switcher */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-semibold">
-            <button
-              onClick={() => setStartMonthIndex(0)}
-              className={`px-3 py-1 rounded-md transition ${
-                startMonthIndex === 0
-                  ? "bg-white text-slate-900 font-bold shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Jan - Jun (Q1-Q2)
-            </button>
-            <button
-              onClick={() => setStartMonthIndex(6)}
-              className={`px-3 py-1 rounded-md transition ${
-                startMonthIndex === 6
-                  ? "bg-white text-slate-900 font-bold shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Jul - Dec (Q3-Q4)
-            </button>
-          </div>
-
-          {/* Year Selector */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-300 rounded-lg px-2.5 py-1 font-medium shadow-2xs">
+        {/* Auto-Fit Range Display — computed from the data, not a filter */}
+        {monthHeaders.length > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-1.5 font-medium shadow-2xs">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>ปี:</span>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
-            >
-              <option value={2025}>2025</option>
-              <option value={2026}>2026</option>
-              <option value={2027}>2027</option>
-            </select>
+            <span className="text-slate-500">ช่วงเวลาที่แสดง:</span>
+            <span className="font-bold text-slate-900">
+              {monthHeaders[0].name} – {monthHeaders[monthHeaders.length - 1].name}
+            </span>
           </div>
-        </div>
+        )}
       </header>
 
       {/* Main Workspace Area */}
@@ -488,7 +530,25 @@ export default function ProjectRoadmapPage() {
                 </div>
               </div>
 
-              {/* Header Row 2: Weeks per Month (W1, W2, W3, W4, W5...) */}
+              {/* Header Row 2: Monthly Totals — sum of payment markers landing in each month */}
+              <div className="flex border-b border-slate-300 bg-emerald-50/40">
+                <div className="w-64 shrink-0 border-r border-slate-300 px-3.5 py-1.5 text-slate-500 text-[10px] font-sans bg-emerald-50/30">
+                  ยอดรวมต่อเดือน
+                </div>
+                <div className="flex-1 flex divide-x divide-slate-300 text-center">
+                  {monthHeaders.map((m, idx) => (
+                    <div
+                      key={idx}
+                      style={{ flex: m.weeksCount }}
+                      className="py-1.5 px-2 font-mono font-bold text-[11px] text-emerald-800"
+                    >
+                      {monthlyTotals[idx] > 0 ? `฿${monthlyTotals[idx].toLocaleString("en-US")}` : "-"}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Header Row 3: Weeks per Month (W1, W2, W3, W4, W5...) */}
               <div className="flex border-b border-slate-300 bg-amber-50/30 text-[11px] font-mono text-slate-700">
                 <div className="w-64 shrink-0 border-r border-slate-300 px-3.5 py-1.5 text-slate-500 text-[10px] font-sans bg-amber-50/50">
                   ข้อมูลโครงการจาก Proposal
@@ -568,7 +628,7 @@ export default function ProjectRoadmapPage() {
                           <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1 font-medium">
                             {row.noStartDate
                               ? "ยังไม่ได้ระบุ Start Date — ไปตั้งค่าที่แท็บ \"รายละเอียดการดำเนินงาน\" ในหน้า Proposal Preview"
-                              : `Start Date (${proj.startDate}) อยู่นอกช่วงเวลาที่แสดงอยู่ — ลองเปลี่ยนปีหรือช่วงเดือนด้านบน`}
+                              : `เกิดข้อผิดพลาดในการคำนวณตำแหน่งของ Start Date (${proj.startDate})`}
                           </span>
                         ) : (
                         <>
@@ -611,8 +671,9 @@ export default function ProjectRoadmapPage() {
                                       handleMarkerPointerDown(e, proj.id, pm.ptIdx, pm.week, row.startCol)
                                     }
                                     style={{ gridColumn: `${pm.col + 1} / span 1`, touchAction: "none" }}
-                                    onMouseEnter={() =>
-                                      !dragState &&
+                                    onMouseEnter={(e) => {
+                                      if (dragState) return;
+                                      const rect = e.currentTarget.getBoundingClientRect();
                                       setActivePaymentTooltip({
                                         projectName: proj.projectName,
                                         milestone: pm.milestone,
@@ -620,8 +681,9 @@ export default function ProjectRoadmapPage() {
                                         week: pm.week,
                                         status: pm.status,
                                         invoiceDate: pm.invoiceDate,
-                                      })
-                                    }
+                                        anchorRect: { left: rect.left, width: rect.width, bottom: rect.bottom },
+                                      });
+                                    }}
                                     onMouseLeave={() => setActivePaymentTooltip(null)}
                                     title="ลากเพื่อย้ายไปสัปดาห์อื่น"
                                     className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono font-bold text-[10px] flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5 select-none ${
@@ -659,43 +721,46 @@ export default function ProjectRoadmapPage() {
           </div>
         </div>
 
-        {/* Hover Detail Tooltip Card — Payment Week Marker */}
-        {activePaymentTooltip && (
-          <div className="p-4 bg-white border border-slate-300 rounded-xl shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div
-                className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center font-bold text-[10px] border ${PAYMENT_MARKER_STYLES[activePaymentTooltip.status].bg} ${PAYMENT_MARKER_STYLES[activePaymentTooltip.status].text} border-black/5`}
-              >
-                <span>Week</span>
-                <span>{activePaymentTooltip.week}</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-slate-900">
-                    {activePaymentTooltip.milestone}
-                  </h4>
-                  <span className="text-[11px] font-medium text-slate-500">
-                    ({activePaymentTooltip.projectName})
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-0.5">
-                  สถานะ:{" "}
-                  <strong className="text-slate-800">
-                    {PAYMENT_MARKER_STYLES[activePaymentTooltip.status].label}
-                  </strong>
-                  {activePaymentTooltip.invoiceDate ? ` • วันที่เรียกเก็บ: ${activePaymentTooltip.invoiceDate}` : ""}
-                </p>
-              </div>
-            </div>
-
-            <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-800 font-mono font-extrabold text-sm rounded-lg shadow-2xs">
-              ฿{Number(activePaymentTooltip.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-            </div>
-          </div>
-        )}
         </>
         )}
       </div>
+
+      {/* Hover Detail Tooltip Card — Payment Week Marker. Floats directly
+          below the hovered marker (not pinned to the bottom of the page),
+          clamped horizontally so it never runs off the left/right edge. */}
+      {activePaymentTooltip && (
+        <div
+          className="fixed z-40 w-72 p-3 bg-white border border-slate-300 rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-100 pointer-events-none"
+          style={{
+            top: activePaymentTooltip.anchorRect.bottom + 8,
+            left: Math.min(
+              Math.max(8, activePaymentTooltip.anchorRect.left + activePaymentTooltip.anchorRect.width / 2 - TOOLTIP_WIDTH / 2),
+              (typeof window !== "undefined" ? window.innerWidth : TOOLTIP_WIDTH) - TOOLTIP_WIDTH - 8
+            ),
+          }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <h4 className="text-xs font-bold text-slate-900 truncate">{activePaymentTooltip.milestone}</h4>
+              <p className="text-[10.5px] text-slate-500 truncate">{activePaymentTooltip.projectName}</p>
+            </div>
+            <span
+              className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${PAYMENT_MARKER_STYLES[activePaymentTooltip.status].bg} ${PAYMENT_MARKER_STYLES[activePaymentTooltip.status].text}`}
+            >
+              {PAYMENT_MARKER_STYLES[activePaymentTooltip.status].label}
+            </span>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px]">
+            <span className="text-slate-500">
+              Week {activePaymentTooltip.week}
+              {activePaymentTooltip.invoiceDate ? ` • ${activePaymentTooltip.invoiceDate}` : ""}
+            </span>
+            <span className="font-mono font-extrabold text-emerald-700">
+              ฿{Number(activePaymentTooltip.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Drag-to-Reschedule: confirm the new week + let Admin adjust the date */}
       {pendingDrop && (
