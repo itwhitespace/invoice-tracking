@@ -15,6 +15,8 @@ import { getCompanyLabel } from "@/lib/company-utils";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 import { useSettings } from "@/lib/settings-context";
 import { useSearchParams } from "next/navigation";
+import { ProposalDetailModal } from "@/components/proposal-detail-modal";
+import { PdfPreviewModal } from "@/components/pdf-preview-modal";
 import {
   CalendarRange,
   Building2,
@@ -188,6 +190,10 @@ function ProjectRoadmapContent() {
   } | null>(null);
   const [pendingStatus, setPendingStatus] = useState<PaymentStatus>("wait");
   const [isSavingStatus, setIsSavingStatus] = useState(false);
+
+  // Full Proposal detail — opened by clicking a project's name
+  const [detailRecord, setDetailRecord] = useState<SavedRecord | null>(null);
+  const [previewPdfRecord, setPreviewPdfRecord] = useState<SavedRecord | null>(null);
 
   useEffect(() => {
     if (statusEditor) setPendingStatus(statusEditor.currentStatus);
@@ -588,6 +594,22 @@ function ProjectRoadmapContent() {
     }
   };
 
+  // Used by the full Proposal detail modal (opened by clicking a project's
+  // name) for any edit made inside it — % splits, Operations tab, Approve, etc.
+  const handleUpdateRecord = async (updated: SavedRecord) => {
+    setDetailRecord(updated);
+    setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    saveRecordLocally(updated);
+
+    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    if (supabase && isRemoteId(updated.id)) {
+      const { error } = await updateRecordRemote(supabase, updated);
+      if (error) {
+        window.alert("บันทึกใน Local History แล้ว แต่อัปเดตขึ้น Supabase ไม่สำเร็จ: " + error);
+      }
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-100 text-slate-800 overflow-hidden font-sans">
       {/* Top Header */}
@@ -790,12 +812,14 @@ function ProjectRoadmapContent() {
                           {getDepartmentAbbreviation(proj.department)}
                         </button>
                         <div className="min-w-0">
-                          <h3
-                            className="text-xs font-bold text-slate-900 leading-tight truncate group-hover:text-indigo-600 transition-colors"
-                            title={proj.projectName}
+                          <button
+                            type="button"
+                            onClick={() => setDetailRecord(proj)}
+                            className="text-xs font-bold text-slate-900 leading-tight truncate hover:text-indigo-600 hover:underline transition-colors text-left block w-full"
+                            title={`${proj.projectName} — คลิกเพื่อดูรายละเอียด Proposal`}
                           >
                             {proj.projectName}
-                          </h3>
+                          </button>
                           <div className="flex items-center gap-2 text-[10.5px] text-slate-500 font-mono mt-1">
                             <span className="text-emerald-700 font-bold">
                               ฿{Number(proj.totalFee).toLocaleString()}
@@ -1156,6 +1180,26 @@ function ProjectRoadmapContent() {
           </div>
         </div>
       )}
+
+      {/* Full Proposal Detail — opened by clicking a project's name */}
+      <ProposalDetailModal
+        isOpen={!!detailRecord}
+        record={detailRecord}
+        onClose={() => setDetailRecord(null)}
+        onOpenPdf={(rec) => {
+          setDetailRecord(null);
+          setPreviewPdfRecord(rec);
+        }}
+        onUpdate={handleUpdateRecord}
+      />
+
+      {/* PDF Preview */}
+      <PdfPreviewModal
+        isOpen={!!previewPdfRecord}
+        pdfUrl={previewPdfRecord?.pdfUrl || null}
+        title={previewPdfRecord?.projectName}
+        onClose={() => setPreviewPdfRecord(null)}
+      />
     </div>
   );
 }
