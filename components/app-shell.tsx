@@ -12,6 +12,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   FileCheck,
+  ChevronDown,
 } from "lucide-react";
 import { COMPANY_OPTIONS } from "@/lib/company-utils";
 
@@ -58,6 +59,7 @@ const NAV_ITEMS: NavItemDef[] = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     try {
@@ -67,6 +69,31 @@ export function AppShell({ children }: { children: ReactNode }) {
       console.error(e);
     }
   }, []);
+
+  // Auto-expand whichever parent item's page is currently active, so
+  // arriving via a direct link (or a submenu link) still shows its submenu
+  // open — without forcing other manually-opened items closed.
+  useEffect(() => {
+    const activeParent = NAV_ITEMS.find(
+      (i) => i.children && (pathname === i.href || pathname?.startsWith(i.href + "/"))
+    );
+    if (!activeParent) return;
+    setExpandedItems((prev) => {
+      if (prev.has(activeParent.href)) return prev;
+      const next = new Set(prev);
+      next.add(activeParent.href);
+      return next;
+    });
+  }, [pathname]);
+
+  const toggleExpanded = (href: string) => {
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(href)) next.delete(href);
+      else next.add(href);
+      return next;
+    });
+  };
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -118,25 +145,49 @@ export function AppShell({ children }: { children: ReactNode }) {
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
             const Icon = item.icon;
+            const isExpanded = expandedItems.has(item.href);
+            // Sub-nav items are unreachable in collapsed (icon-only) mode, so
+            // there the parent still navigates directly like a normal link.
+            const hasSubmenu = !!item.children && !collapsed;
+
             return (
               <div key={item.href}>
-                <Link
-                  href={item.href}
-                  title={collapsed ? item.label : undefined}
-                  className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-semibold transition ${
-                    isActive
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "text-slate-600 hover:bg-slate-100"
-                  } ${collapsed ? "justify-center" : ""}`}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </Link>
+                {hasSubmenu ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(item.href)}
+                    aria-expanded={isExpanded}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-semibold transition ${
+                      isActive
+                        ? "bg-slate-900 text-white shadow-xs"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="truncate flex-1 text-left">{item.label}</span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    title={collapsed ? item.label : undefined}
+                    className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-semibold transition ${
+                      isActive
+                        ? "bg-slate-900 text-white shadow-xs"
+                        : "text-slate-600 hover:bg-slate-100"
+                    } ${collapsed ? "justify-center" : ""}`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    {!collapsed && <span className="truncate">{item.label}</span>}
+                  </Link>
+                )}
 
                 {/* Company submenu — Project Roadmap / Proposal Preview only */}
-                {!collapsed && item.children && (
+                {hasSubmenu && isExpanded && (
                   <div className="mt-1 ml-[1.15rem] pl-3 border-l border-slate-200 space-y-0.5">
-                    {item.children.map((child) => (
+                    {item.children!.map((child) => (
                       <Link
                         key={child.href}
                         href={child.href}
