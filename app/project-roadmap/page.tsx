@@ -2,7 +2,13 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { SavedRecord, PaymentStatus, PaymentTermItem } from "@/lib/types";
-import { getSupabaseClient, getSavedRecords } from "@/lib/supabase";
+import {
+  getSupabaseClient,
+  getSavedRecords,
+  saveRecordLocally,
+  updateRecordRemote,
+  isRemoteId,
+} from "@/lib/supabase";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
 import { useSettings } from "@/lib/settings-context";
 import {
@@ -10,6 +16,9 @@ import {
   Building2,
   Calendar,
   Layers,
+  Save,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 
 interface MonthConfig {
@@ -50,6 +59,15 @@ const formatShortDate = (dateStr: string): string => {
   return date.toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "2-digit" });
 };
 
+// Calendar date for "week N of the project" — used to suggest a new date
+// when a payment marker is dragged onto a different week.
+const computeDateForWeek = (startDateStr: string, week: number): string => {
+  const start = new Date(`${startDateStr}T00:00:00`);
+  if (isNaN(start.getTime())) return "";
+  start.setDate(start.getDate() + (week - 1) * 7);
+  return start.toISOString().slice(0, 10);
+};
+
 const formatCompactAmount = (amount: number): string => {
   const abs = Math.abs(amount);
   if (abs >= 1_000_000) {
@@ -78,6 +96,25 @@ export default function ProjectRoadmapPage() {
     status: PaymentStatus;
     invoiceDate?: string;
   } | null>(null);
+
+  // Drag-to-reschedule a payment marker to a different week
+  const [dragState, setDragState] = useState<{
+    recordId: string;
+    ptIdx: number;
+    originalWeek: number;
+  } | null>(null);
+  const [pendingDrop, setPendingDrop] = useState<{
+    recordId: string;
+    ptIdx: number;
+    milestone: string;
+    projectName: string;
+    newWeek: number;
+    oldDate?: string;
+    newDate: string;
+    statusField: "invoiceDate" | "invoiceIssuedDate" | "paidDate";
+  } | null>(null);
+  const [showDropSuccess, setShowDropSuccess] = useState<{ oldDate?: string; newDate: string } | null>(null);
+  const [isSavingDrop, setIsSavingDrop] = useState(false);
 
   // Load saved records from Supabase (shared across every device) with the
   // local history as a fallback/merge for anything not yet synced.
@@ -152,6 +189,7 @@ export default function ProjectRoadmapPage() {
           hasStage: false,
           paymentMarkers: [] as {
             col: number;
+            ptIdx: number;
             milestone: string;
             amount: number;
             week: number;
@@ -173,9 +211,11 @@ export default function ProjectRoadmapPage() {
       // Payment-week markers overlap on top of the Stage All bar, positioned
       // by each milestone's own planned week.
       const paymentMarkers = (proj.paymentTerms || [])
-        .filter((pt) => !!pt.paymentWeek)
-        .map((pt) => ({
+        .map((pt, ptIdx) => ({ pt, ptIdx }))
+        .filter(({ pt }) => !!pt.paymentWeek)
+        .map(({ pt, ptIdx }) => ({
           col: startCol + (pt.paymentWeek! - 1),
+          ptIdx,
           milestone: pt.milestone,
           amount: pt.amount,
           week: pt.paymentWeek!,
@@ -195,6 +235,80 @@ export default function ProjectRoadmapPage() {
       };
     });
   }, [allProjects, totalGridColumns, monthHeaders, selectedYear]);
+
+  const handleMarkerDragStart = (recordId: string, ptIdx: number, originalWeek: number) => {
+    setDragState({ recordId, ptIdx, originalWeek });
+  };
+
+  const handleMarkerDragEnd = () => {
+    setDragState(null);
+  };
+
+  const handleDropOnColumn = (proj: SavedRecord, colIdx: number) => {
+    if (!dragState || dragState.recordId !== proj.id) return;
+    const { ptIdx, originalWeek } = dragState;
+    setDragState(null);
+
+    const row = timelineRows.find((r) => r.project.id === proj.id);
+    if (!row || !row.hasStage) return;
+
+    const newWeek = colIdx - row.startCol + 1;
+    if (newWeek < 1 || newWeek === originalWeek) return;
+
+    const pt = proj.paymentTerms[ptIdx];
+    const { status, date: oldDate } = getPaymentStatusInfo(pt);
+    const statusField: "invoiceDate" | "invoiceIssuedDate" | "paidDate" =
+      status === "paid" ? "paidDate" : status === "invoice" ? "invoiceIssuedDate" : "invoiceDate";
+    const newDate = proj.startDate ? computeDateForWeek(proj.startDate, newWeek) : "";
+
+    setPendingDrop({
+      recordId: proj.id,
+      ptIdx,
+      milestone: pt.milestone,
+      projectName: proj.projectName,
+      newWeek,
+      oldDate,
+      newDate,
+      statusField,
+    });
+  };
+
+  const handleConfirmDrop = async () => {
+    if (!pendingDrop) return;
+    const record = records.find((r) => r.id === pendingDrop.recordId);
+    if (!record) {
+      setPendingDrop(null);
+      return;
+    }
+
+    setIsSavingDrop(true);
+    try {
+      const updatedTerms = [...record.paymentTerms];
+      const current: PaymentTermItem = {
+        ...updatedTerms[pendingDrop.ptIdx],
+        paymentWeek: pendingDrop.newWeek,
+        [pendingDrop.statusField]: pendingDrop.newDate || undefined,
+      };
+      updatedTerms[pendingDrop.ptIdx] = current;
+      const updated: SavedRecord = { ...record, paymentTerms: updatedTerms };
+
+      setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      saveRecordLocally(updated);
+
+      const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+      if (supabase && isRemoteId(updated.id)) {
+        const { error } = await updateRecordRemote(supabase, updated);
+        if (error) {
+          window.alert("อัปเดตขึ้น Supabase ไม่สำเร็จ: " + error);
+        }
+      }
+
+      setShowDropSuccess({ oldDate: pendingDrop.oldDate, newDate: pendingDrop.newDate });
+      setPendingDrop(null);
+    } finally {
+      setIsSavingDrop(false);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col bg-slate-100 text-slate-800 overflow-hidden font-sans">
@@ -418,6 +532,9 @@ export default function ProjectRoadmapPage() {
                                 return (
                                   <div
                                     key={pmIdx}
+                                    draggable
+                                    onDragStart={() => handleMarkerDragStart(proj.id, pm.ptIdx, pm.week)}
+                                    onDragEnd={handleMarkerDragEnd}
                                     style={{ gridColumn: `${pm.col + 1} / span 1` }}
                                     onMouseEnter={() =>
                                       setActivePaymentTooltip({
@@ -430,12 +547,33 @@ export default function ProjectRoadmapPage() {
                                       })
                                     }
                                     onMouseLeave={() => setActivePaymentTooltip(null)}
-                                    className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono font-bold text-[10px] flex items-center justify-center cursor-pointer transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5`}
+                                    title="ลากเพื่อย้ายไปสัปดาห์อื่น"
+                                    className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono font-bold text-[10px] flex items-center justify-center cursor-grab active:cursor-grabbing transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5`}
                                   >
                                     {formatCompactAmount(pm.amount)}
                                   </div>
                                 );
                               })}
+                            </div>
+                          )}
+
+                          {/* Drop targets for dragging a marker to a different week (only while dragging this project's own marker) */}
+                          {dragState && dragState.recordId === proj.id && (
+                            <div
+                              className="absolute inset-0 z-30 grid w-full h-9"
+                              style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
+                            >
+                              {Array.from({ length: totalGridColumns }, (_, colIdx) => (
+                                <div
+                                  key={colIdx}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    handleDropOnColumn(proj, colIdx);
+                                  }}
+                                  className="h-9 rounded-md hover:bg-indigo-500/15 hover:outline hover:outline-2 hover:outline-indigo-400 transition-colors"
+                                />
+                              ))}
                             </div>
                           )}
                         </div>
@@ -510,6 +648,89 @@ export default function ProjectRoadmapPage() {
         </>
         )}
       </div>
+
+      {/* Drag-to-Reschedule: confirm the new week + let Admin adjust the date */}
+      {pendingDrop && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">ย้ายกำหนดการเก็บเงิน</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                {pendingDrop.milestone} ({pendingDrop.projectName}) →{" "}
+                <strong className="text-slate-800">Week {pendingDrop.newWeek}</strong>
+              </p>
+            </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                <span className="text-slate-500">วันที่เดิม</span>
+                <span className="font-mono font-semibold text-slate-700">
+                  {pendingDrop.oldDate ? formatShortDate(pendingDrop.oldDate) : "-"}
+                </span>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                  วันที่ใหม่ของสัปดาห์นี้
+                </label>
+                <input
+                  type="date"
+                  value={pendingDrop.newDate}
+                  onChange={(e) => setPendingDrop({ ...pendingDrop, newDate: e.target.value })}
+                  className="w-full px-3 py-2 text-xs font-medium text-slate-800 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setPendingDrop(null)}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleConfirmDrop}
+                disabled={isSavingDrop}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg transition shadow-sm flex items-center justify-center gap-1.5"
+              >
+                {isSavingDrop ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Save className="w-3.5 h-3.5" />
+                )}
+                บันทึกข้อมูล
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drag-to-Reschedule: success */}
+      {showDropSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 text-center space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">อัปเดตวันที่เรียบร้อย</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                อัปเดตวันที่จาก{" "}
+                <strong className="text-slate-700">
+                  {showDropSuccess.oldDate ? formatShortDate(showDropSuccess.oldDate) : "-"}
+                </strong>{" "}
+                →{" "}
+                <strong className="text-slate-700">{formatShortDate(showDropSuccess.newDate)}</strong>{" "}
+                เรียบร้อย
+              </p>
+            </div>
+            <button
+              onClick={() => setShowDropSuccess(null)}
+              className="w-full px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition shadow-sm"
+            >
+              ตกลง
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
