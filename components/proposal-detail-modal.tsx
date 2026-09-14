@@ -213,7 +213,7 @@ export function ProposalDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80 shrink-0">
           <div className="flex items-center gap-3">
@@ -505,7 +505,7 @@ export function ProposalDetailModal({
                       <th className="px-4 py-2.5 text-center w-28">สัดส่วน (%)</th>
                       <th className="px-4 py-2.5 text-center w-32">เก็บเงินสัปดาห์ที่</th>
                       <th className="px-4 py-2.5 text-center w-36">วันที่เรียกเก็บ</th>
-                      <th className="px-4 py-2.5 text-center w-28">สถานะ</th>
+                      <th className="px-4 py-2.5 text-center w-32">สถานะ</th>
                       <th className="px-4 py-2.5 text-center w-36">วันที่ Invoice/Paid</th>
                       <th className="px-4 py-2.5 text-right w-36">จำนวนเงิน (THB)</th>
                     </tr>
