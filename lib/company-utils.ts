@@ -16,3 +16,11 @@ export const getCompanyLabel = (value?: string): string => {
   const found = COMPANY_OPTIONS.find((c) => c.value === value);
   return found ? found.label : value;
 };
+
+// Which Department values belong to each company — used by the Dashboard's
+// Summary tables to always show every one of a company's departments as a
+// row, even ones with no approved projects yet.
+export const COMPANY_DEPARTMENTS: Record<string, string[]> = {
+  "Whitespace Partners": ["studio-1", "studio-2", "studio-3", "studio-4"],
+  Whitespaceconnect: ["Signage", "Branding", "Digital Mkt", "Merge"],
+};

@@ -57,6 +57,33 @@ function getProjectDateRange(proj: SavedRecord): { start: Date; end: Date } | nu
   return { start, end };
 }
 
+// Builds one RoadmapMonthConfig per calendar month from (startYear,
+// startMonthIndex) through (endYear, endMonthIndex) inclusive.
+function buildMonthHeadersInRange(
+  startYear: number,
+  startMonthIndex: number,
+  endYear: number,
+  endMonthIndex: number
+): RoadmapMonthConfig[] {
+  const monthHeaders: RoadmapMonthConfig[] = [];
+  let y = startYear;
+  let m = startMonthIndex;
+  let guard = 0;
+  while ((y < endYear || (y === endYear && m <= endMonthIndex)) && guard < 240) {
+    const yrShort = String(y).slice(-2);
+    const weeksCount = [0, 6, 9].includes(m) ? 5 : 4;
+    const weeks = Array.from({ length: weeksCount }, (_, w) => `W${w + 1}`);
+    monthHeaders.push({ name: `${MONTH_NAMES[m]}-${yrShort}`, year: y, monthIndex: m, weeksCount, weeks });
+    m++;
+    if (m > 11) {
+      m = 0;
+      y++;
+    }
+    guard++;
+  }
+  return monthHeaders;
+}
+
 // Auto-fit month/week headers spanning every given project's full date range.
 export function buildMonthHeaders(projects: SavedRecord[]): RoadmapMonthConfig[] {
   let minDate: Date | null = null;
@@ -67,29 +94,20 @@ export function buildMonthHeaders(projects: SavedRecord[]): RoadmapMonthConfig[]
     if (!minDate || range.start < minDate) minDate = range.start;
     if (!maxDate || range.end > maxDate) maxDate = range.end;
   }
+  if (!minDate || !maxDate) return [];
+  return buildMonthHeadersInRange(minDate.getFullYear(), minDate.getMonth(), maxDate.getFullYear(), maxDate.getMonth());
+}
 
-  const monthHeaders: RoadmapMonthConfig[] = [];
-  if (minDate && maxDate) {
-    let y = minDate.getFullYear();
-    let m = minDate.getMonth();
-    const endY = maxDate.getFullYear();
-    const endM = maxDate.getMonth();
-    let guard = 0;
-    while ((y < endY || (y === endY && m <= endM)) && guard < 240) {
-      const yrShort = String(y).slice(-2);
-      const weeksCount = [0, 6, 9].includes(m) ? 5 : 4;
-      const weeks = Array.from({ length: weeksCount }, (_, w) => `W${w + 1}`);
-      monthHeaders.push({ name: `${MONTH_NAMES[m]}-${yrShort}`, year: y, monthIndex: m, weeksCount, weeks });
-      m++;
-      if (m > 11) {
-        m = 0;
-        y++;
-      }
-      guard++;
-    }
-  }
-
-  return monthHeaders;
+// Our fiscal year runs October through September. Given a reference date
+// (defaults to today), returns the 12 months of whichever fiscal year that
+// date falls in — e.g. a reference date of Sep 2026 resolves to Oct 2025
+// through Sep 2026 (the fiscal year that's currently running).
+export function buildFiscalYearMonthHeaders(referenceDate: Date = new Date()): RoadmapMonthConfig[] {
+  const FISCAL_START_MONTH = 9; // October (0-indexed)
+  const month = referenceDate.getMonth();
+  const year = referenceDate.getFullYear();
+  const startYear = month >= FISCAL_START_MONTH ? year : year - 1;
+  return buildMonthHeadersInRange(startYear, FISCAL_START_MONTH, startYear + 1, FISCAL_START_MONTH - 1);
 }
 
 // Places the given projects' Stage-All bars and payment markers onto an
