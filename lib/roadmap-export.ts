@@ -1,7 +1,13 @@
 import type ExcelJSType from "exceljs";
 import { SavedRecord, PaymentStatus } from "./types";
-import { getDepartmentAbbreviation, formatDepartmentLabel } from "./department-utils";
-import { buildRoadmapTimeline, RoadmapMonthConfig, RoadmapTimelineRow } from "./roadmap-timeline";
+import { DEPARTMENT_OPTIONS, getDepartmentAbbreviation, formatDepartmentLabel } from "./department-utils";
+import {
+  buildRoadmapTimeline,
+  buildMonthHeaders,
+  buildTimelineForMonthHeaders,
+  RoadmapMonthConfig,
+  RoadmapTimelineRow,
+} from "./roadmap-timeline";
 
 // Solid ARGB fills matching the Tailwind colors used on the web Gantt chart.
 const STAGE_ALL_FILL = "FFE2E8F0"; // slate-200
@@ -17,6 +23,21 @@ const STATUS_FILLS: Record<PaymentStatus, { bg: string; font: string }> = {
   hold: { bg: "FFC4B5FD", font: "FF4C1D95" },
   cancelled: { bg: "FFFCA5A5", font: "FF7F1D1D" },
 };
+
+// Companies map to a fixed tab color (department sheets) / header color
+// (Summary sheet blocks) — WSPN green tabs / blue header, WSCN yellow both.
+const WSPN = "Whitespace Partners";
+const WSCN = "Whitespaceconnect";
+const TAB_COLOR_WSPN = "FF00B050"; // green
+const TAB_COLOR_WSCN = "FFFFFF00"; // yellow
+const SUMMARY_HEADER_WSPN_FILL = "FF1F4E78"; // dark blue
+const SUMMARY_HEADER_WSCN_FILL = "FFFFFF00"; // yellow
+const SUMMARY_DEPT_FONT_WSPN = "FF1F2937"; // slate-800
+const SUMMARY_DEPT_FONT_WSCN = "FF6D28D9"; // violet-700
+
+// Alternating background per 3-month block on the Summary sheet's month
+// header row, cycling through this palette — purely a visual grouping aid.
+const MONTH_BAND_PALETTE = ["FFD9D9D9", "FFFFF2CC", "FFDDEBF7", "FFFCE4D6", "FFE2EFDA"];
 
 function solidFill(argb: string): ExcelJSType.Fill {
   return { type: "pattern", pattern: "solid", fgColor: { argb } };
@@ -42,6 +63,33 @@ function sanitizeSheetName(name: string, used: Set<string>): string {
   return candidate;
 }
 
+// Which company most of a project subset belongs to — used to pick a
+// department sheet's tab color. Departments are 1:1 with a company in
+// practice, so this is just a safety net against a mixed/ambiguous group.
+function majorityCompany(projects: SavedRecord[]): string | null {
+  const counts = new Map<string, number>();
+  for (const p of projects) {
+    const c = p.companyName || "";
+    if (!c) continue;
+    counts.set(c, (counts.get(c) || 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [c, n] of counts) {
+    if (n > bestCount) {
+      best = c;
+      bestCount = n;
+    }
+  }
+  return best;
+}
+
+function tabColorForCompany(company: string | null): string | undefined {
+  if (company === WSPN) return TAB_COLOR_WSPN;
+  if (company === WSCN) return TAB_COLOR_WSCN;
+  return undefined;
+}
+
 function addRoadmapSheet(
   workbook: ExcelJSType.Workbook,
   sheetName: string,
@@ -49,11 +97,13 @@ function addRoadmapSheet(
   timelineRows: RoadmapTimelineRow[],
   monthlyTotals: number[],
   totalGridColumns: number,
-  rangeLabel?: string
-) {
+  rangeLabel: string | undefined,
+  tabColorArgb: string | undefined
+): ExcelJSType.Worksheet {
   const sheet = workbook.addWorksheet(sheetName, {
     views: [{ state: "frozen", xSplit: 1, ySplit: 3 }],
   });
+  if (tabColorArgb) sheet.properties.tabColor = { argb: tabColorArgb };
 
   const totalCols = 1 + totalGridColumns; // name column + one column per week
 
@@ -161,16 +211,137 @@ function addRoadmapSheet(
 
     r += 1;
   }
+
+  return sheet;
 }
 
-// Groups the given (already on-screen-filtered) projects by Department and
-// builds one worksheet per department — each auto-fit to only that
-// department's own date range, mirroring what "แยกช่วงตามแผนก" means on the
-// Roadmap page itself. Projects with no department land in a shared
-// "ไม่ระบุแผนก" sheet.
+// One combined Summary sheet, placed first: a monthly-totals table per
+// company (Whitespace Partners, then Whitespaceconnect), broken down by
+// Department, with a Total row per company. Both company blocks share the
+// same auto-fit month range so their columns line up.
+function addSummarySheet(
+  workbook: ExcelJSType.Workbook,
+  projects: SavedRecord[],
+  monthHeaders: RoadmapMonthConfig[]
+) {
+  const sheet = workbook.addWorksheet("Summary", {
+    views: [{ state: "frozen", xSplit: 1, ySplit: 0 }],
+  });
+
+  const totalCols = 1 + monthHeaders.length;
+  sheet.getColumn(1).width = 26;
+  for (let c = 2; c <= totalCols; c++) sheet.getColumn(c).width = 13;
+
+  const departmentSortIndex = (dept: string) => {
+    const idx = DEPARTMENT_OPTIONS.indexOf(dept as any);
+    return idx === -1 ? DEPARTMENT_OPTIONS.length : idx;
+  };
+
+  let r = 1;
+
+  const companies: { name: string; label: string; headerFill: string; headerFont: string; deptFont: string }[] = [
+    { name: WSPN, label: "WSPN", headerFill: SUMMARY_HEADER_WSPN_FILL, headerFont: "FFFFFFFF", deptFont: SUMMARY_DEPT_FONT_WSPN },
+    { name: WSCN, label: "WSCN", headerFill: SUMMARY_HEADER_WSCN_FILL, headerFont: "FF1F2937", deptFont: SUMMARY_DEPT_FONT_WSCN },
+  ];
+
+  for (const company of companies) {
+    const companyProjects = projects.filter((p) => p.companyName === company.name);
+    if (companyProjects.length === 0) continue;
+
+    // --- Header row: company label + month names, banded every 3 months ---
+    const headerRow = sheet.getRow(r);
+    const labelCell = headerRow.getCell(1);
+    labelCell.value = company.label;
+    labelCell.font = { bold: true, size: 11, color: { argb: company.headerFont } };
+    labelCell.fill = solidFill(company.headerFill);
+    labelCell.alignment = { vertical: "middle" };
+
+    monthHeaders.forEach((m, mIdx) => {
+      const cell = headerRow.getCell(mIdx + 2);
+      cell.value = m.name;
+      cell.font = { bold: true, size: 10 };
+      cell.fill = solidFill(MONTH_BAND_PALETTE[Math.floor(mIdx / 3) % MONTH_BAND_PALETTE.length]);
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    });
+    headerRow.height = 20;
+    r += 1;
+
+    // --- One row per department present for this company ---
+    const deptGroups = new Map<string, SavedRecord[]>();
+    for (const proj of companyProjects) {
+      const key = proj.department || "";
+      const list = deptGroups.get(key);
+      if (list) list.push(proj);
+      else deptGroups.set(key, [proj]);
+    }
+    const deptKeys = [...deptGroups.keys()].sort((a, b) => {
+      if (a === "") return 1;
+      if (b === "") return -1;
+      return departmentSortIndex(a) - departmentSortIndex(b);
+    });
+
+    for (const key of deptKeys) {
+      const deptProjects = deptGroups.get(key)!;
+      const { monthlyTotals } = buildTimelineForMonthHeaders(deptProjects, monthHeaders);
+
+      const deptRow = sheet.getRow(r);
+      const nameCell = deptRow.getCell(1);
+      nameCell.value = key ? formatDepartmentLabel(key) : "ไม่ระบุแผนก";
+      nameCell.font = { size: 10, color: { argb: company.deptFont } };
+
+      monthlyTotals.forEach((amt, mIdx) => {
+        const cell = deptRow.getCell(mIdx + 2);
+        if (amt > 0) {
+          cell.value = amt;
+          cell.numFmt = '"฿"#,##0';
+        }
+        cell.alignment = { horizontal: "center" };
+        cell.font = { size: 10 };
+      });
+      r += 1;
+    }
+
+    // --- Total row for this company ---
+    const { monthlyTotals: companyTotals } = buildTimelineForMonthHeaders(companyProjects, monthHeaders);
+    const totalRow = sheet.getRow(r);
+    const totalLabelCell = totalRow.getCell(1);
+    totalLabelCell.value = "Total";
+    totalLabelCell.font = { bold: true, size: 10 };
+    totalLabelCell.alignment = { horizontal: "right" };
+    totalLabelCell.border = { top: { style: "thin" } };
+
+    companyTotals.forEach((amt, mIdx) => {
+      const cell = totalRow.getCell(mIdx + 2);
+      if (amt > 0) {
+        cell.value = amt;
+        cell.numFmt = '"฿"#,##0';
+      }
+      cell.font = { bold: true, size: 10 };
+      cell.alignment = { horizontal: "center" };
+      cell.border = { top: { style: "thin" } };
+    });
+    r += 2; // blank row gap before the next company block
+  }
+}
+
+// Builds the whole workbook: a combined Summary sheet first, then one
+// Gantt-style sheet per Department (tab-colored by which company that
+// department belongs to) — always covering every approved project handed
+// in, regardless of any company/department filter active on screen.
 export async function exportRoadmapToExcel(params: { projects: SavedRecord[] }) {
   const { projects } = params;
 
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Invoice Tracking Program";
+  workbook.created = new Date();
+
+  // Summary sheet first, on one shared auto-fit month range across every
+  // project so both companies' blocks share the same columns.
+  const summaryMonthHeaders = buildMonthHeaders(projects);
+  addSummarySheet(workbook, projects, summaryMonthHeaders);
+
+  // Group the rest by Department for the per-sheet Gantt breakdown.
   const groups = new Map<string, SavedRecord[]>();
   for (const proj of projects) {
     const key = proj.department || "";
@@ -179,19 +350,17 @@ export async function exportRoadmapToExcel(params: { projects: SavedRecord[] }) 
     else groups.set(key, [proj]);
   }
 
-  // Departments in their usual display order, unspecified last.
+  const departmentSortIndex = (dept: string) => {
+    const idx = DEPARTMENT_OPTIONS.indexOf(dept as any);
+    return idx === -1 ? DEPARTMENT_OPTIONS.length : idx;
+  };
   const orderedKeys = [...groups.keys()].sort((a, b) => {
     if (a === "") return 1;
     if (b === "") return -1;
-    return a.localeCompare(b);
+    return departmentSortIndex(a) - departmentSortIndex(b);
   });
 
-  const ExcelJS = (await import("exceljs")).default;
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Invoice Tracking Program";
-  workbook.created = new Date();
-
-  const usedSheetNames = new Set<string>();
+  const usedSheetNames = new Set<string>(["Summary"]);
 
   for (const key of orderedKeys) {
     const groupProjects = groups.get(key)!;
@@ -204,8 +373,9 @@ export async function exportRoadmapToExcel(params: { projects: SavedRecord[] }) 
         : undefined;
 
     const sheetName = sanitizeSheetName(key ? formatDepartmentLabel(key) : "ไม่ระบุแผนก", usedSheetNames);
+    const tabColor = tabColorForCompany(majorityCompany(groupProjects));
 
-    addRoadmapSheet(workbook, sheetName, monthHeaders, timelineRows, monthlyTotals, totalGridColumns, rangeLabel);
+    addRoadmapSheet(workbook, sheetName, monthHeaders, timelineRows, monthlyTotals, totalGridColumns, rangeLabel, tabColor);
   }
 
   const buffer = await workbook.xlsx.writeBuffer();

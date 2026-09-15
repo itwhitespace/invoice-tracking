@@ -57,12 +57,8 @@ function getProjectDateRange(proj: SavedRecord): { start: Date; end: Date } | nu
   return { start, end };
 }
 
-export function buildRoadmapTimeline(projects: SavedRecord[]): {
-  monthHeaders: RoadmapMonthConfig[];
-  timelineRows: RoadmapTimelineRow[];
-  monthlyTotals: number[];
-  totalGridColumns: number;
-} {
+// Auto-fit month/week headers spanning every given project's full date range.
+export function buildMonthHeaders(projects: SavedRecord[]): RoadmapMonthConfig[] {
   let minDate: Date | null = null;
   let maxDate: Date | null = null;
   for (const proj of projects) {
@@ -93,6 +89,21 @@ export function buildRoadmapTimeline(projects: SavedRecord[]): {
     }
   }
 
+  return monthHeaders;
+}
+
+// Places the given projects' Stage-All bars and payment markers onto an
+// ALREADY-BUILT month grid (rather than deriving its own range) — lets
+// several project subsets (e.g. one per department) share one aligned set
+// of month columns, which the Summary sheet's per-company blocks need.
+export function buildTimelineForMonthHeaders(
+  projects: SavedRecord[],
+  monthHeaders: RoadmapMonthConfig[]
+): {
+  timelineRows: RoadmapTimelineRow[];
+  monthlyTotals: number[];
+  totalGridColumns: number;
+} {
   const totalGridColumns = monthHeaders.reduce((acc, m) => acc + m.weeksCount, 0);
 
   const getStartColumnForDate = (dateStr?: string): number | null => {
@@ -171,5 +182,16 @@ export function buildRoadmapTimeline(projects: SavedRecord[]): {
     }
   }
 
+  return { timelineRows, monthlyTotals, totalGridColumns };
+}
+
+export function buildRoadmapTimeline(projects: SavedRecord[]): {
+  monthHeaders: RoadmapMonthConfig[];
+  timelineRows: RoadmapTimelineRow[];
+  monthlyTotals: number[];
+  totalGridColumns: number;
+} {
+  const monthHeaders = buildMonthHeaders(projects);
+  const { timelineRows, monthlyTotals, totalGridColumns } = buildTimelineForMonthHeaders(projects, monthHeaders);
   return { monthHeaders, timelineRows, monthlyTotals, totalGridColumns };
 }

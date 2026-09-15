@@ -7,6 +7,8 @@ export const DEPARTMENT_OPTIONS: Department[] = [
   "studio-4",
   "Signage",
   "Branding",
+  "Digital Mkt",
+  "Merge",
 ];
 
 // Capitalizes only the first character — "studio-1" -> "Studio-1". Values
