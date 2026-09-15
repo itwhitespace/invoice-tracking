@@ -28,6 +28,7 @@ import {
   Filter,
   StickyNote,
   HelpCircle,
+  Download,
 } from "lucide-react";
 
 interface MonthConfig {
@@ -203,6 +204,8 @@ function ProjectRoadmapContent() {
   // Full Proposal detail — opened by clicking a project's name
   const [detailRecord, setDetailRecord] = useState<SavedRecord | null>(null);
   const [previewPdfRecord, setPreviewPdfRecord] = useState<SavedRecord | null>(null);
+
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (statusEditor) setPendingStatus(statusEditor.currentStatus);
@@ -619,6 +622,32 @@ function ProjectRoadmapContent() {
     }
   };
 
+  // Exports exactly what's currently on screen (respecting the company/department
+  // filters) as an .xlsx that mirrors the Gantt chart's layout and colors.
+  // exceljs is dynamically imported so its ~1MB doesn't bloat the page's own bundle.
+  const handleExportExcel = async () => {
+    if (isExporting || timelineRows.length === 0) return;
+    setIsExporting(true);
+    try {
+      const { exportRoadmapToExcel } = await import("@/lib/roadmap-export");
+      const rangeLabel =
+        monthHeaders.length > 0
+          ? `${monthHeaders[0].name} – ${monthHeaders[monthHeaders.length - 1].name}`
+          : undefined;
+      await exportRoadmapToExcel({
+        monthHeaders,
+        timelineRows,
+        monthlyTotals,
+        totalGridColumns,
+        rangeLabel,
+      });
+    } catch (err: any) {
+      window.alert("Export Excel ไม่สำเร็จ: " + (err?.message || String(err)));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-100 text-slate-800 overflow-hidden font-sans">
       {/* Top Header */}
@@ -674,6 +703,23 @@ function ProjectRoadmapContent() {
               {monthHeaders[0].name} – {monthHeaders[monthHeaders.length - 1].name}
             </span>
           </div>
+        )}
+
+        {/* Export to Excel — mirrors the Gantt chart's layout & colors */}
+        {timelineRows.length > 0 && (
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={isExporting}
+            className="flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg px-3 py-1.5 shadow-2xs transition-colors"
+          >
+            {isExporting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5" />
+            )}
+            {isExporting ? "กำลังสร้างไฟล์..." : "Export to Excel"}
+          </button>
         )}
         </div>
       </header>
