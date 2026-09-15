@@ -121,7 +121,7 @@ const WEEK_COLUMN_MIN_PX = 46;
 const CHART_MIN_PX = 850; // floor for short ranges
 
 const formatCompactAmount = (amount: number): string => {
-  return `${Math.round(amount / 1000).toLocaleString("en-US")}K`;
+  return `${(amount / 1000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}K`;
 };
 
 export default function ProjectRoadmapPage() {

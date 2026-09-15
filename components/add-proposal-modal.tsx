@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ExtractedProjectData, TimeFrameItem, PaymentTermItem } from "@/lib/types";
-import { getTotalWeeks } from "@/lib/timeframe-utils";
+import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import {
   X,
   Plus,
@@ -210,9 +210,13 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
             <div className="space-y-1.5 max-w-xs">
               <label className="text-xs font-bold text-slate-700">Total Fee (THB) *</label>
               <input
-                type="number"
-                value={data.totalFee || ""}
-                onChange={(e) => handleFieldChange("totalFee", parseFloat(e.target.value) || 0)}
+                type="text"
+                inputMode="numeric"
+                value={data.totalFee ? data.totalFee.toLocaleString("en-US") : ""}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/[^\d]/g, "");
+                  handleFieldChange("totalFee", digits ? parseInt(digits, 10) : 0);
+                }}
                 placeholder="0"
                 className={`w-full px-3 py-2 text-sm font-mono font-bold text-slate-900 bg-white border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition ${
                   showValidation && data.totalFee <= 0 ? "border-red-300" : "border-slate-300"
@@ -243,7 +247,7 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
                   <tr>
                     <th className="p-2.5 w-44">ระยะงาน (Phase)</th>
                     <th className="p-2.5">รายละเอียดงาน (Description)</th>
-                    <th className="p-2.5 w-32 text-right">ระยะเวลา (Duration)</th>
+                    <th className="p-2.5 w-32 text-center">ระยะเวลา (สัปดาห์)</th>
                     <th className="p-2.5 w-10 text-center"></th>
                   </tr>
                 </thead>
@@ -275,14 +279,17 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
                             className="w-full px-2 py-1.5 text-xs text-slate-700 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none"
                           />
                         </td>
-                        <td className="p-2 text-right">
-                          <input
-                            type="text"
-                            value={item.duration}
-                            onChange={(e) => handleUpdateTimeFrame(idx, "duration", e.target.value)}
-                            placeholder="4 Weeks"
-                            className="w-full px-2 py-1.5 text-xs text-right font-mono font-semibold text-slate-900 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none"
-                          />
+                        <td className="p-2">
+                          <div className="flex items-center justify-center gap-1">
+                            <input
+                              type="number"
+                              min={0}
+                              value={parseWeeksFromDuration(item.duration)}
+                              onChange={(e) => handleUpdateTimeFrame(idx, "duration", `${e.target.value} Weeks`)}
+                              className="w-16 px-2 py-1.5 text-xs text-center font-mono font-semibold text-slate-900 bg-transparent border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-slate-400 rounded outline-none"
+                            />
+                            <span className="text-slate-500 font-medium text-[11px]">Weeks</span>
+                          </div>
                         </td>
                         <td className="p-2 text-center">
                           <button

@@ -24,7 +24,7 @@ function solidFill(argb: string): ExcelJSType.Fill {
 
 // Matches the web Gantt chart's marker labels — always in thousands (K).
 function formatCompactAmount(amount: number): string {
-  return `${Math.round(amount / 1000).toLocaleString("en-US")}K`;
+  return `${(amount / 1000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}K`;
 }
 
 // Excel sheet names: max 31 chars, no : \ / ? * [ ], and must be unique in
