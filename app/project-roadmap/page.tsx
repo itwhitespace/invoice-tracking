@@ -110,6 +110,15 @@ const getProjectDateRange = (proj: SavedRecord): { start: Date; end: Date } | nu
 
 const TOOLTIP_WIDTH = 288; // px — matches the w-72 class on the floating tooltip card
 
+// Each week column keeps at least this width regardless of how many months
+// are in the auto-fit range — long ranges (multi-year) get wider instead of
+// every column being squeezed thinner, and the container's overflow-x-auto
+// picks up the horizontal scroll once that width exceeds the viewport.
+// Tuned so ~6 months are comfortably visible before scrolling kicks in.
+const PROJECT_NAME_COL_PX = 256; // matches the w-64 name column
+const WEEK_COLUMN_MIN_PX = 46;
+const CHART_MIN_PX = 850; // floor for short ranges
+
 const formatCompactAmount = (amount: number): string => {
   const abs = Math.abs(amount);
   if (abs >= 1_000_000) {
@@ -722,11 +731,11 @@ function ProjectRoadmapContent() {
         {/* Minimal White Stacked Gantt Chart Container */}
         <div className="bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <div className="min-w-[1050px]">
+            <div style={{ minWidth: PROJECT_NAME_COL_PX + Math.max(CHART_MIN_PX, totalGridColumns * WEEK_COLUMN_MIN_PX) }}>
               {/* Header Row 1: Month Names (e.g. Jul-26, Aug-26, Sep-26...) */}
               <div className="flex border-b border-slate-300 bg-amber-50/70">
                 {/* Left Top Box (Project Name Header) */}
-                <div className="w-64 shrink-0 p-3.5 border-r border-slate-300 flex items-center justify-between text-xs font-bold text-slate-800 bg-amber-100/60">
+                <div className="w-64 shrink-0 p-3.5 border-r border-slate-300 flex items-center justify-between text-xs font-bold text-slate-800 bg-amber-100 sticky left-0 z-20">
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-slate-700" />
                     <span>Project Name</span>
@@ -750,7 +759,7 @@ function ProjectRoadmapContent() {
 
               {/* Header Row 2: Monthly Totals — sum of payment markers landing in each month */}
               <div className="flex border-b border-slate-300 bg-emerald-200/70">
-                <div className="w-64 shrink-0 border-r border-slate-300 px-3.5 py-1.5 text-emerald-800 text-[10px] font-sans font-semibold bg-emerald-200/60">
+                <div className="w-64 shrink-0 border-r border-slate-300 px-3.5 py-1.5 text-emerald-800 text-[10px] font-sans font-semibold bg-emerald-200 sticky left-0 z-20">
                   ยอดรวมต่อเดือน
                 </div>
                 <div className="flex-1 flex divide-x divide-emerald-300/70 text-center">
@@ -768,7 +777,7 @@ function ProjectRoadmapContent() {
 
               {/* Header Row 3: Weeks per Month (W1, W2, W3, W4, W5...) */}
               <div className="flex border-b border-slate-300 bg-amber-50/30 text-[11px] font-mono text-slate-700">
-                <div className="w-64 shrink-0 border-r border-slate-300 px-3.5 py-1.5 text-slate-500 text-[10px] font-sans bg-amber-50/50">
+                <div className="w-64 shrink-0 border-r border-slate-300 px-3.5 py-1.5 text-slate-500 text-[10px] font-sans bg-amber-50 sticky left-0 z-20">
                   ข้อมูลโครงการจาก Proposal
                 </div>
                 <div className="flex-1 flex divide-x divide-slate-300 text-center py-1.5">
@@ -796,7 +805,7 @@ function ProjectRoadmapContent() {
                       className="flex items-stretch hover:bg-slate-50/80 transition-colors group"
                     >
                       {/* Left Column: Project Name from Database */}
-                      <div className="w-64 shrink-0 p-3.5 border-r border-slate-300 flex items-start gap-3 bg-white">
+                      <div className="w-64 shrink-0 p-3.5 border-r border-slate-300 flex items-start gap-3 bg-white sticky left-0 z-40 group-hover:bg-slate-50">
                         <button
                           type="button"
                           onClick={() =>
@@ -869,7 +878,22 @@ function ProjectRoadmapContent() {
                           style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
                         />
 
-                        <div className="relative w-full h-9">
+                        <div className="relative w-full">
+                          {/* Stage label caption — kept above the bar (not inside it) so an
+                              early payment marker never covers the "Stage All" text */}
+                          <div
+                            className="grid w-full h-4 mb-1"
+                            style={{ gridTemplateColumns: `repeat(${totalGridColumns}, minmax(0, 1fr))` }}
+                          >
+                            <div
+                              style={{ gridColumn: `${row.startCol + 1} / span ${row.totalSpanCols}` }}
+                              className="truncate font-semibold text-[10px] text-slate-500 px-1"
+                            >
+                              Stage All • {row.totalSpanCols} Weeks
+                            </div>
+                          </div>
+
+                          <div className="relative w-full h-9">
                           {/* Stage All — flat gray background spanning every week worked */}
                           <div
                             className="absolute inset-0 grid w-full h-9"
@@ -877,12 +901,8 @@ function ProjectRoadmapContent() {
                           >
                             <div
                               style={{ gridColumn: `${row.startCol + 1} / span ${row.totalSpanCols}` }}
-                              className={`h-9 ${STAGE_ALL_STYLE.bg} ${STAGE_ALL_STYLE.text} rounded-md flex items-center px-3 mx-0.5 border border-black/5`}
-                            >
-                              <span className="truncate font-semibold text-[11px]">
-                                Stage All • {row.totalSpanCols} Weeks
-                              </span>
-                            </div>
+                              className={`h-9 ${STAGE_ALL_STYLE.bg} ${STAGE_ALL_STYLE.text} rounded-md mx-0.5 border border-black/5`}
+                            />
                           </div>
 
                           {/* Payment Week Markers — overlap on top, colored by status, showing amount instead of % */}
@@ -943,6 +963,7 @@ function ProjectRoadmapContent() {
                               />
                             </div>
                           )}
+                          </div>
                         </div>
                         </>
                         )}
