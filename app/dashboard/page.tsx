@@ -19,7 +19,8 @@ import {
   getFiscalYearStartYear,
   RoadmapMonthConfig,
 } from "@/lib/roadmap-timeline";
-import { LayoutDashboard, Loader2, ChevronLeft, ChevronRight, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Loader2, ChevronLeft, ChevronRight, BarChart3, Pencil } from "lucide-react";
+import { TargetEditModal } from "@/components/target-edit-modal";
 
 interface CompanyStyle {
   name: string;
@@ -276,6 +277,7 @@ function AnnualBillingSection({
   onTargetChange: (companyName: string, department: string, targetAmount: number) => void;
 }) {
   const departments = COMPANY_DEPARTMENTS[company.name] || [];
+  const [editingDept, setEditingDept] = useState<string | null>(null);
 
   const rows = useMemo(
     () =>
@@ -296,17 +298,18 @@ function AnnualBillingSection({
   const totalPct = totalTarget > 0 ? (totalActual / totalTarget) * 100 : 0;
 
   const maxPct = Math.max(...rows.map((r) => r.pctComplete), 1);
+  const editingRow = rows.find((r) => r.dept === editingDept) || null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className={`px-5 py-3.5 ${company.headerBg} ${company.headerText} flex items-center gap-2`}>
+    <div className="space-y-3">
+      <div className={`px-5 py-3.5 rounded-xl ${company.headerBg} ${company.headerText} flex items-center gap-2 shadow-sm`}>
         <BarChart3 className="w-4 h-4" />
         <h3 className="text-sm font-bold tracking-wide">{company.shortLabel} — Annual Billing (M THB)</h3>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-5">
-        {/* Table */}
-        <div className="overflow-x-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Table — its own box */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 overflow-x-auto">
           <table className="w-full text-xs text-left border-collapse">
             <thead>
               <tr className="text-slate-500 border-b border-slate-200">
@@ -320,18 +323,16 @@ function AnnualBillingSection({
               {rows.map((r) => (
                 <tr key={r.dept} className="hover:bg-slate-50/60 transition-colors">
                   <td className={`py-2 pr-3 font-semibold ${company.deptText}`}>{formatDepartmentLabel(r.dept)}</td>
-                  <td className="py-1.5 px-3 text-right">
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={r.target ? r.target / 1_000_000 : ""}
-                      onChange={(e) => {
-                        const millions = parseFloat(e.target.value) || 0;
-                        onTargetChange(company.name, r.dept, Math.round(millions * 1_000_000));
-                      }}
-                      placeholder="0.0"
-                      className="w-20 px-2 py-1 text-xs text-right font-mono font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
-                    />
+                  <td className="py-2 px-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setEditingDept(r.dept)}
+                      title="แก้ไข Target"
+                      className="inline-flex items-center gap-1.5 font-mono font-semibold text-slate-800 hover:text-indigo-600 transition-colors group"
+                    >
+                      {formatMillions(r.target)}
+                      <Pencil className="w-3 h-3 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                    </button>
                   </td>
                   <td className="py-2 px-3 text-right font-mono font-semibold text-slate-800">
                     {formatMillions(r.actual)}
@@ -361,29 +362,43 @@ function AnnualBillingSection({
           </table>
         </div>
 
-        {/* Bar chart */}
-        <div className="flex items-end justify-around gap-4 h-48 pt-6 border-l border-slate-100 pl-6">
-          {rows.map((r, idx) => {
-            const heightPct = maxPct > 0 ? Math.max(2, (r.pctComplete / maxPct) * 100) : 2;
-            return (
-              <div key={r.dept} className="flex flex-col items-center justify-end h-full flex-1 min-w-0">
-                <span className="text-[11px] font-bold text-slate-700 mb-1">
-                  {r.target > 0 ? `${Math.round(r.pctComplete)}%` : "-"}
-                </span>
-                <div
-                  className="w-full max-w-[44px] rounded-t-md transition-all"
-                  style={{ height: `${heightPct}%`, backgroundColor: BAR_PALETTE[idx % BAR_PALETTE.length] }}
-                />
-                <div className="w-full border-t border-slate-300 mt-1 pt-1.5 text-center">
-                  <span className="text-[10px] font-semibold text-slate-500 truncate block">
-                    {formatDepartmentLabel(r.dept)}
+        {/* Bar chart — separate box */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+          <div className="flex items-end justify-around gap-4 h-48">
+            {rows.map((r, idx) => {
+              const heightPct = maxPct > 0 ? Math.max(2, (r.pctComplete / maxPct) * 100) : 2;
+              return (
+                <div key={r.dept} className="flex flex-col items-center justify-end h-full flex-1 min-w-0">
+                  <span className="text-[11px] font-bold text-slate-700 mb-1">
+                    {r.target > 0 ? `${Math.round(r.pctComplete)}%` : "-"}
                   </span>
+                  <div
+                    className="w-full max-w-[44px] rounded-t-md transition-all"
+                    style={{ height: `${heightPct}%`, backgroundColor: BAR_PALETTE[idx % BAR_PALETTE.length] }}
+                  />
+                  <div className="w-full border-t border-slate-300 mt-1 pt-1.5 text-center">
+                    <span className="text-[10px] font-semibold text-slate-500 truncate block">
+                      {formatDepartmentLabel(r.dept)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
+
+      <TargetEditModal
+        isOpen={!!editingRow}
+        companyLabel={company.shortLabel}
+        departmentLabel={editingRow ? formatDepartmentLabel(editingRow.dept) : ""}
+        currentAmount={editingRow?.target || 0}
+        onCancel={() => setEditingDept(null)}
+        onSave={(amount) => {
+          if (editingDept) onTargetChange(company.name, editingDept, amount);
+          setEditingDept(null);
+        }}
+      />
     </div>
   );
 }
