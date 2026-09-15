@@ -98,16 +98,27 @@ export function buildMonthHeaders(projects: SavedRecord[]): RoadmapMonthConfig[]
   return buildMonthHeadersInRange(minDate.getFullYear(), minDate.getMonth(), maxDate.getFullYear(), maxDate.getMonth());
 }
 
-// Our fiscal year runs October through September. Given a reference date
-// (defaults to today), returns the 12 months of whichever fiscal year that
-// date falls in — e.g. a reference date of Sep 2026 resolves to Oct 2025
-// through Sep 2026 (the fiscal year that's currently running).
-export function buildFiscalYearMonthHeaders(referenceDate: Date = new Date()): RoadmapMonthConfig[] {
-  const FISCAL_START_MONTH = 9; // October (0-indexed)
+// Our fiscal year runs October through September, identified by its start
+// year (e.g. 2025 means Oct-2025 through Sep-2026).
+export const FISCAL_START_MONTH = 9; // October (0-indexed)
+
+// Given a reference date (defaults to today), returns the start year of
+// whichever fiscal year that date falls in — e.g. Sep 2026 resolves to
+// 2025 (the Oct-2025-to-Sep-2026 fiscal year that's currently running).
+export function getFiscalYearStartYear(referenceDate: Date = new Date()): number {
   const month = referenceDate.getMonth();
   const year = referenceDate.getFullYear();
-  const startYear = month >= FISCAL_START_MONTH ? year : year - 1;
+  return month >= FISCAL_START_MONTH ? year : year - 1;
+}
+
+export function buildFiscalYearMonthHeadersForStartYear(startYear: number): RoadmapMonthConfig[] {
   return buildMonthHeadersInRange(startYear, FISCAL_START_MONTH, startYear + 1, FISCAL_START_MONTH - 1);
+}
+
+// Given a reference date (defaults to today), returns the 12 months of
+// whichever fiscal year that date falls in.
+export function buildFiscalYearMonthHeaders(referenceDate: Date = new Date()): RoadmapMonthConfig[] {
+  return buildFiscalYearMonthHeadersForStartYear(getFiscalYearStartYear(referenceDate));
 }
 
 // Places the given projects' Stage-All bars and payment markers onto an

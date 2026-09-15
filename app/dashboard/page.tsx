@@ -2,16 +2,24 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SavedRecord } from "@/lib/types";
-import { getSupabaseClient, getSavedRecords } from "@/lib/supabase";
+import {
+  getSupabaseClient,
+  getSavedRecords,
+  getDepartmentTargets,
+  saveDepartmentTargetLocally,
+  upsertDepartmentTargetRemote,
+  departmentTargetKey,
+} from "@/lib/supabase";
 import { useSettings } from "@/lib/settings-context";
 import { formatDepartmentLabel } from "@/lib/department-utils";
 import { COMPANY_DEPARTMENTS } from "@/lib/company-utils";
 import {
-  buildFiscalYearMonthHeaders,
+  buildFiscalYearMonthHeadersForStartYear,
   buildTimelineForMonthHeaders,
+  getFiscalYearStartYear,
   RoadmapMonthConfig,
 } from "@/lib/roadmap-timeline";
-import { LayoutDashboard, Loader2 } from "lucide-react";
+import { LayoutDashboard, Loader2, ChevronLeft, ChevronRight, BarChart3 } from "lucide-react";
 
 interface CompanyStyle {
   name: string;
@@ -19,50 +27,83 @@ interface CompanyStyle {
   headerBg: string;
   headerText: string;
   deptText: string;
+  accent: string;
 }
 
 const COMPANIES: CompanyStyle[] = [
   {
     name: "Whitespace Partners",
     shortLabel: "WSPN — Whitespace Partners",
-    headerBg: "bg-[#1F4E78]",
+    headerBg: "bg-gradient-to-r from-[#1F4E78] to-[#2E6DA4]",
     headerText: "text-white",
     deptText: "text-slate-800",
+    accent: "#1F4E78",
   },
   {
     name: "Whitespaceconnect",
     shortLabel: "WSCN — Whitespaceconnect",
-    headerBg: "bg-[#FFFF00]",
+    headerBg: "bg-gradient-to-r from-[#F5D400] to-[#FFEB6B]",
     headerText: "text-slate-900",
     deptText: "text-violet-700",
+    accent: "#8B5CF6",
   },
 ];
+
+const BAR_PALETTE = ["#F4A03C", "#FFD34D", "#8FCB7E", "#C55A11", "#4FB6C4", "#B08BD9"];
 
 const formatAmount = (amount: number): string =>
   amount > 0 ? `฿${amount.toLocaleString("en-US")}` : "-";
 
+const formatMillions = (amount: number): string =>
+  amount > 0 ? (amount / 1_000_000).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "-";
+
 export default function DashboardPage() {
   const { settings } = useSettings();
   const [records, setRecords] = useState<SavedRecord[]>([]);
+  const [targets, setTargets] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [fiscalYearStart, setFiscalYearStart] = useState(() => getFiscalYearStartYear());
 
   useEffect(() => {
     const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
-    getSavedRecords(supabase)
-      .then(setRecords)
+    Promise.all([getSavedRecords(supabase), getDepartmentTargets(supabase)])
+      .then(([recs, tgts]) => {
+        setRecords(recs);
+        setTargets(tgts);
+      })
       .finally(() => setIsLoading(false));
   }, [settings.supabaseUrl, settings.supabaseAnonKey]);
 
+  const handleTargetChange = async (companyName: string, department: string, targetAmount: number) => {
+    const key = departmentTargetKey(companyName, department, fiscalYearStart);
+    setTargets((prev) => ({ ...prev, [key]: targetAmount }));
+    saveDepartmentTargetLocally(key, targetAmount);
+
+    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    if (supabase) {
+      const { error } = await upsertDepartmentTargetRemote(supabase, {
+        companyName,
+        department,
+        fiscalYearStart,
+        targetAmount,
+      });
+      if (error) window.alert("บันทึก Target ขึ้น Supabase ไม่สำเร็จ: " + error);
+    }
+  };
+
   const approvedProjects = useMemo(() => records.filter((r) => r.status === "approved"), [records]);
 
-  // Fixed to our Oct–Sep fiscal year (the one the current date falls in) —
-  // not auto-fit to the data, unlike the Roadmap page and Excel export.
-  const monthHeaders = useMemo(() => buildFiscalYearMonthHeaders(), []);
+  // Fixed to our Oct–Sep fiscal year — navigable with the </> buttons,
+  // not auto-fit to the data like the Roadmap page and Excel export.
+  const monthHeaders = useMemo(
+    () => buildFiscalYearMonthHeadersForStartYear(fiscalYearStart),
+    [fiscalYearStart]
+  );
   const rangeLabel =
     monthHeaders.length > 0 ? `${monthHeaders[0].name} – ${monthHeaders[monthHeaders.length - 1].name}` : "";
 
   return (
-    <div className="h-full flex flex-col bg-slate-100 overflow-hidden">
+    <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
       <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
@@ -70,28 +111,66 @@ export default function DashboardPage() {
           </div>
           <div>
             <h1 className="text-sm font-bold text-slate-900 tracking-tight">Dashboard</h1>
-            <p className="text-[11px] text-slate-500">
-              สรุปยอดรวมรายเดือนตามแผนก แยกตามบริษัท • รอบงบประมาณ {rangeLabel}
-            </p>
+            <p className="text-[11px] text-slate-500">สรุปยอดรวมรายเดือนตามแผนก แยกตามบริษัท</p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full pl-1.5 pr-3 py-1.5">
+          <button
+            type="button"
+            onClick={() => setFiscalYearStart((y) => y - 1)}
+            title="รอบงบประมาณก่อนหน้า"
+            className="w-7 h-7 rounded-full bg-slate-500 hover:bg-slate-700 text-white flex items-center justify-center transition-colors shrink-0"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-xs font-bold text-slate-700 font-mono whitespace-nowrap px-1">
+            รอบงบประมาณ {rangeLabel}
+          </span>
+          <button
+            type="button"
+            onClick={() => setFiscalYearStart((y) => y + 1)}
+            title="รอบงบประมาณถัดไป"
+            className="w-7 h-7 rounded-full bg-slate-500 hover:bg-slate-700 text-white flex items-center justify-center transition-colors shrink-0"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+      <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8">
         {isLoading ? (
           <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-24">
             <Loader2 className="w-8 h-8 animate-spin" />
             <p className="text-xs font-medium">กำลังโหลดข้อมูล...</p>
           </div>
         ) : (
-          COMPANIES.map((company) => (
-            <CompanySummaryTable
-              key={company.name}
-              company={company}
-              projects={approvedProjects.filter((p) => p.companyName === company.name)}
-              monthHeaders={monthHeaders}
-            />
-          ))
+          <>
+            <div className="space-y-6">
+              {COMPANIES.map((company) => (
+                <CompanySummaryTable
+                  key={company.name}
+                  company={company}
+                  projects={approvedProjects.filter((p) => p.companyName === company.name)}
+                  monthHeaders={monthHeaders}
+                />
+              ))}
+            </div>
+
+            <div className="space-y-6">
+              {COMPANIES.map((company) => (
+                <AnnualBillingSection
+                  key={company.name}
+                  company={company}
+                  projects={approvedProjects.filter((p) => p.companyName === company.name)}
+                  monthHeaders={monthHeaders}
+                  fiscalYearStart={fiscalYearStart}
+                  targets={targets}
+                  onTargetChange={handleTargetChange}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -125,20 +204,20 @@ function CompanySummaryTable({
   );
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-xs text-left border-collapse">
           <thead>
             <tr>
               <th
-                className={`p-3 sticky left-0 z-10 ${company.headerBg} ${company.headerText} font-bold whitespace-nowrap min-w-[200px]`}
+                className={`p-3.5 sticky left-0 z-10 ${company.headerBg} ${company.headerText} font-bold whitespace-nowrap min-w-[200px] tracking-wide`}
               >
                 {company.shortLabel}
               </th>
               {monthHeaders.map((m, idx) => (
                 <th
                   key={idx}
-                  className="p-3 text-center font-bold text-slate-700 bg-slate-50 whitespace-nowrap border-b border-slate-200 min-w-[92px]"
+                  className="p-3.5 text-center font-bold text-slate-600 bg-slate-50/80 whitespace-nowrap border-b border-slate-200 min-w-[92px]"
                 >
                   {m.name}
                 </th>
@@ -146,13 +225,19 @@ function CompanySummaryTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {deptRows.map(({ dept, monthlyTotals }) => (
-              <tr key={dept} className="hover:bg-slate-50/60 transition-colors">
-                <td className={`p-3 font-semibold sticky left-0 z-10 bg-white ${company.deptText}`}>
+            {deptRows.map(({ dept, monthlyTotals }, rowIdx) => (
+              <tr
+                key={dept}
+                className={`hover:bg-indigo-50/40 transition-colors ${rowIdx % 2 === 1 ? "bg-slate-50/40" : ""}`}
+              >
+                <td className={`p-3.5 font-semibold sticky left-0 z-10 bg-white ${company.deptText}`}>
                   {formatDepartmentLabel(dept)}
                 </td>
                 {monthlyTotals.map((amt, idx) => (
-                  <td key={idx} className="p-3 text-center font-mono text-slate-700">
+                  <td
+                    key={idx}
+                    className={`p-3.5 text-center font-mono tabular-nums ${amt > 0 ? "text-slate-800 font-semibold" : "text-slate-300"}`}
+                  >
                     {formatAmount(amt)}
                   </td>
                 ))}
@@ -160,16 +245,144 @@ function CompanySummaryTable({
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-slate-300 bg-slate-50">
-              <td className="p-3 text-right font-bold text-slate-900 sticky left-0 z-10 bg-slate-50">Total</td>
+            <tr className="border-t-2 border-slate-200 bg-slate-50">
+              <td className="p-3.5 text-right font-bold text-slate-900 sticky left-0 z-10 bg-slate-50">Total</td>
               {totalRow.map((amt, idx) => (
-                <td key={idx} className="p-3 text-center font-mono font-bold text-emerald-700">
+                <td key={idx} className="p-3.5 text-center font-mono tabular-nums font-bold text-emerald-700">
                   {formatAmount(amt)}
                 </td>
               ))}
             </tr>
           </tfoot>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function AnnualBillingSection({
+  company,
+  projects,
+  monthHeaders,
+  fiscalYearStart,
+  targets,
+  onTargetChange,
+}: {
+  company: CompanyStyle;
+  projects: SavedRecord[];
+  monthHeaders: RoadmapMonthConfig[];
+  fiscalYearStart: number;
+  targets: Record<string, number>;
+  onTargetChange: (companyName: string, department: string, targetAmount: number) => void;
+}) {
+  const departments = COMPANY_DEPARTMENTS[company.name] || [];
+
+  const rows = useMemo(
+    () =>
+      departments.map((dept) => {
+        const deptProjects = projects.filter((p) => p.department === dept);
+        const { monthlyTotals } = buildTimelineForMonthHeaders(deptProjects, monthHeaders);
+        const actual = monthlyTotals.reduce((sum, v) => sum + v, 0);
+        const key = departmentTargetKey(company.name, dept, fiscalYearStart);
+        const target = targets[key] || 0;
+        const pctComplete = target > 0 ? (actual / target) * 100 : 0;
+        return { dept, actual, target, pctComplete };
+      }),
+    [projects, monthHeaders, departments, targets, company.name, fiscalYearStart]
+  );
+
+  const totalTarget = rows.reduce((sum, r) => sum + r.target, 0);
+  const totalActual = rows.reduce((sum, r) => sum + r.actual, 0);
+  const totalPct = totalTarget > 0 ? (totalActual / totalTarget) * 100 : 0;
+
+  const maxPct = Math.max(...rows.map((r) => r.pctComplete), 1);
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className={`px-5 py-3.5 ${company.headerBg} ${company.headerText} flex items-center gap-2`}>
+        <BarChart3 className="w-4 h-4" />
+        <h3 className="text-sm font-bold tracking-wide">{company.shortLabel} — Annual Billing (M THB)</h3>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-5">
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left border-collapse">
+            <thead>
+              <tr className="text-slate-500 border-b border-slate-200">
+                <th className="py-2 pr-3 font-bold">Department</th>
+                <th className="py-2 px-3 text-right font-bold">Target</th>
+                <th className="py-2 px-3 text-right font-bold">Actual</th>
+                <th className="py-2 pl-3 text-right font-bold">% Complete</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((r) => (
+                <tr key={r.dept} className="hover:bg-slate-50/60 transition-colors">
+                  <td className={`py-2 pr-3 font-semibold ${company.deptText}`}>{formatDepartmentLabel(r.dept)}</td>
+                  <td className="py-1.5 px-3 text-right">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={r.target ? r.target / 1_000_000 : ""}
+                      onChange={(e) => {
+                        const millions = parseFloat(e.target.value) || 0;
+                        onTargetChange(company.name, r.dept, Math.round(millions * 1_000_000));
+                      }}
+                      placeholder="0.0"
+                      className="w-20 px-2 py-1 text-xs text-right font-mono font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                    />
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono font-semibold text-slate-800">
+                    {formatMillions(r.actual)}
+                  </td>
+                  <td className="py-2 pl-3 text-right">
+                    <span
+                      className={`font-mono font-bold ${
+                        r.pctComplete >= 100 ? "text-emerald-600" : r.pctComplete >= 70 ? "text-amber-600" : "text-slate-500"
+                      }`}
+                    >
+                      {r.target > 0 ? `${Math.round(r.pctComplete)}%` : "-"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-200 font-bold">
+                <td className="py-2 pr-3 text-slate-900">Total</td>
+                <td className="py-2 px-3 text-right font-mono text-slate-900">{formatMillions(totalTarget)}</td>
+                <td className="py-2 px-3 text-right font-mono text-slate-900">{formatMillions(totalActual)}</td>
+                <td className="py-2 pl-3 text-right font-mono text-emerald-700">
+                  {totalTarget > 0 ? `${Math.round(totalPct)}%` : "-"}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* Bar chart */}
+        <div className="flex items-end justify-around gap-4 h-48 pt-6 border-l border-slate-100 pl-6">
+          {rows.map((r, idx) => {
+            const heightPct = maxPct > 0 ? Math.max(2, (r.pctComplete / maxPct) * 100) : 2;
+            return (
+              <div key={r.dept} className="flex flex-col items-center justify-end h-full flex-1 min-w-0">
+                <span className="text-[11px] font-bold text-slate-700 mb-1">
+                  {r.target > 0 ? `${Math.round(r.pctComplete)}%` : "-"}
+                </span>
+                <div
+                  className="w-full max-w-[44px] rounded-t-md transition-all"
+                  style={{ height: `${heightPct}%`, backgroundColor: BAR_PALETTE[idx % BAR_PALETTE.length] }}
+                />
+                <div className="w-full border-t border-slate-300 mt-1 pt-1.5 text-center">
+                  <span className="text-[10px] font-semibold text-slate-500 truncate block">
+                    {formatDepartmentLabel(r.dept)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

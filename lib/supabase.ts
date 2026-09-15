@@ -296,3 +296,74 @@ export async function deleteRecordRemote(
   const { error } = await supabase.from("projects").delete().eq("id", id);
   return { error: error ? error.message : null };
 }
+
+// --- Dashboard "Annual Billing" targets ---------------------------------
+// Keyed by "<companyName>::<department>::<fiscalYearStart>" — a plain map
+// is simplest here since the whole table is tiny (a handful of rows per
+// company per fiscal year) and always loaded in full.
+
+export function departmentTargetKey(companyName: string, department: string, fiscalYearStart: number): string {
+  return `${companyName}::${department}::${fiscalYearStart}`;
+}
+
+const LOCAL_TARGETS_KEY = "invoice_tracking_department_targets";
+
+export function getLocalDepartmentTargets(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(LOCAL_TARGETS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (err) {
+    console.error("Error reading local department targets:", err);
+    return {};
+  }
+}
+
+export function saveDepartmentTargetLocally(key: string, targetAmount: number) {
+  if (typeof window === "undefined") return;
+  try {
+    const targets = getLocalDepartmentTargets();
+    targets[key] = targetAmount;
+    localStorage.setItem(LOCAL_TARGETS_KEY, JSON.stringify(targets));
+  } catch (err) {
+    console.error("Error saving local department target:", err);
+  }
+}
+
+// Loads every stored target (Supabase merged over local fallback, same
+// merge shape as getSavedRecords) as a flat key -> amount map.
+export async function getDepartmentTargets(supabase: SupabaseClient | null): Promise<Record<string, number>> {
+  const local = getLocalDepartmentTargets();
+  if (!supabase) return local;
+
+  const { data, error } = await supabase.from("department_targets").select("*");
+  if (error || !data) {
+    console.warn("Failed to fetch remote department targets:", error);
+    return local;
+  }
+
+  const remote: Record<string, number> = {};
+  for (const row of data) {
+    remote[departmentTargetKey(row.company_name, row.department, row.fiscal_year_start)] = Number(row.target_amount) || 0;
+  }
+  return { ...local, ...remote };
+}
+
+export async function upsertDepartmentTargetRemote(
+  supabase: SupabaseClient,
+  params: { companyName: string; department: string; fiscalYearStart: number; targetAmount: number }
+): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from("department_targets")
+    .upsert(
+      {
+        company_name: params.companyName,
+        department: params.department,
+        fiscal_year_start: params.fiscalYearStart,
+        target_amount: params.targetAmount,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "company_name,department,fiscal_year_start" }
+    );
+  return { error: error ? error.message : null };
+}

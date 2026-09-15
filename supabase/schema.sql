@@ -79,6 +79,21 @@ create table if not exists public.project_payment_terms (
 );
 
 -- ----------------------------------------------------------------------------
+-- 5. department_targets — Dashboard "Annual Billing" targets, one row per
+--    company + department + fiscal year (Oct-Sep, identified by its start
+--    year — e.g. 2025 means the Oct-2025-to-Sep-2026 fiscal year)
+-- ----------------------------------------------------------------------------
+create table if not exists public.department_targets (
+  id                  uuid primary key default gen_random_uuid(),
+  company_name        text not null,
+  department          text not null,
+  fiscal_year_start   int not null,
+  target_amount       numeric(14, 2) not null default 0,
+  updated_at          timestamptz not null default now(),
+  unique (company_name, department, fiscal_year_start)
+);
+
+-- ----------------------------------------------------------------------------
 -- Indexes
 -- ----------------------------------------------------------------------------
 create index if not exists idx_design_fee_items_project on public.project_design_fee_items(project_id);
@@ -115,6 +130,7 @@ alter table public.projects                  enable row level security;
 alter table public.project_design_fee_items  enable row level security;
 alter table public.project_timeframes        enable row level security;
 alter table public.project_payment_terms     enable row level security;
+alter table public.department_targets        enable row level security;
 
 drop policy if exists "Allow all access" on public.projects;
 create policy "Allow all access" on public.projects
@@ -130,6 +146,10 @@ create policy "Allow all access" on public.project_timeframes
 
 drop policy if exists "Allow all access" on public.project_payment_terms;
 create policy "Allow all access" on public.project_payment_terms
+  for all using (true) with check (true);
+
+drop policy if exists "Allow all access" on public.department_targets;
+create policy "Allow all access" on public.department_targets
   for all using (true) with check (true);
 
 -- ----------------------------------------------------------------------------
@@ -171,6 +191,20 @@ alter table public.projects add column if not exists roadmap_note text;
 alter table public.project_payment_terms drop constraint if exists project_payment_terms_payment_status_check;
 alter table public.project_payment_terms add constraint project_payment_terms_payment_status_check
   check (payment_status in ('wait', 'invoice', 'paid', 'hold', 'cancelled'));
+
+create table if not exists public.department_targets (
+  id                  uuid primary key default gen_random_uuid(),
+  company_name        text not null,
+  department          text not null,
+  fiscal_year_start   int not null,
+  target_amount       numeric(14, 2) not null default 0,
+  updated_at          timestamptz not null default now(),
+  unique (company_name, department, fiscal_year_start)
+);
+alter table public.department_targets enable row level security;
+drop policy if exists "Allow all access" on public.department_targets;
+create policy "Allow all access" on public.department_targets
+  for all using (true) with check (true);
 
 -- ============================================================================
 -- Done. In the app's Settings page, set:
