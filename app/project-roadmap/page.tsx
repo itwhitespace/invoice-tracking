@@ -863,7 +863,7 @@ function ProjectRoadmapContent() {
                               ฿{Number(proj.totalFee).toLocaleString()}
                             </span>
                             <span>•</span>
-                            <span>{proj.area ? proj.area.split("(")[0] : "Active"}</span>
+                            <span>{proj.totalDesignDuration || "Active"}</span>
                           </div>
 
                           {/* Roadmap note — click here (or the department badge) to add/edit */}

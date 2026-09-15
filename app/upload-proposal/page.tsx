@@ -19,6 +19,7 @@ import {
   saveRecordLocally,
   deleteRecordLocally,
   deleteRecordRemote,
+  insertProjectRemote,
   isRemoteId,
 } from "@/lib/supabase";
 import Link from "next/link";
@@ -180,78 +181,25 @@ export default function UploadProposalPage() {
           supabaseStorageErrorMessage = storageError.message || String(storageError);
         }
 
-        // Insert into Supabase table 'projects'
-        const vatAmount = data.totalFee * 0.07;
-        const { data: projectRow, error: projectError } = await supabase
-          .from("projects")
-          .insert({
-            company_name: data.companyName || "",
-            project_name: data.projectName,
-            area: data.area,
-            scope_of_work: data.scopeOfWork,
-            total_fee: data.totalFee,
-            special_discount: data.specialDiscount || 0,
-            vat_amount: vatAmount,
-            grand_total: data.totalFee + vatAmount,
-            total_design_duration: data.totalDesignDuration || "",
-            pdf_url: uploadedPdfUrl,
-            pdf_file_name: file ? file.name : sampleName,
-            status: "verified",
-          })
-          .select()
-          .single();
+        // Insert into Supabase table 'projects' (+ timeframes + payment terms)
+        const { projectId, error: projectError } = await insertProjectRemote(supabase, {
+          companyName: data.companyName || "",
+          projectName: data.projectName,
+          totalFee: data.totalFee,
+          totalDesignDuration: data.totalDesignDuration || "",
+          pdfUrl: uploadedPdfUrl,
+          pdfFileName: file ? file.name : sampleName,
+          status: "verified",
+          timeFrames: data.timeFrames,
+          paymentTerms: data.paymentTerms,
+        });
 
-        if (projectError) {
+        if (projectError || !projectId) {
           console.warn("Supabase project insert warning:", projectError);
           supabaseProjectInsertFailed = true;
-          supabaseProjectErrorMessage = projectError.message || String(projectError);
-        } else if (projectRow) {
-          const projectId = projectRow.id;
+          supabaseProjectErrorMessage = projectError || "Unknown error";
+        } else {
           remoteProjectId = projectId;
-
-          // Insert Design Fee Items
-          if (data.designFeeItems && data.designFeeItems.length > 0) {
-            await supabase.from("project_design_fee_items").insert(
-              data.designFeeItems.map((fi, i) => ({
-                project_id: projectId,
-                item: fi.item,
-                description: fi.description,
-                amount: fi.amount,
-                sort_order: i,
-              }))
-            );
-          }
-
-          // Insert Timeframes
-          if (data.timeFrames.length > 0) {
-            await supabase.from("project_timeframes").insert(
-              data.timeFrames.map((tf, i) => ({
-                project_id: projectId,
-                phase: tf.phase,
-                description: tf.description,
-                duration: tf.duration,
-                sort_order: i,
-              }))
-            );
-          }
-
-          // Insert Payment Terms
-          if (data.paymentTerms.length > 0) {
-            await supabase.from("project_payment_terms").insert(
-              data.paymentTerms.map((pt, i) => ({
-                project_id: projectId,
-                milestone: pt.milestone,
-                payment_percentage: pt.paymentPercentage,
-                amount: pt.amount,
-                payment_week: pt.paymentWeek ?? null,
-                invoice_date: pt.invoiceDate || null,
-                payment_status: pt.paymentStatus || null,
-                invoice_issued_date: pt.invoiceIssuedDate || null,
-                paid_date: pt.paidDate || null,
-                sort_order: i,
-              }))
-            );
-          }
         }
       }
 
@@ -263,11 +211,7 @@ export default function UploadProposalPage() {
         created_at: new Date().toISOString(),
         companyName: data.companyName || "",
         projectName: data.projectName,
-        area: data.area,
-        scopeOfWork: data.scopeOfWork,
         totalFee: data.totalFee,
-        designFeeItems: data.designFeeItems || [],
-        specialDiscount: data.specialDiscount || 0,
         timeFrames: [...data.timeFrames],
         totalDesignDuration: data.totalDesignDuration || "",
         paymentTerms: [...data.paymentTerms],
@@ -310,11 +254,7 @@ export default function UploadProposalPage() {
     setData({
       companyName: record.companyName || "",
       projectName: record.projectName,
-      area: record.area,
-      scopeOfWork: record.scopeOfWork,
       totalFee: record.totalFee,
-      designFeeItems: record.designFeeItems || [],
-      specialDiscount: record.specialDiscount || 0,
       timeFrames: record.timeFrames || [],
       totalDesignDuration: record.totalDesignDuration || "",
       paymentTerms: record.paymentTerms || [],

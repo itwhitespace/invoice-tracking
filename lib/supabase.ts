@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { ExtractedProjectData, SavedRecord } from "./types";
+import { ExtractedProjectData, SavedRecord, TimeFrameItem, PaymentTermItem } from "./types";
 
 // Create client using environment variables or user provided settings from localStorage
 export function getSupabaseClient(customUrl?: string, customKey?: string) {
@@ -97,14 +97,7 @@ function mapProjectRowToRecord(row: any): SavedRecord {
     created_at: row.created_at,
     companyName: row.company_name || "",
     projectName: row.project_name,
-    area: row.area || "",
-    scopeOfWork: row.scope_of_work || "",
     totalFee: Number(row.total_fee) || 0,
-    designFeeItems: (row.project_design_fee_items || [])
-      .slice()
-      .sort((a: any, b: any) => a.sort_order - b.sort_order)
-      .map((fi: any) => ({ id: fi.id, item: fi.item, description: fi.description || "", amount: Number(fi.amount) || 0 })),
-    specialDiscount: Number(row.special_discount) || 0,
     timeFrames: (row.project_timeframes || [])
       .slice()
       .sort((a: any, b: any) => a.sort_order - b.sort_order)
@@ -137,7 +130,7 @@ function mapProjectRowToRecord(row: any): SavedRecord {
 export async function fetchRemoteSavedRecords(supabase: SupabaseClient): Promise<SavedRecord[]> {
   const { data, error } = await supabase
     .from("projects")
-    .select("*, project_design_fee_items(*), project_timeframes(*), project_payment_terms(*)")
+    .select("*, project_timeframes(*), project_payment_terms(*)")
     .order("created_at", { ascending: false });
 
   if (error || !data) {
@@ -165,18 +158,12 @@ export async function updateRecordRemote(
   record: SavedRecord
 ): Promise<{ error: string | null }> {
   try {
-    const vatAmount = record.totalFee * 0.07;
     const { error: updateError } = await supabase
       .from("projects")
       .update({
         company_name: record.companyName || "",
         project_name: record.projectName,
-        area: record.area,
-        scope_of_work: record.scopeOfWork,
         total_fee: record.totalFee,
-        special_discount: record.specialDiscount || 0,
-        vat_amount: vatAmount,
-        grand_total: record.totalFee + vatAmount,
         total_design_duration: record.totalDesignDuration || "",
         status: record.status,
         start_date: record.startDate || null,
@@ -187,6 +174,21 @@ export async function updateRecordRemote(
       .eq("id", record.id);
 
     if (updateError) return { error: updateError.message };
+
+    // Update each timeframe row in place by its own id (same per-row
+    // pattern as payment terms below, for the same race-safety reason).
+    for (const tf of record.timeFrames || []) {
+      if (!tf.id) continue;
+      const { error: tfError } = await supabase
+        .from("project_timeframes")
+        .update({
+          phase: tf.phase,
+          description: tf.description,
+          duration: tf.duration,
+        })
+        .eq("id", tf.id);
+      if (tfError) return { error: tfError.message };
+    }
 
     // Update each payment term row in place by its own id — NOT a
     // delete-then-insert of the whole set. A delete-then-insert lets two
@@ -216,6 +218,75 @@ export async function updateRecordRemote(
   } catch (err: any) {
     return { error: err.message || String(err) };
   }
+}
+
+// Shared by the PDF-upload flow and the manual "Add Proposal" form — both
+// end up creating one `projects` row plus its `project_timeframes` and
+// `project_payment_terms` child rows the same way.
+export async function insertProjectRemote(
+  supabase: SupabaseClient,
+  params: {
+    companyName: string;
+    projectName: string;
+    totalFee: number;
+    totalDesignDuration: string;
+    pdfUrl: string;
+    pdfFileName: string;
+    status: SavedRecord["status"];
+    timeFrames: TimeFrameItem[];
+    paymentTerms: PaymentTermItem[];
+  }
+): Promise<{ projectId: string | null; error: string | null }> {
+  const { data: projectRow, error: projectError } = await supabase
+    .from("projects")
+    .insert({
+      company_name: params.companyName || "",
+      project_name: params.projectName,
+      total_fee: params.totalFee,
+      total_design_duration: params.totalDesignDuration || "",
+      pdf_url: params.pdfUrl,
+      pdf_file_name: params.pdfFileName,
+      status: params.status,
+    })
+    .select()
+    .single();
+
+  if (projectError || !projectRow) {
+    return { projectId: null, error: projectError?.message || "Insert failed" };
+  }
+
+  const projectId = projectRow.id;
+
+  if (params.timeFrames.length > 0) {
+    await supabase.from("project_timeframes").insert(
+      params.timeFrames.map((tf, i) => ({
+        project_id: projectId,
+        phase: tf.phase,
+        description: tf.description,
+        duration: tf.duration,
+        sort_order: i,
+      }))
+    );
+  }
+
+  if (params.paymentTerms.length > 0) {
+    await supabase.from("project_payment_terms").insert(
+      params.paymentTerms.map((pt, i) => ({
+        project_id: projectId,
+        milestone: pt.milestone,
+        payment_percentage: pt.paymentPercentage,
+        amount: pt.amount,
+        payment_week: pt.paymentWeek ?? null,
+        invoice_date: pt.invoiceDate || null,
+        payment_status: pt.paymentStatus || null,
+        invoice_issued_date: pt.invoiceIssuedDate || null,
+        paid_date: pt.paidDate || null,
+        sort_order: i,
+      }))
+    );
+  }
+
+  return { projectId, error: null };
 }
 
 export async function deleteRecordRemote(

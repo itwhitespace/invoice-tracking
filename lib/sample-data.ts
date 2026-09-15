@@ -3,11 +3,7 @@ import { ExtractedProjectData } from "./types";
 export const EMPTY_PROJECT_DATA: ExtractedProjectData = {
   companyName: "",
   projectName: "",
-  area: "",
-  scopeOfWork: "",
   totalFee: 0,
-  specialDiscount: 0,
-  designFeeItems: [],
   timeFrames: [],
   totalDesignDuration: "",
   paymentTerms: [],
@@ -16,27 +12,7 @@ export const EMPTY_PROJECT_DATA: ExtractedProjectData = {
 export const SAMPLE_PROJECT_DATA: ExtractedProjectData = {
   companyName: "Whitespace Partners",
   projectName: "Villa Horizon Luxury Residence & Clubhouse",
-  area: "480 sq.m. (2-Story Villa + 120 sq.m. Landscape Area)",
-  scopeOfWork: "Complete Architectural & Interior Design including Concept Development, Schematic Design, 3D Renderings, Detailed Working Drawings, Material Specifications, and Construction Site Supervision.",
   totalFee: 1450000,
-  specialDiscount: 0,
-  designFeeItems: [
-    {
-      item: "Architectural & Interior Design (Stages 1-4)",
-      description: "Concept, Schematic 3D, Design Development, and Working Drawings",
-      amount: 1150000,
-    },
-    {
-      item: "Site Supervision & Coordination",
-      description: "Periodic construction site inspections and quality review",
-      amount: 200000,
-    },
-    {
-      item: "Perspective 3D Renderings & BOQ",
-      description: "4 High-resolution perspectives & detailed bill of quantities",
-      amount: 100000,
-    },
-  ],
   timeFrames: [
     {
       phase: "Phase 1: Concept Design",
@@ -97,17 +73,7 @@ export const SAMPLE_PROJECT_DATA: ExtractedProjectData = {
 export const SAMPLE_PROJECT_DATA_2: ExtractedProjectData = {
   companyName: "Whitespaceconnect",
   projectName: "The Urban Loft Cafe & Co-working Space",
-  area: "260 sq.m. (Commercial Renovation)",
-  scopeOfWork: "Interior renovation design, custom millwork drawings, lighting design, kitchen workflow optimization, and brand identity alignment.",
   totalFee: 680000,
-  specialDiscount: 0,
-  designFeeItems: [
-    {
-      item: "Interior Renovation Design (Full Scope)",
-      description: "Survey, 3D visualization, construction drawings & site coordination",
-      amount: 680000,
-    },
-  ],
   timeFrames: [
     {
       phase: "Phase 1: Initial Survey & Layout",

@@ -1,10 +1,3 @@
-export interface DesignFeeItem {
-  id?: string;
-  item: string;
-  description: string;
-  amount: number;
-}
-
 export interface TimeFrameItem {
   id?: string;
   phase: string;
@@ -34,11 +27,7 @@ export interface PaymentTermItem {
 export interface ExtractedProjectData {
   companyName?: string;
   projectName: string;
-  area: string;
-  scopeOfWork: string;
   totalFee: number;
-  designFeeItems?: DesignFeeItem[];
-  specialDiscount?: number;
   timeFrames: TimeFrameItem[];
   totalDesignDuration?: string;
   paymentTerms: PaymentTermItem[];
@@ -51,11 +40,7 @@ export interface SavedRecord {
   created_at: string;
   companyName?: string;
   projectName: string;
-  area: string;
-  scopeOfWork: string;
   totalFee: number;
-  designFeeItems?: DesignFeeItem[];
-  specialDiscount?: number;
   timeFrames: TimeFrameItem[];
   totalDesignDuration?: string;
   paymentTerms: PaymentTermItem[];

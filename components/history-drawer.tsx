@@ -92,8 +92,8 @@ export function HistoryDrawer({
 
                   <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
                     <div>
-                      <span className="text-slate-400">Area: </span>
-                      <span>{rec.area || "-"}</span>
+                      <span className="text-slate-400">Duration: </span>
+                      <span>{rec.totalDesignDuration || "-"}</span>
                     </div>
                     <div>
                       <span className="text-slate-400">Total Fee: </span>

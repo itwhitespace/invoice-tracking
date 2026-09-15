@@ -1,7 +1,7 @@
 "use client";
 
 import { SavedRecord, PaymentStatus } from "@/lib/types";
-import { getTotalWeeks } from "@/lib/timeframe-utils";
+import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-utils";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 import {
@@ -68,8 +68,6 @@ export function ProposalDetailModal({
 
   if (!isOpen || !localRecord) return null;
 
-  const vatAmount = (localRecord.totalFee || 0) * 0.07;
-  const grandTotal = (localRecord.totalFee || 0) + vatAmount;
   const totalWeeks = getTotalWeeks(localRecord.timeFrames || []);
 
   const handleExportJSON = () => {
@@ -108,6 +106,27 @@ export function ProposalDetailModal({
       paymentWeek: val ? parseInt(val, 10) : undefined,
     };
     setLocalRecord({ ...localRecord, paymentTerms: updatedTerms });
+    setIsDirty(true);
+  };
+
+  // Editing the Amount directly recomputes this milestone's % from it
+  // (the inverse of editing %, which recomputes the Amount).
+  const handleUpdatePaymentAmount = (idx: number, val: string) => {
+    const amount = parseFloat(val) || 0;
+    const updatedTerms = [...(localRecord.paymentTerms || [])];
+    updatedTerms[idx] = {
+      ...updatedTerms[idx],
+      amount,
+      paymentPercentage: localRecord.totalFee > 0 ? (amount / localRecord.totalFee) * 100 : 0,
+    };
+    setLocalRecord({ ...localRecord, paymentTerms: updatedTerms });
+    setIsDirty(true);
+  };
+
+  const handleUpdateTimeframeDuration = (idx: number, weeks: string) => {
+    const updatedFrames = [...(localRecord.timeFrames || [])];
+    updatedFrames[idx] = { ...updatedFrames[idx], duration: `${weeks} Weeks` };
+    setLocalRecord({ ...localRecord, timeFrames: updatedFrames });
     setIsDirty(true);
   };
 
@@ -283,16 +302,6 @@ export function ProposalDetailModal({
                     <span className="text-slate-400 block text-[11px]">ชื่อโครงการ</span>
                     <span className="font-semibold text-slate-800">{localRecord.projectName || "-"}</span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 block text-[11px]">ขนาดพื้นที่ (Area)</span>
-                    <span className="font-semibold text-slate-800">{localRecord.area || "-"}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-slate-400 block text-[11px]">ขอบเขตงาน (Scope of Work)</span>
-                    <p className="text-slate-700 mt-1 whitespace-pre-line leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                      {localRecord.scopeOfWork || "-"}
-                    </p>
-                  </div>
                   {localRecord.totalDesignDuration && (
                     <div className="col-span-2 flex items-center gap-1.5 text-slate-600 pt-1">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -310,35 +319,10 @@ export function ProposalDetailModal({
                     <CreditCard className="w-4 h-4 text-emerald-600" />
                     <span>สรุปค่าบริการ (Fee Summary)</span>
                   </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between items-center text-slate-600">
-                      <span>Total Fee:</span>
-                      <span className="font-mono font-bold text-slate-900">
-                        ฿{Number(localRecord.totalFee || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    {localRecord.specialDiscount ? (
-                      <div className="flex justify-between items-center text-amber-600">
-                        <span>Special Discount:</span>
-                        <span className="font-mono font-medium">
-                          -฿{Number(localRecord.specialDiscount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                    ) : null}
-                    <div className="flex justify-between items-center text-slate-500 text-[11px]">
-                      <span>VAT 7%:</span>
-                      <span className="font-mono">
-                        ฿{vatAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-slate-200">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-900">Grand Total:</span>
+                    <span className="text-xs font-bold text-slate-900">Total Fee:</span>
                     <span className="text-base font-black font-mono text-indigo-900">
-                      ฿{grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      ฿{Number(localRecord.totalFee || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
@@ -346,46 +330,7 @@ export function ProposalDetailModal({
             </div>
           )}
 
-          {/* Section 2: Design Fee Items Table */}
-          {activeTab === "all" && localRecord.designFeeItems && localRecord.designFeeItems.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                  <CreditCard className="w-3.5 h-3.5 text-slate-600" />
-                  รายการค่าบริการวิชาชีพ (Design Fee Breakdown)
-                </h3>
-                <span className="text-[11px] text-slate-500 font-mono">
-                  {localRecord.designFeeItems.length} รายการ
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50/70 text-slate-500 border-b border-slate-200 text-[11px] font-semibold">
-                    <tr>
-                      <th className="px-4 py-2.5 w-12 text-center">#</th>
-                      <th className="px-4 py-2.5 w-48">รายการ (Item)</th>
-                      <th className="px-4 py-2.5">รายละเอียด (Description)</th>
-                      <th className="px-4 py-2.5 text-right w-36">จำนวนเงิน (THB)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {localRecord.designFeeItems.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="px-4 py-2.5 text-center text-slate-400 font-mono">{idx + 1}</td>
-                        <td className="px-4 py-2.5 font-semibold text-slate-800">{item.item}</td>
-                        <td className="px-4 py-2.5 text-slate-600 leading-relaxed">{item.description}</td>
-                        <td className="px-4 py-2.5 text-right font-mono font-bold text-slate-900">
-                          {Number(item.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Section 3: Timeframes Table */}
+          {/* Section 2: Timeframes Table */}
           {activeTab === "all" && localRecord.timeFrames && localRecord.timeFrames.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
@@ -404,7 +349,7 @@ export function ProposalDetailModal({
                       <th className="px-4 py-2.5 w-12 text-center">#</th>
                       <th className="px-4 py-2.5 w-48">ระยะงาน (Phase)</th>
                       <th className="px-4 py-2.5">รายละเอียดงาน (Description)</th>
-                      <th className="px-4 py-2.5 text-right w-36">ระยะเวลา (Duration)</th>
+                      <th className="px-4 py-2.5 text-center w-32">ระยะเวลา (สัปดาห์)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -413,8 +358,17 @@ export function ProposalDetailModal({
                         <td className="px-4 py-2.5 text-center text-slate-400 font-mono">{idx + 1}</td>
                         <td className="px-4 py-2.5 font-semibold text-slate-800">{tf.phase}</td>
                         <td className="px-4 py-2.5 text-slate-600 leading-relaxed">{tf.description}</td>
-                        <td className="px-4 py-2.5 text-right font-medium text-indigo-700 bg-indigo-50/30">
-                          {tf.duration}
+                        <td className="px-4 py-2.5 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <input
+                              type="number"
+                              min={0}
+                              value={parseWeeksFromDuration(tf.duration)}
+                              onChange={(e) => handleUpdateTimeframeDuration(idx, e.target.value)}
+                              className="w-16 px-2 py-1 text-xs text-center font-mono font-bold text-indigo-700 bg-indigo-50/30 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                            />
+                            <span className="text-slate-500 font-medium text-[11px]">Weeks</span>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -443,9 +397,9 @@ export function ProposalDetailModal({
                       <th className="px-4 py-2.5 w-12 text-center">#</th>
                       <th className="px-4 py-2.5">เงื่อนไขงวดงาน (Milestone)</th>
                       <th className="px-4 py-2.5 text-center w-28">สัดส่วน (%)</th>
+                      <th className="px-4 py-2.5 text-right w-40">จำนวนเงิน (THB)</th>
                       <th className="px-4 py-2.5 text-center w-32">เก็บเงินสัปดาห์ที่</th>
                       <th className="px-4 py-2.5 text-center w-28">สถานะ</th>
-                      <th className="px-4 py-2.5 text-right w-36">จำนวนเงิน (THB)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -463,6 +417,17 @@ export function ProposalDetailModal({
                               className="w-16 px-2 py-1 text-xs text-center font-mono font-bold text-slate-800 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                             />
                             <span className="text-slate-500 font-mono font-bold text-[11px]">%</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="text-emerald-700 font-mono font-bold text-[11px]">฿</span>
+                            <input
+                              type="number"
+                              value={pt.amount}
+                              onChange={(e) => handleUpdatePaymentAmount(idx, e.target.value)}
+                              className="w-28 px-2 py-1 text-xs text-right font-mono font-bold text-emerald-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                            />
                           </div>
                         </td>
                         <td className="px-4 py-2.5 text-center">
@@ -493,9 +458,6 @@ export function ProposalDetailModal({
                           >
                             {PAYMENT_STATUS_LABELS[pt.paymentStatus || "wait"]}
                           </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-700">
-                          ฿{Number(pt.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                     ))}

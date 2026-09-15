@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
-import { SavedRecord } from "@/lib/types";
+import { ExtractedProjectData, SavedRecord } from "@/lib/types";
 import {
   getSupabaseClient,
   getSavedRecords,
@@ -9,13 +9,15 @@ import {
   deleteRecordLocally,
   updateRecordRemote,
   deleteRecordRemote,
+  insertProjectRemote,
   isRemoteId,
 } from "@/lib/supabase";
 import { useSettings } from "@/lib/settings-context";
 import { getCompanyLabel } from "@/lib/company-utils";
 import { PdfPreviewModal } from "@/components/pdf-preview-modal";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
-import { FileSearch, Eye, Trash2, FileText, ExternalLink } from "lucide-react";
+import { AddProposalModal } from "@/components/add-proposal-modal";
+import { FileSearch, Eye, Trash2, FileText, ExternalLink, FilePlus } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -42,6 +44,7 @@ function ProposalPreviewContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [previewPdfRecord, setPreviewPdfRecord] = useState<SavedRecord | null>(null);
   const [detailRecord, setDetailRecord] = useState<SavedRecord | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const filteredRecords = useMemo(() => {
     return companyFilter ? records.filter((r) => r.companyName === companyFilter) : records;
@@ -67,6 +70,50 @@ function ProposalPreviewContent() {
         window.alert("ลบข้อมูลใน Local History แล้ว แต่ลบใน Supabase ไม่สำเร็จ: " + error);
       }
     }
+  };
+
+  // Manual "Add Proposal" — same Supabase insert path as the PDF-upload
+  // flow (via the shared insertProjectRemote helper), just without a file.
+  const handleCreateProposal = async (data: ExtractedProjectData) => {
+    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    let remoteProjectId = "";
+
+    if (supabase) {
+      const { projectId, error } = await insertProjectRemote(supabase, {
+        companyName: data.companyName || "",
+        projectName: data.projectName,
+        totalFee: data.totalFee,
+        totalDesignDuration: data.totalDesignDuration || "",
+        pdfUrl: "",
+        pdfFileName: "",
+        status: "verified",
+        timeFrames: data.timeFrames,
+        paymentTerms: data.paymentTerms,
+      });
+      if (error) {
+        window.alert("บันทึกขึ้น Supabase ไม่สำเร็จ: " + error + "\nบันทึกไว้ใน Local History แทน");
+      } else if (projectId) {
+        remoteProjectId = projectId;
+      }
+    }
+
+    const newRecord: SavedRecord = {
+      id: remoteProjectId || `rec_${Date.now()}`,
+      created_at: new Date().toISOString(),
+      companyName: data.companyName || "",
+      projectName: data.projectName,
+      totalFee: data.totalFee,
+      timeFrames: [...data.timeFrames],
+      totalDesignDuration: data.totalDesignDuration || "",
+      paymentTerms: [...data.paymentTerms],
+      pdfFileName: "",
+      pdfUrl: "",
+      status: "verified",
+    };
+
+    const updatedRecords = saveRecordLocally(newRecord);
+    setRecords(updatedRecords);
+    setIsAddOpen(false);
   };
 
   const handleUpdateRecord = async (updated: SavedRecord) => {
@@ -97,6 +144,13 @@ function ProposalPreviewContent() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-500 font-mono">{filteredRecords.length} รายการ</span>
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
+          >
+            <FilePlus className="w-3.5 h-3.5" />
+            เพิ่ม Proposal
+          </button>
           <Link
             href="/upload-proposal"
             className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
@@ -133,7 +187,7 @@ function ProposalPreviewContent() {
                   <tr>
                     <th className="p-3.5">Project Name</th>
                     <th className="p-3.5">Project by</th>
-                    <th className="p-3.5">Area</th>
+                    <th className="p-3.5">Duration</th>
                     <th className="p-3.5 text-right">Total Fee (THB)</th>
                     <th className="p-3.5">Status</th>
                     <th className="p-3.5">วันที่บันทึก</th>
@@ -154,7 +208,7 @@ function ProposalPreviewContent() {
                         {rec.projectName}
                       </td>
                       <td className="p-3.5 text-slate-600">{rec.companyName || "-"}</td>
-                      <td className="p-3.5 text-slate-600">{rec.area || "-"}</td>
+                      <td className="p-3.5 text-slate-600">{rec.totalDesignDuration || "-"}</td>
                       <td className="p-3.5 text-right font-mono font-bold text-slate-800">
                         {Number(rec.totalFee).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
@@ -231,6 +285,13 @@ function ProposalPreviewContent() {
         pdfUrl={previewPdfRecord?.pdfUrl || null}
         title={previewPdfRecord?.projectName}
         onClose={() => setPreviewPdfRecord(null)}
+      />
+
+      {/* Modal เพิ่ม Proposal แบบคีย์ Manual */}
+      <AddProposalModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onCreate={handleCreateProposal}
       />
     </div>
   );

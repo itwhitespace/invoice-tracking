@@ -12,34 +12,9 @@ export const EXTRACTION_JSON_SCHEMA = {
       type: SchemaType.STRING,
       description: "Project Name or Title (e.g. Street Burger at Petit Phuket)",
     },
-    area: {
-      type: SchemaType.STRING,
-      description: "Exact area / space size as written in the document. Preserve units and qualifiers.",
-    },
-    scopeOfWork: {
-      type: SchemaType.STRING,
-      description: "Exact scope of work summary based only on the document; do not invent missing details.",
-    },
     totalFee: {
       type: SchemaType.NUMBER,
-      description: "Total Design Fee or Lump-sum amount as pure number (highlighted total)",
-    },
-    designFeeItems: {
-      type: SchemaType.ARRAY,
-      description: "ONLY the numbered/ordered line items from the Design Fees table (e.g. '1. Concept Design', '2. Schematic Design'). Do NOT include summary rows such as Sub Total, Special discount, Total Fee, VAT, or Grand Total — those go in specialDiscount / totalFee instead.",
-      items: {
-        type: SchemaType.OBJECT,
-        properties: {
-          item: { type: SchemaType.STRING, description: "Exact item title or scope category from the fee table" },
-          description: { type: SchemaType.STRING, description: "Exact details, conditions or deliverable notes; empty string if none" },
-          amount: { type: SchemaType.NUMBER, description: "Exact fee amount for this row as a number, without commas or currency symbols" },
-        },
-        required: ["item", "amount"],
-      },
-    },
-    specialDiscount: {
-      type: SchemaType.NUMBER,
-      description: "Special discount amount subtracted from the Sub Total Fee, if stated in the document. 0 if none.",
+      description: "Total Design Fee or Lump-sum amount as pure number (highlighted total, before VAT)",
     },
     timeFrames: {
       type: SchemaType.ARRAY,
@@ -72,7 +47,7 @@ export const EXTRACTION_JSON_SCHEMA = {
       },
     },
   },
-  required: ["projectName", "area", "scopeOfWork", "totalFee", "designFeeItems", "timeFrames", "paymentTerms"],
+  required: ["projectName", "totalFee", "timeFrames", "paymentTerms"],
 };
 
 function buildTextContext(pdfText: string): string {
@@ -155,13 +130,9 @@ export async function extractWithGemini(
 
 1. Project Brief:
     - projectName: Exact project name
-    - area: Exact area/size text
-    - scopeOfWork: Exact scope description
 
-2. Design Fees (Extract the ENTIRE table):
-    - designFeeItems: ONLY the numbered/ordered breakdown items (item name, description/deliverables, and amount). Do not include Sub Total, Special discount, Total Fee, VAT, or Grand Total rows here.
-    - specialDiscount: The special discount amount, if any (0 if none).
-    - totalFee: The Total Fee amount (Sub Total minus discount, before VAT).
+2. Design Fees:
+    - totalFee: The Total Fee amount (before VAT) — the highlighted total, or Sub Total minus any discount if that's what's shown.
 
 3. Estimated Time Frame:
     - All phases/stages and their exact descriptions and durations, excluding any overall summary/total row.

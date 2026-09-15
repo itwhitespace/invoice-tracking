@@ -118,7 +118,7 @@ function addRoadmapSheet(
     const proj = row.project;
     const nameLines = [
       `${getDepartmentAbbreviation(proj.department)}  ${proj.projectName}`,
-      `฿${(proj.totalFee || 0).toLocaleString("en-US")} • ${proj.area || ""}`,
+      `฿${(proj.totalFee || 0).toLocaleString("en-US")} • ${proj.totalDesignDuration || ""}`,
     ];
     if (proj.roadmapNote) nameLines.push(`📝 ${proj.roadmapNote}`);
 

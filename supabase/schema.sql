@@ -15,12 +15,12 @@ create table if not exists public.projects (
   updated_at             timestamptz not null default now(),
   company_name           text,                                 -- Issuing company: "Whitespace Partners" or "Whitespaceconnect"
   project_name           text not null,
-  area                   text,
-  scope_of_work          text,
-  total_fee              numeric(14, 2) not null default 0,   -- Sub Total - Special discount (excl. VAT)
-  special_discount       numeric(14, 2) not null default 0,
-  vat_amount             numeric(14, 2) not null default 0,   -- total_fee * 7%
-  grand_total            numeric(14, 2) not null default 0,   -- total_fee + vat_amount
+  area                   text,                                 -- deprecated, no longer written by the app
+  scope_of_work          text,                                 -- deprecated, no longer written by the app
+  total_fee              numeric(14, 2) not null default 0,   -- entered directly; the only fee figure the app tracks
+  special_discount       numeric(14, 2) not null default 0,   -- deprecated, no longer written by the app
+  vat_amount             numeric(14, 2) not null default 0,   -- deprecated, no longer written by the app
+  grand_total            numeric(14, 2) not null default 0,   -- deprecated, no longer written by the app
   total_design_duration  text,
   pdf_url                text,
   pdf_file_name          text,
@@ -37,6 +37,8 @@ comment on table public.projects is 'One row per proposal/invoice document extra
 
 -- ----------------------------------------------------------------------------
 -- 2. project_design_fee_items — itemized Design Fees table rows
+--    Deprecated: the app no longer writes to this table (Total Fee is now
+--    entered directly, not built up from a line-item breakdown).
 -- ----------------------------------------------------------------------------
 create table if not exists public.project_design_fee_items (
   id           uuid primary key default gen_random_uuid(),
