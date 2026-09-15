@@ -1,34 +1,7 @@
 import type ExcelJSType from "exceljs";
 import { SavedRecord, PaymentStatus } from "./types";
-import { getDepartmentAbbreviation } from "./department-utils";
-
-export interface ExportMonthConfig {
-  name: string;
-  year: number;
-  monthIndex: number;
-  weeksCount: number;
-  weeks: string[];
-}
-
-export interface ExportPaymentMarker {
-  col: number;
-  ptIdx: number;
-  milestone: string;
-  amount: number;
-  week: number;
-  status: PaymentStatus;
-  invoiceDate?: string;
-}
-
-export interface ExportTimelineRow {
-  project: SavedRecord;
-  hasStage: boolean;
-  paymentMarkers: ExportPaymentMarker[];
-  startCol: number;
-  totalSpanCols: number;
-  noStartDate: boolean;
-  outOfRange: boolean;
-}
+import { getDepartmentAbbreviation, formatDepartmentLabel } from "./department-utils";
+import { buildRoadmapTimeline, RoadmapMonthConfig, RoadmapTimelineRow } from "./roadmap-timeline";
 
 // Solid ARGB fills matching the Tailwind colors used on the web Gantt chart.
 const STAGE_ALL_FILL = "FFE2E8F0"; // slate-200
@@ -49,21 +22,31 @@ function solidFill(argb: string): ExcelJSType.Fill {
   return { type: "pattern", pattern: "solid", fgColor: { argb } };
 }
 
-export async function exportRoadmapToExcel(params: {
-  monthHeaders: ExportMonthConfig[];
-  timelineRows: ExportTimelineRow[];
-  monthlyTotals: number[];
-  totalGridColumns: number;
-  rangeLabel?: string;
-}) {
-  const { monthHeaders, timelineRows, monthlyTotals, totalGridColumns, rangeLabel } = params;
+// Excel sheet names: max 31 chars, no : \ / ? * [ ], and must be unique in
+// the workbook — dedupe by appending a counter on collision.
+function sanitizeSheetName(name: string, used: Set<string>): string {
+  let cleaned = name.replace(/[:\\/?*[\]]/g, "-").trim().slice(0, 31) || "Sheet";
+  let candidate = cleaned;
+  let n = 2;
+  while (used.has(candidate)) {
+    const suffix = ` (${n})`;
+    candidate = cleaned.slice(0, 31 - suffix.length) + suffix;
+    n++;
+  }
+  used.add(candidate);
+  return candidate;
+}
 
-  const ExcelJS = (await import("exceljs")).default;
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Invoice Tracking Program";
-  workbook.created = new Date();
-
-  const sheet = workbook.addWorksheet("Project Roadmap", {
+function addRoadmapSheet(
+  workbook: ExcelJSType.Workbook,
+  sheetName: string,
+  monthHeaders: RoadmapMonthConfig[],
+  timelineRows: RoadmapTimelineRow[],
+  monthlyTotals: number[],
+  totalGridColumns: number,
+  rangeLabel?: string
+) {
+  const sheet = workbook.addWorksheet(sheetName, {
     views: [{ state: "frozen", xSplit: 1, ySplit: 3 }],
   });
 
@@ -172,6 +155,52 @@ export async function exportRoadmapToExcel(params: {
     rr.height = 30;
 
     r += 1;
+  }
+}
+
+// Groups the given (already on-screen-filtered) projects by Department and
+// builds one worksheet per department — each auto-fit to only that
+// department's own date range, mirroring what "แยกช่วงตามแผนก" means on the
+// Roadmap page itself. Projects with no department land in a shared
+// "ไม่ระบุแผนก" sheet.
+export async function exportRoadmapToExcel(params: { projects: SavedRecord[] }) {
+  const { projects } = params;
+
+  const groups = new Map<string, SavedRecord[]>();
+  for (const proj of projects) {
+    const key = proj.department || "";
+    const list = groups.get(key);
+    if (list) list.push(proj);
+    else groups.set(key, [proj]);
+  }
+
+  // Departments in their usual display order, unspecified last.
+  const orderedKeys = [...groups.keys()].sort((a, b) => {
+    if (a === "") return 1;
+    if (b === "") return -1;
+    return a.localeCompare(b);
+  });
+
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Invoice Tracking Program";
+  workbook.created = new Date();
+
+  const usedSheetNames = new Set<string>();
+
+  for (const key of orderedKeys) {
+    const groupProjects = groups.get(key)!;
+    const { monthHeaders, timelineRows, monthlyTotals, totalGridColumns } =
+      buildRoadmapTimeline(groupProjects);
+
+    const rangeLabel =
+      monthHeaders.length > 0
+        ? `${monthHeaders[0].name} – ${monthHeaders[monthHeaders.length - 1].name}`
+        : undefined;
+
+    const sheetName = sanitizeSheetName(key ? formatDepartmentLabel(key) : "ไม่ระบุแผนก", usedSheetNames);
+
+    addRoadmapSheet(workbook, sheetName, monthHeaders, timelineRows, monthlyTotals, totalGridColumns, rangeLabel);
   }
 
   const buffer = await workbook.xlsx.writeBuffer();

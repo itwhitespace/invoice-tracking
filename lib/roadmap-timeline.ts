@@ -1,0 +1,175 @@
+import { SavedRecord, PaymentStatus } from "./types";
+import { getTotalWeeks } from "./timeframe-utils";
+
+// Pure re-implementation of the month/week grid + payment-marker placement
+// logic from app/project-roadmap/page.tsx, usable outside a React component
+// (e.g. once per department group when building the Excel export). Kept
+// separate from the page so the interactive page's tested hooks are never
+// touched by export-only changes.
+
+export interface RoadmapMonthConfig {
+  name: string; // e.g. "Jul-26"
+  year: number;
+  monthIndex: number;
+  weeksCount: number;
+  weeks: string[];
+}
+
+export interface RoadmapPaymentMarker {
+  col: number;
+  ptIdx: number;
+  milestone: string;
+  amount: number;
+  week: number;
+  status: PaymentStatus;
+  invoiceDate?: string;
+}
+
+export interface RoadmapTimelineRow {
+  project: SavedRecord;
+  hasStage: boolean;
+  paymentMarkers: RoadmapPaymentMarker[];
+  startCol: number;
+  totalSpanCols: number;
+  noStartDate: boolean;
+  outOfRange: boolean;
+}
+
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+function getProjectDateRange(proj: SavedRecord): { start: Date; end: Date } | null {
+  if (!proj.startDate) return null;
+  const start = new Date(`${proj.startDate}T00:00:00`);
+  if (isNaN(start.getTime())) return null;
+
+  const totalWeeksWorked = Math.max(1, getTotalWeeks(proj.timeFrames));
+  const maxPaymentWeek = (proj.paymentTerms || []).reduce(
+    (max, pt) => (pt.paymentWeek ? Math.max(max, pt.paymentWeek) : max),
+    0
+  );
+  const totalWeeks = Math.max(totalWeeksWorked, maxPaymentWeek);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + totalWeeks * 7);
+  return { start, end };
+}
+
+export function buildRoadmapTimeline(projects: SavedRecord[]): {
+  monthHeaders: RoadmapMonthConfig[];
+  timelineRows: RoadmapTimelineRow[];
+  monthlyTotals: number[];
+  totalGridColumns: number;
+} {
+  let minDate: Date | null = null;
+  let maxDate: Date | null = null;
+  for (const proj of projects) {
+    const range = getProjectDateRange(proj);
+    if (!range) continue;
+    if (!minDate || range.start < minDate) minDate = range.start;
+    if (!maxDate || range.end > maxDate) maxDate = range.end;
+  }
+
+  const monthHeaders: RoadmapMonthConfig[] = [];
+  if (minDate && maxDate) {
+    let y = minDate.getFullYear();
+    let m = minDate.getMonth();
+    const endY = maxDate.getFullYear();
+    const endM = maxDate.getMonth();
+    let guard = 0;
+    while ((y < endY || (y === endY && m <= endM)) && guard < 240) {
+      const yrShort = String(y).slice(-2);
+      const weeksCount = [0, 6, 9].includes(m) ? 5 : 4;
+      const weeks = Array.from({ length: weeksCount }, (_, w) => `W${w + 1}`);
+      monthHeaders.push({ name: `${MONTH_NAMES[m]}-${yrShort}`, year: y, monthIndex: m, weeksCount, weeks });
+      m++;
+      if (m > 11) {
+        m = 0;
+        y++;
+      }
+      guard++;
+    }
+  }
+
+  const totalGridColumns = monthHeaders.reduce((acc, m) => acc + m.weeksCount, 0);
+
+  const getStartColumnForDate = (dateStr?: string): number | null => {
+    if (!dateStr) return null;
+    const date = new Date(`${dateStr}T00:00:00`);
+    if (isNaN(date.getTime())) return null;
+
+    let colOffset = 0;
+    for (const m of monthHeaders) {
+      if (date.getFullYear() === m.year && date.getMonth() === m.monthIndex) {
+        const dayOfMonth = date.getDate();
+        const weekInMonth = Math.min(m.weeksCount, Math.ceil(dayOfMonth / 7));
+        return colOffset + (weekInMonth - 1);
+      }
+      colOffset += m.weeksCount;
+    }
+    return null;
+  };
+
+  const timelineRows: RoadmapTimelineRow[] = projects.map((proj) => {
+    const startCol = getStartColumnForDate(proj.startDate);
+
+    if (startCol === null) {
+      return {
+        project: proj,
+        hasStage: false,
+        paymentMarkers: [],
+        startCol: 0,
+        totalSpanCols: 0,
+        noStartDate: !proj.startDate,
+        outOfRange: !!proj.startDate,
+      };
+    }
+
+    const totalWeeksWorked = Math.max(1, getTotalWeeks(proj.timeFrames));
+    const spanCols = Math.min(totalWeeksWorked, Math.max(1, totalGridColumns - startCol));
+
+    const paymentMarkers = (proj.paymentTerms || [])
+      .map((pt, ptIdx) => ({ pt, ptIdx }))
+      .filter(({ pt }) => !!pt.paymentWeek)
+      .map(({ pt, ptIdx }) => ({
+        col: startCol + (pt.paymentWeek! - 1),
+        ptIdx,
+        milestone: pt.milestone,
+        amount: pt.amount,
+        week: pt.paymentWeek!,
+        status: (pt.paymentStatus || "wait") as PaymentStatus,
+        invoiceDate: pt.invoiceDate,
+      }))
+      .filter((pm) => pm.col >= 0 && pm.col < totalGridColumns);
+
+    return {
+      project: proj,
+      hasStage: true,
+      paymentMarkers,
+      startCol,
+      totalSpanCols: spanCols,
+      noStartDate: false,
+      outOfRange: false,
+    };
+  });
+
+  let colOffset = 0;
+  const colToMonthIdx: number[] = [];
+  monthHeaders.forEach((m, mIdx) => {
+    for (let w = 0; w < m.weeksCount; w++) colToMonthIdx[colOffset + w] = mIdx;
+    colOffset += m.weeksCount;
+  });
+
+  const monthlyTotals = new Array(monthHeaders.length).fill(0);
+  for (const row of timelineRows) {
+    for (const pm of row.paymentMarkers) {
+      if (pm.status === "cancelled") continue;
+      const mIdx = colToMonthIdx[pm.col];
+      if (mIdx !== undefined) monthlyTotals[mIdx] += pm.amount;
+    }
+  }
+
+  return { monthHeaders, timelineRows, monthlyTotals, totalGridColumns };
+}

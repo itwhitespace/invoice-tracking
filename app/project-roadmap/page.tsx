@@ -623,24 +623,15 @@ function ProjectRoadmapContent() {
   };
 
   // Exports exactly what's currently on screen (respecting the company/department
-  // filters) as an .xlsx that mirrors the Gantt chart's layout and colors.
+  // filters) as an .xlsx — one sheet per Department, each auto-fit to only
+  // that department's own date range, mirroring the Gantt chart's colors.
   // exceljs is dynamically imported so its ~1MB doesn't bloat the page's own bundle.
   const handleExportExcel = async () => {
-    if (isExporting || timelineRows.length === 0) return;
+    if (isExporting || filteredProjects.length === 0) return;
     setIsExporting(true);
     try {
       const { exportRoadmapToExcel } = await import("@/lib/roadmap-export");
-      const rangeLabel =
-        monthHeaders.length > 0
-          ? `${monthHeaders[0].name} – ${monthHeaders[monthHeaders.length - 1].name}`
-          : undefined;
-      await exportRoadmapToExcel({
-        monthHeaders,
-        timelineRows,
-        monthlyTotals,
-        totalGridColumns,
-        rangeLabel,
-      });
+      await exportRoadmapToExcel({ projects: filteredProjects });
     } catch (err: any) {
       window.alert("Export Excel ไม่สำเร็จ: " + (err?.message || String(err)));
     } finally {
@@ -706,7 +697,7 @@ function ProjectRoadmapContent() {
         )}
 
         {/* Export to Excel — mirrors the Gantt chart's layout & colors */}
-        {timelineRows.length > 0 && (
+        {filteredProjects.length > 0 && (
           <button
             type="button"
             onClick={handleExportExcel}
