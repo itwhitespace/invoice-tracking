@@ -1,7 +1,6 @@
 import type ExcelJSType from "exceljs";
 import { SavedRecord, PaymentStatus } from "./types";
 import { getDepartmentAbbreviation } from "./department-utils";
-import { PAYMENT_STATUS_LABELS } from "./payment-status-utils";
 
 export interface ExportMonthConfig {
   name: string;
@@ -33,7 +32,6 @@ export interface ExportTimelineRow {
 
 // Solid ARGB fills matching the Tailwind colors used on the web Gantt chart.
 const STAGE_ALL_FILL = "FFE2E8F0"; // slate-200
-const STAGE_ALL_FONT = "FF64748B"; // slate-500
 const HEADER_FILL = "FFFEF3C7"; // amber-100
 const WEEK_ROW_FILL = "FFFFFBEB"; // amber-50
 const TOTALS_FILL = "FFA7F3D0"; // emerald-200
@@ -66,7 +64,7 @@ export async function exportRoadmapToExcel(params: {
   workbook.created = new Date();
 
   const sheet = workbook.addWorksheet("Project Roadmap", {
-    views: [{ state: "frozen", xSplit: 1, ySplit: 4 }],
+    views: [{ state: "frozen", xSplit: 1, ySplit: 3 }],
   });
 
   const totalCols = 1 + totalGridColumns; // name column + one column per week
@@ -74,42 +72,18 @@ export async function exportRoadmapToExcel(params: {
   sheet.getColumn(1).width = 40;
   for (let c = 2; c <= totalCols; c++) sheet.getColumn(c).width = 9;
 
-  // --- Row 1: color legend (mirrors "คำอธิบายสี" on the web) ---
-  const legendRow = sheet.getRow(1);
-  legendRow.getCell(1).value = "คำอธิบายสี:";
-  legendRow.getCell(1).font = { bold: true, size: 10 };
-  const legendItems: { label: string; fill: string }[] = [
-    { label: "Stage All", fill: STAGE_ALL_FILL },
-    { label: PAYMENT_STATUS_LABELS.wait, fill: STATUS_FILLS.wait.bg },
-    { label: PAYMENT_STATUS_LABELS.invoice, fill: STATUS_FILLS.invoice.bg },
-    { label: PAYMENT_STATUS_LABELS.paid, fill: STATUS_FILLS.paid.bg },
-    { label: PAYMENT_STATUS_LABELS.hold, fill: STATUS_FILLS.hold.bg },
-    { label: PAYMENT_STATUS_LABELS.cancelled, fill: STATUS_FILLS.cancelled.bg },
-  ];
-  let legendCol = 2;
-  for (const item of legendItems) {
-    sheet.mergeCells(1, legendCol, 1, legendCol + 1);
-    const cell = legendRow.getCell(legendCol);
-    cell.value = item.label;
-    cell.fill = solidFill(item.fill);
-    cell.font = { size: 9 };
-    cell.alignment = { horizontal: "center", vertical: "middle" };
-    legendCol += 2;
-  }
-  legendRow.height = 18;
-
-  // --- Row 2: month names / Row 3: monthly totals / Row 4: week labels ---
-  const monthRow = sheet.getRow(2);
+  // --- Row 1: month names / Row 2: monthly totals / Row 3: week labels ---
+  const monthRow = sheet.getRow(1);
   monthRow.getCell(1).value = `Project Name${rangeLabel ? ` (${rangeLabel})` : ""}`;
   monthRow.getCell(1).font = { bold: true, size: 10 };
   monthRow.getCell(1).fill = solidFill(HEADER_FILL);
 
-  const totalsRow = sheet.getRow(3);
+  const totalsRow = sheet.getRow(2);
   totalsRow.getCell(1).value = "ยอดรวมต่อเดือน";
   totalsRow.getCell(1).font = { bold: true, size: 9, color: { argb: TOTALS_FONT } };
   totalsRow.getCell(1).fill = solidFill(TOTALS_FILL);
 
-  const weekRow = sheet.getRow(4);
+  const weekRow = sheet.getRow(3);
   weekRow.getCell(1).value = "ข้อมูลโครงการจาก Proposal";
   weekRow.getCell(1).font = { size: 8, color: { argb: "FF64748B" } };
   weekRow.getCell(1).fill = solidFill(WEEK_ROW_FILL);
@@ -119,14 +93,14 @@ export async function exportRoadmapToExcel(params: {
     const startC = colCursor;
     const endC = colCursor + m.weeksCount - 1;
 
-    if (endC > startC) sheet.mergeCells(2, startC, 2, endC);
+    if (endC > startC) sheet.mergeCells(1, startC, 1, endC);
     const monthCell = monthRow.getCell(startC);
     monthCell.value = m.name;
     monthCell.font = { bold: true, size: 10 };
     monthCell.alignment = { horizontal: "center", vertical: "middle" };
     for (let c = startC; c <= endC; c++) monthRow.getCell(c).fill = solidFill(HEADER_FILL);
 
-    if (endC > startC) sheet.mergeCells(3, startC, 3, endC);
+    if (endC > startC) sheet.mergeCells(2, startC, 2, endC);
     const totalCell = totalsRow.getCell(startC);
     const amt = monthlyTotals[mIdx] || 0;
     if (amt > 0) {
@@ -150,8 +124,8 @@ export async function exportRoadmapToExcel(params: {
     colCursor = endC + 1;
   });
 
-  // --- One row (no-stage projects) or two rows (caption + bar) per project ---
-  let r = 5;
+  // --- One row per project ---
+  let r = 4;
   for (const row of timelineRows) {
     const proj = row.project;
     const nameLines = [
@@ -160,13 +134,13 @@ export async function exportRoadmapToExcel(params: {
     ];
     if (proj.roadmapNote) nameLines.push(`📝 ${proj.roadmapNote}`);
 
-    if (!row.hasStage) {
-      const rr = sheet.getRow(r);
-      const nameCell = rr.getCell(1);
-      nameCell.value = nameLines.join("\n");
-      nameCell.alignment = { wrapText: true, vertical: "top" };
-      nameCell.font = { size: 9, bold: true };
+    const rr = sheet.getRow(r);
+    const nameCell = rr.getCell(1);
+    nameCell.value = nameLines.join("\n");
+    nameCell.alignment = { wrapText: true, vertical: "top" };
+    nameCell.font = { size: 9, bold: true };
 
+    if (!row.hasStage) {
       if (totalCols > 2) sheet.mergeCells(r, 2, r, totalCols);
       const warnCell = rr.getCell(2);
       warnCell.value = row.noStartDate
@@ -180,42 +154,24 @@ export async function exportRoadmapToExcel(params: {
       continue;
     }
 
-    const captionRowIdx = r;
-    const barRowIdx = r + 1;
-
-    sheet.mergeCells(captionRowIdx, 1, barRowIdx, 1);
-    const nameCell = sheet.getCell(captionRowIdx, 1);
-    nameCell.value = nameLines.join("\n");
-    nameCell.alignment = { wrapText: true, vertical: "top" };
-    nameCell.font = { size: 9, bold: true };
-
-    const captionRow = sheet.getRow(captionRowIdx);
     const startC = row.startCol + 2; // +1 to skip the name column, +1 for 1-based indexing
     const endC = startC + row.totalSpanCols - 1;
-    if (endC > startC) sheet.mergeCells(captionRowIdx, startC, captionRowIdx, endC);
-    const captionCell = captionRow.getCell(startC);
-    captionCell.value = `Stage All • ${row.totalSpanCols} Weeks`;
-    captionCell.font = { size: 8, color: { argb: STAGE_ALL_FONT } };
-    captionCell.alignment = { vertical: "middle" };
-    captionRow.height = 14;
-
-    const barRow = sheet.getRow(barRowIdx);
     for (let c = startC; c <= endC; c++) {
-      barRow.getCell(c).fill = solidFill(STAGE_ALL_FILL);
+      rr.getCell(c).fill = solidFill(STAGE_ALL_FILL);
     }
 
     for (const pm of row.paymentMarkers) {
       const c = pm.col + 2;
-      const cell = barRow.getCell(c);
+      const cell = rr.getCell(c);
       const style = STATUS_FILLS[pm.status];
       cell.fill = solidFill(style.bg);
       cell.value = `${pm.ptIdx + 1}/${proj.paymentTerms.length}\n${pm.amount.toLocaleString("en-US")}`;
       cell.font = { size: 8, bold: true, color: { argb: style.font } };
       cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     }
-    barRow.height = 30;
+    rr.height = 30;
 
-    r = barRowIdx + 1;
+    r += 1;
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
