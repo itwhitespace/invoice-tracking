@@ -121,15 +121,7 @@ const WEEK_COLUMN_MIN_PX = 46;
 const CHART_MIN_PX = 850; // floor for short ranges
 
 const formatCompactAmount = (amount: number): string => {
-  const abs = Math.abs(amount);
-  if (abs >= 1_000_000) {
-    const val = amount / 1_000_000;
-    return `${Number.isInteger(val) ? val : val.toFixed(1)}M`;
-  }
-  if (abs >= 1_000) {
-    return `${Math.round(amount / 1000)}K`;
-  }
-  return String(Math.round(amount));
+  return `${Math.round(amount / 1000).toLocaleString("en-US")}K`;
 };
 
 export default function ProjectRoadmapPage() {

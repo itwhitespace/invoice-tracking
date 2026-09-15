@@ -50,7 +50,7 @@ export function ProposalDetailModal({
   onOpenPdf,
   onUpdate,
 }: ProposalDetailModalProps) {
-  const [activeTab, setActiveTab] = useState<"all" | "fees" | "timeframes" | "payments" | "operations">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "payments" | "operations">("all");
   const [localRecord, setLocalRecord] = useState<SavedRecord | null>(record);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -240,28 +240,6 @@ export function ProposalDetailModal({
             ภาพรวมทั้งหมด (Overview)
           </button>
           <button
-            onClick={() => setActiveTab("fees")}
-            className={`py-3 px-3 border-b-2 transition flex items-center gap-1.5 shrink-0 ${
-              activeTab === "fees"
-                ? "border-slate-900 text-slate-900 font-semibold"
-                : "border-transparent hover:text-slate-900"
-            }`}
-          >
-            <CreditCard className="w-3.5 h-3.5" />
-            ค่าบริการออกแบบ ({localRecord.designFeeItems?.length || 0})
-          </button>
-          <button
-            onClick={() => setActiveTab("timeframes")}
-            className={`py-3 px-3 border-b-2 transition flex items-center gap-1.5 shrink-0 ${
-              activeTab === "timeframes"
-                ? "border-slate-900 text-slate-900 font-semibold"
-                : "border-transparent hover:text-slate-900"
-            }`}
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            ระยะเวลาดำเนินงาน ({localRecord.timeFrames?.length || 0})
-          </button>
-          <button
             onClick={() => setActiveTab("payments")}
             className={`py-3 px-3 border-b-2 transition flex items-center gap-1.5 shrink-0 ${
               activeTab === "payments"
@@ -287,8 +265,8 @@ export function ProposalDetailModal({
 
         {/* Modal Body Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/40">
-          {/* Section 1: General Info & Financial Summary (Always shown or in 'all') */}
-          {(activeTab === "all" || activeTab === "fees") && (
+          {/* Section 1: General Info & Financial Summary */}
+          {activeTab === "all" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Project Info Card */}
               <div className="md:col-span-2 bg-white border border-slate-200 rounded-xl p-4 shadow-2xs space-y-3">
@@ -369,7 +347,7 @@ export function ProposalDetailModal({
           )}
 
           {/* Section 2: Design Fee Items Table */}
-          {(activeTab === "all" || activeTab === "fees") && localRecord.designFeeItems && localRecord.designFeeItems.length > 0 && (
+          {activeTab === "all" && localRecord.designFeeItems && localRecord.designFeeItems.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                 <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -408,7 +386,7 @@ export function ProposalDetailModal({
           )}
 
           {/* Section 3: Timeframes Table */}
-          {(activeTab === "all" || activeTab === "timeframes") && localRecord.timeFrames && localRecord.timeFrames.length > 0 && (
+          {activeTab === "all" && localRecord.timeFrames && localRecord.timeFrames.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                 <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">

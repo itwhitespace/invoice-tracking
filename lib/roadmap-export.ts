@@ -22,6 +22,11 @@ function solidFill(argb: string): ExcelJSType.Fill {
   return { type: "pattern", pattern: "solid", fgColor: { argb } };
 }
 
+// Matches the web Gantt chart's marker labels — always in thousands (K).
+function formatCompactAmount(amount: number): string {
+  return `${Math.round(amount / 1000).toLocaleString("en-US")}K`;
+}
+
 // Excel sheet names: max 31 chars, no : \ / ? * [ ], and must be unique in
 // the workbook — dedupe by appending a counter on collision.
 function sanitizeSheetName(name: string, used: Set<string>): string {
@@ -148,7 +153,7 @@ function addRoadmapSheet(
       const cell = rr.getCell(c);
       const style = STATUS_FILLS[pm.status];
       cell.fill = solidFill(style.bg);
-      cell.value = `${pm.ptIdx + 1}/${proj.paymentTerms.length}\n${pm.amount.toLocaleString("en-US")}`;
+      cell.value = `${pm.ptIdx + 1}/${proj.paymentTerms.length}\n${formatCompactAmount(pm.amount)}`;
       cell.font = { size: 8, bold: true, color: { argb: style.font } };
       cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
     }
