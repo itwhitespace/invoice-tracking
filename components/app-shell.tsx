@@ -11,7 +11,6 @@ import {
   Settings,
   PanelLeftClose,
   PanelLeftOpen,
-  FileCheck,
   ChevronDown,
 } from "lucide-react";
 import { COMPANY_OPTIONS } from "@/lib/company-utils";
@@ -118,9 +117,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="h-16 px-4 flex items-center justify-between border-b border-slate-200 shrink-0">
           {!collapsed && (
             <div className="flex items-center space-x-2 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <FileCheck className="w-4 h-4 text-emerald-400" />
-              </div>
+              <img
+                src="/icon-WR.png"
+                alt="WR"
+                className="w-8 h-8 rounded-lg shrink-0 shadow-xs object-cover"
+              />
               <span className="text-sm font-bold text-slate-900 tracking-tight truncate">
                 Invoice Tracking Program
               </span>
