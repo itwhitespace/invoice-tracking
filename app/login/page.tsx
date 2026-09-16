@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
-import { signInWithPin } from "@/lib/auth";
+import { signInWithPin, requestPinReset } from "@/lib/auth";
 import { useSettings } from "@/lib/settings-context";
-import { Loader2, LogIn, AlertTriangle, Settings as SettingsIcon } from "lucide-react";
+import { Loader2, LogIn, AlertTriangle, Settings as SettingsIcon, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 const PIN_LENGTH = 6;
@@ -20,6 +20,8 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lockedUntil, setLockedUntil] = useState<string | null>(null);
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Already logged in? Skip straight past the login page.
@@ -58,6 +60,26 @@ export default function LoginPage() {
     for (let i = 0; i < pasted.length; i++) updated[i] = pasted[i];
     setDigits(updated);
     inputRefs.current[Math.min(pasted.length, PIN_LENGTH - 1)]?.focus();
+  };
+
+  const handleForgotPin = async () => {
+    if (!supabase || isSendingReset) return;
+    if (!email.trim()) {
+      setErrorMessage("กรุณากรอกอีเมลก่อนกดลืม PIN");
+      return;
+    }
+    setIsSendingReset(true);
+    setErrorMessage(null);
+    try {
+      const { error } = await requestPinReset(supabase, email);
+      if (error) {
+        setErrorMessage("ส่งอีเมลตั้ง PIN ใหม่ไม่สำเร็จ: " + error);
+        return;
+      }
+      setResetSent(true);
+    } finally {
+      setIsSendingReset(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -145,6 +167,23 @@ export default function LoginPage() {
                       className="w-full aspect-square text-center text-lg font-bold font-mono text-slate-900 bg-slate-50/70 border border-slate-300 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                     />
                   ))}
+                </div>
+                <div className="flex justify-end">
+                  {resetSent ? (
+                    <p className="flex items-center gap-1 text-[11px] font-medium text-emerald-600">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      ส่งอีเมลตั้ง PIN ใหม่แล้ว กรุณาตรวจสอบกล่องจดหมาย
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleForgotPin}
+                      disabled={isSendingReset}
+                      className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-60 transition"
+                    >
+                      {isSendingReset ? "กำลังส่ง..." : "ลืม PIN?"}
+                    </button>
+                  )}
                 </div>
               </div>
 

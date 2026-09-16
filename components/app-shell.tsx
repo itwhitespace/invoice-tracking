@@ -112,16 +112,23 @@ export function AppShell({ children }: { children: ReactNode }) {
       return;
     }
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
+      // Fires once Supabase's client consumes a recovery link's token from
+      // the URL (wherever it landed) — send them to set a new PIN instead
+      // of quietly dropping them into the normal app as if logged in.
+      if (event === "PASSWORD_RECOVERY") {
+        router.replace("/reset-password");
+      }
     });
     return () => listener.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname === p || pathname?.startsWith(p + "/"));
 
   useEffect(() => {
-    if (pathname === "/login" || isPublicPath) return;
+    if (pathname === "/login" || pathname === "/reset-password" || isPublicPath) return;
     if (session === null) router.replace("/login");
   }, [session, isPublicPath, pathname, router]);
 
@@ -151,8 +158,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     router.replace("/login");
   };
 
-  // The login page renders its own full-page layout — no sidebar, no guard.
-  if (pathname === "/login") {
+  // Login and the password-reset landing page render their own full-page
+  // layout — no sidebar, no guard.
+  if (pathname === "/login" || pathname === "/reset-password") {
     return <>{children}</>;
   }
 
