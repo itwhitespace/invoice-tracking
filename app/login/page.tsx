@@ -15,7 +15,7 @@ export default function LoginPage() {
   const { settings } = useSettings();
   const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [digits, setDigits] = useState<string[]>(Array(PIN_LENGTH).fill(""));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export default function LoginPage() {
     setErrorMessage(null);
     setLockedUntil(null);
     try {
-      const result = await signInWithPin(supabase, username, pin);
+      const result = await signInWithPin(supabase, email, pin);
       if (result.success) {
         router.replace("/dashboard");
         return;
@@ -91,7 +91,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center mb-6">
           <img src="/icon-WR.png" alt="WR" className="w-14 h-14 rounded-2xl shadow-sm mb-3" />
           <h1 className="text-base font-bold text-slate-900">Invoice Tracking Program</h1>
-          <p className="text-[11px] text-slate-500 mt-0.5">เข้าสู่ระบบด้วยชื่อผู้ใช้และ PIN</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">เข้าสู่ระบบด้วยอีเมลและ PIN</p>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
@@ -112,16 +112,16 @@ export default function LoginPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">ชื่อผู้ใช้</label>
+                <label className="text-xs font-bold text-slate-700">อีเมล</label>
                 <input
-                  type="text"
-                  autoComplete="username"
-                  value={username}
+                  type="email"
+                  autoComplete="email"
+                  value={email}
                   onChange={(e) => {
-                    setUsername(e.target.value);
+                    setEmail(e.target.value);
                     setErrorMessage(null);
                   }}
-                  placeholder="เช่น somchai"
+                  placeholder="เช่น somchai@gmail.com"
                   className="w-full px-3 py-2 text-sm font-medium text-slate-800 bg-slate-50/70 border border-slate-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                 />
               </div>

@@ -1,15 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 
-// Supabase Auth only has email/phone identifiers, not plain usernames — so
-// each username maps to a synthetic, never-emailed address at this fixed
-// fake domain. Accounts are created in the Supabase Dashboard using this
-// same convention (e.g. username "somchai" -> somchai@login.internal).
-const EMAIL_DOMAIN = "login.internal";
-
-export function usernameToEmail(username: string): string {
-  return `${username.trim().toLowerCase()}@${EMAIL_DOMAIN}`;
-}
-
 export interface LoginResult {
   success: boolean;
   error?: string;
@@ -18,18 +8,20 @@ export interface LoginResult {
 
 // Checks the lockout table first (via a SECURITY DEFINER RPC — the client
 // never touches that table directly), then attempts the real sign-in, and
-// records the outcome so 5 wrong PINs in a row locks the username out.
+// records the outcome so 5 wrong PINs in a row locks the account out.
+// The identifier is the account's real email, exactly as created in the
+// Supabase Dashboard (Authentication > Users) — no synthetic conversion.
 export async function signInWithPin(
   supabase: SupabaseClient,
-  username: string,
+  email: string,
   pin: string
 ): Promise<LoginResult> {
-  const cleanUsername = username.trim().toLowerCase();
-  if (!cleanUsername) return { success: false, error: "กรุณากรอกชื่อผู้ใช้" };
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail) return { success: false, error: "กรุณากรอกอีเมล" };
   if (!/^\d{6}$/.test(pin)) return { success: false, error: "PIN ต้องเป็นตัวเลข 6 หลัก" };
 
   const { data: lockRows, error: lockError } = await supabase.rpc("check_login_lockout", {
-    p_username: cleanUsername,
+    p_username: cleanEmail,
   });
   if (!lockError) {
     const lockInfo = lockRows?.[0];
@@ -43,16 +35,16 @@ export async function signInWithPin(
   }
 
   const { error: authError } = await supabase.auth.signInWithPassword({
-    email: usernameToEmail(cleanUsername),
+    email: cleanEmail,
     password: pin,
   });
 
   if (authError) {
-    await supabase.rpc("record_failed_login", { p_username: cleanUsername });
-    return { success: false, error: "ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง" };
+    await supabase.rpc("record_failed_login", { p_username: cleanEmail });
+    return { success: false, error: "อีเมลหรือ PIN ไม่ถูกต้อง" };
   }
 
-  await supabase.rpc("reset_login_lockout", { p_username: cleanUsername });
+  await supabase.rpc("reset_login_lockout", { p_username: cleanEmail });
   return { success: true };
 }
 
