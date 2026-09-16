@@ -5,6 +5,7 @@ import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-utils";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 import { formatThousands, parseThousands } from "@/lib/format-utils";
+import { DateInputDDMMYYYY } from "@/components/date-input-ddmmyyyy";
 import {
   X,
   FileText,
@@ -74,6 +75,8 @@ export function ProposalDetailModal({
   if (!isOpen || !localRecord) return null;
 
   const totalWeeks = getTotalWeeks(localRecord.timeFrames || []);
+  const paymentSum = (localRecord.paymentTerms || []).reduce((sum, pt) => sum + (Number(pt.amount) || 0), 0);
+  const paymentSumExceedsFee = localRecord.totalFee > 0 && paymentSum > localRecord.totalFee;
 
   const handleExportJSON = () => {
     const dataStr =
@@ -430,6 +433,14 @@ export function ProposalDetailModal({
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-200 bg-slate-50/70 font-bold">
+                      <td colSpan={3} className="px-4 py-2.5 text-right text-slate-700">
+                        รวมระยะเวลาทั้งหมด
+                      </td>
+                      <td className="px-4 py-2.5 text-center font-mono text-indigo-700">{totalWeeks} Weeks</td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
@@ -527,8 +538,28 @@ export function ProposalDetailModal({
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr className={`border-t-2 font-bold ${paymentSumExceedsFee ? "border-red-300 bg-red-50/70" : "border-slate-200 bg-slate-50/70"}`}>
+                      <td colSpan={3} className="px-4 py-2.5 text-right text-slate-700">
+                        รวม
+                      </td>
+                      <td className={`px-4 py-2.5 text-right font-mono ${paymentSumExceedsFee ? "text-red-700" : "text-emerald-700"}`}>
+                        ฿{formatThousands(paymentSum)}
+                      </td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
+              {paymentSumExceedsFee && (
+                <div className="px-4 py-2.5 bg-red-50/90 border-t border-red-200 flex items-start gap-2 text-[11px] text-red-900 font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                  <p>
+                    ผลรวมจำนวนเงิน (฿{formatThousands(paymentSum)}) เกินกว่า Total Fee (฿{formatThousands(localRecord.totalFee)}) —
+                    ต้องปรับให้ไม่เกินก่อนถึงจะบันทึกได้
+                  </p>
+                </div>
+              )}
               <div className="px-4 py-2 bg-slate-50/60 border-t border-slate-100 text-[11px] text-slate-500">
                 สถานะแสดงผลอย่างเดียว — ปรับสถานะ (Wait / Invoice / Paid) ได้ที่หน้า Project Roadmap
               </div>
@@ -545,12 +576,11 @@ export function ProposalDetailModal({
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-slate-600">Start Date</label>
-                    <input
-                      type="date"
+                    <label className="text-[11px] font-bold text-slate-600">Start Date (DD/MM/YYYY)</label>
+                    <DateInputDDMMYYYY
                       value={localRecord.startDate || ""}
-                      onChange={(e) => handleOperationFieldChange("startDate", e.target.value)}
-                      className="w-full px-3 py-2 text-xs font-medium text-slate-800 bg-slate-50/70 border border-slate-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                      onChange={(iso) => handleOperationFieldChange("startDate", iso)}
+                      className="w-full px-3 py-2 pr-8 text-xs font-medium text-slate-800 bg-slate-50/70 border border-slate-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -617,7 +647,8 @@ export function ProposalDetailModal({
           {isDirty ? (
             <button
               onClick={() => setShowSaveConfirm(true)}
-              disabled={isSaving}
+              disabled={isSaving || paymentSumExceedsFee}
+              title={paymentSumExceedsFee ? "ผลรวมจำนวนเงินเกิน Total Fee — ต้องปรับก่อนบันทึก" : undefined}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition shadow-xs flex items-center gap-1.5"
             >
               {isSaving ? (
