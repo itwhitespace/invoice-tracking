@@ -4,6 +4,7 @@ import { SavedRecord, PaymentStatus } from "@/lib/types";
 import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-utils";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
+import { formatThousands, parseThousands } from "@/lib/format-utils";
 import {
   X,
   FileText,
@@ -22,6 +23,7 @@ import {
   Loader2,
   AlertTriangle,
   XCircle,
+  Pencil,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -60,6 +62,9 @@ export function ProposalDetailModal({
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showApproveSuccess, setShowApproveSuccess] = useState(false);
   const [showUnapproveConfirm, setShowUnapproveConfirm] = useState(false);
+  const [showTotalFeeEdit, setShowTotalFeeEdit] = useState(false);
+  const [pendingTotalFee, setPendingTotalFee] = useState(0);
+  const [showTotalFeeConfirm, setShowTotalFeeConfirm] = useState(false);
 
   useEffect(() => {
     setLocalRecord(record);
@@ -112,7 +117,7 @@ export function ProposalDetailModal({
   // Editing the Amount directly recomputes this milestone's % from it
   // (the inverse of editing %, which recomputes the Amount).
   const handleUpdatePaymentAmount = (idx: number, val: string) => {
-    const amount = parseFloat(val) || 0;
+    const amount = parseThousands(val);
     const updatedTerms = [...(localRecord.paymentTerms || [])];
     updatedTerms[idx] = {
       ...updatedTerms[idx],
@@ -128,6 +133,34 @@ export function ProposalDetailModal({
     updatedFrames[idx] = { ...updatedFrames[idx], duration: `${weeks} Weeks` };
     setLocalRecord({ ...localRecord, timeFrames: updatedFrames });
     setIsDirty(true);
+  };
+
+  const handleUpdateTimeframeField = (idx: number, field: "phase" | "description", val: string) => {
+    const updatedFrames = [...(localRecord.timeFrames || [])];
+    updatedFrames[idx] = { ...updatedFrames[idx], [field]: val };
+    setLocalRecord({ ...localRecord, timeFrames: updatedFrames });
+    setIsDirty(true);
+  };
+
+  const handleUpdateMilestone = (idx: number, val: string) => {
+    const updatedTerms = [...(localRecord.paymentTerms || [])];
+    updatedTerms[idx] = { ...updatedTerms[idx], milestone: val };
+    setLocalRecord({ ...localRecord, paymentTerms: updatedTerms });
+    setIsDirty(true);
+  };
+
+  // Total Fee edit flow: pencil -> edit modal -> Save opens a Yes/No
+  // confirm -> Yes applies it to local state (still gated behind the
+  // modal's own Save button below, same as every other field here).
+  const handleOpenTotalFeeEdit = () => {
+    setPendingTotalFee(localRecord.totalFee || 0);
+    setShowTotalFeeEdit(true);
+  };
+
+  const handleConfirmTotalFeeEdit = () => {
+    setLocalRecord({ ...localRecord, totalFee: pendingTotalFee });
+    setIsDirty(true);
+    setShowTotalFeeConfirm(false);
   };
 
   const handleOperationFieldChange = (field: "startDate" | "department", val: string) => {
@@ -320,7 +353,17 @@ export function ProposalDetailModal({
                     <span>สรุปค่าบริการ (Fee Summary)</span>
                   </div>
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-slate-900">Total Fee:</span>
+                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      Total Fee:
+                      <button
+                        type="button"
+                        onClick={handleOpenTotalFeeEdit}
+                        title="แก้ไข Total Fee"
+                        className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    </span>
                     <span className="text-base font-black font-mono text-indigo-900">
                       ฿{Number(localRecord.totalFee || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </span>
@@ -356,8 +399,22 @@ export function ProposalDetailModal({
                     {localRecord.timeFrames.map((tf, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50">
                         <td className="px-4 py-2.5 text-center text-slate-400 font-mono">{idx + 1}</td>
-                        <td className="px-4 py-2.5 font-semibold text-slate-800">{tf.phase}</td>
-                        <td className="px-4 py-2.5 text-slate-600 leading-relaxed">{tf.description}</td>
+                        <td className="px-4 py-2.5">
+                          <input
+                            type="text"
+                            value={tf.phase}
+                            onChange={(e) => handleUpdateTimeframeField(idx, "phase", e.target.value)}
+                            className="w-full px-2 py-1 text-xs font-semibold text-slate-800 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none transition"
+                          />
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <input
+                            type="text"
+                            value={tf.description}
+                            onChange={(e) => handleUpdateTimeframeField(idx, "description", e.target.value)}
+                            className="w-full px-2 py-1 text-xs text-slate-600 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none transition"
+                          />
+                        </td>
                         <td className="px-4 py-2.5 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <input
@@ -406,7 +463,14 @@ export function ProposalDetailModal({
                     {localRecord.paymentTerms.map((pt, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50">
                         <td className="px-4 py-2.5 text-center text-slate-400 font-mono">{idx + 1}</td>
-                        <td className="px-4 py-2.5 font-semibold text-slate-800">{pt.milestone}</td>
+                        <td className="px-4 py-2.5">
+                          <input
+                            type="text"
+                            value={pt.milestone}
+                            onChange={(e) => handleUpdateMilestone(idx, e.target.value)}
+                            className="w-full px-2 py-1 text-xs font-semibold text-slate-800 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none transition"
+                          />
+                        </td>
                         <td className="px-4 py-2.5 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <input
@@ -423,8 +487,9 @@ export function ProposalDetailModal({
                           <div className="flex items-center justify-end gap-1">
                             <span className="text-emerald-700 font-mono font-bold text-[11px]">฿</span>
                             <input
-                              type="number"
-                              value={pt.amount}
+                              type="text"
+                              inputMode="numeric"
+                              value={formatThousands(pt.amount)}
                               onChange={(e) => handleUpdatePaymentAmount(idx, e.target.value)}
                               className="w-28 px-2 py-1 text-xs text-right font-mono font-bold text-emerald-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                             />
@@ -742,6 +807,82 @@ export function ProposalDetailModal({
             >
               ตกลง
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Total Fee Edit Overlay */}
+      {showTotalFeeEdit && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-indigo-600" />
+              <h3 className="text-sm font-bold text-slate-900">แก้ไข Total Fee</h3>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">Total Fee (THB)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoFocus
+                value={formatThousands(pendingTotalFee)}
+                onChange={(e) => setPendingTotalFee(parseThousands(e.target.value))}
+                placeholder="0"
+                className="w-full px-3 py-2.5 text-base font-mono font-bold text-slate-900 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setShowTotalFeeEdit(false)}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={() => {
+                  setShowTotalFeeEdit(false);
+                  setShowTotalFeeConfirm(true);
+                }}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition shadow-sm"
+              >
+                บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Total Fee Confirm Overlay */}
+      {showTotalFeeConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 text-center space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+              <HelpCircle className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">ยืนยันการแก้ไข Total Fee</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                ต้องการเปลี่ยน Total Fee เป็น{" "}
+                <span className="font-bold text-slate-800">฿{formatThousands(pendingTotalFee)}</span> ใช่หรือไม่?
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => {
+                  setShowTotalFeeConfirm(false);
+                  setShowTotalFeeEdit(true);
+                }}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+              >
+                ไม่ใช่
+              </button>
+              <button
+                onClick={handleConfirmTotalFeeEdit}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition shadow-sm"
+              >
+                ใช่, บันทึก
+              </button>
+            </div>
           </div>
         </div>
       )}

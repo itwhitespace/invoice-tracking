@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ExtractedProjectData, TimeFrameItem, PaymentTermItem } from "@/lib/types";
 import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
+import { formatThousands, parseThousands } from "@/lib/format-utils";
 import {
   X,
   Plus,
@@ -41,6 +42,8 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
   if (!isOpen) return null;
 
   const totalWeeks = getTotalWeeks(data.timeFrames);
+  const paymentSum = data.paymentTerms.reduce((sum, pt) => sum + (Number(pt.amount) || 0), 0);
+  const paymentSumExceedsFee = data.totalFee > 0 && paymentSum > data.totalFee;
 
   const handleFieldChange = (field: keyof ExtractedProjectData, value: any) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -89,8 +92,8 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
     });
   };
 
-  const handleUpdatePaymentAmount = (index: number, val: string) => {
-    const amount = parseFloat(val) || 0;
+  const handleUpdatePaymentAmount = (index: number, raw: string) => {
+    const amount = parseThousands(raw);
     setData((prev) => {
       const updated = [...prev.paymentTerms];
       updated[index] = {
@@ -114,7 +117,7 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
     setData((prev) => ({ ...prev, paymentTerms: prev.paymentTerms.filter((_, i) => i !== index) }));
   };
 
-  const isValid = !!data.companyName && !!data.projectName.trim() && data.totalFee > 0;
+  const isValid = !!data.companyName && !!data.projectName.trim() && data.totalFee > 0 && !paymentSumExceedsFee;
 
   const handleSubmit = async () => {
     if (!isValid) {
@@ -123,7 +126,7 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
     }
     setIsSaving(true);
     try {
-      await onCreate(data);
+      await onCreate({ ...data, totalDesignDuration: `${totalWeeks} Weeks` });
       setData(EMPTY_DATA);
       setShowValidation(false);
     } finally {
@@ -307,15 +310,10 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
               </table>
             </div>
 
-            <div className="space-y-1.5 max-w-xs">
-              <label className="text-[11px] font-semibold text-slate-500">ระยะเวลารวม (Total Design Duration)</label>
-              <input
-                type="text"
-                value={data.totalDesignDuration || ""}
-                onChange={(e) => handleFieldChange("totalDesignDuration", e.target.value)}
-                placeholder="เช่น 16 Weeks"
-                className="w-full px-3 py-2 text-xs font-medium text-slate-800 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
-              />
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-semibold text-slate-500">ระยะเวลารวม (Total Design Duration):</span>
+              <span className="font-bold text-slate-900">{totalWeeks} Weeks</span>
+              <span className="text-[11px] text-slate-400">(รวมจากตารางด้านบนอัตโนมัติ)</span>
             </div>
           </section>
 
@@ -385,8 +383,9 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
                         </td>
                         <td className="p-2 text-right">
                           <input
-                            type="number"
-                            value={item.amount || ""}
+                            type="text"
+                            inputMode="numeric"
+                            value={formatThousands(item.amount)}
                             onChange={(e) => handleUpdatePaymentAmount(idx, e.target.value)}
                             placeholder="0"
                             className="w-full px-2 py-1.5 text-xs text-right font-mono font-bold text-emerald-700 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none"
@@ -421,11 +420,33 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
                     ))
                   )}
                 </tbody>
+                {data.paymentTerms.length > 0 && (
+                  <tfoot>
+                    <tr className={`border-t-2 font-bold ${paymentSumExceedsFee ? "border-red-300 bg-red-50/70" : "border-slate-200 bg-slate-50/70"}`}>
+                      <td className="p-2.5 text-right text-slate-700">รวม</td>
+                      <td></td>
+                      <td className={`p-2.5 text-right font-mono ${paymentSumExceedsFee ? "text-red-700" : "text-emerald-700"}`}>
+                        {formatThousands(paymentSum)}
+                      </td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
+
+            {paymentSumExceedsFee && (
+              <div className="flex items-start gap-2 p-3 bg-red-50/90 border border-red-300 rounded-lg text-xs text-red-900 font-medium">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <p>
+                  ผลรวมจำนวนเงิน ({formatThousands(paymentSum)}) เกินกว่า Total Fee ({formatThousands(data.totalFee)}) —
+                  ต้องปรับให้ไม่เกินก่อนถึงจะบันทึกได้
+                </p>
+              </div>
+            )}
           </section>
 
-          {showValidation && !isValid && (
+          {showValidation && !isValid && !paymentSumExceedsFee && (
             <div className="flex items-start gap-2 p-3 bg-red-50/90 border border-red-300 rounded-lg text-xs text-red-900 font-medium">
               <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
               <p>กรุณากรอกบริษัทผู้ออกเอกสาร, ชื่อโครงการ และ Total Fee ให้ครบก่อนบันทึก</p>
@@ -444,7 +465,8 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSaving}
+            disabled={isSaving || paymentSumExceedsFee}
+            title={paymentSumExceedsFee ? "ผลรวมจำนวนเงินเกิน Total Fee — ต้องปรับก่อนบันทึก" : undefined}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition shadow-xs flex items-center gap-1.5"
           >
             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
