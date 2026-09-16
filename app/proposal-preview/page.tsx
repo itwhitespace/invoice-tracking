@@ -22,13 +22,15 @@ import { FileSearch, Eye, Trash2, FileText, ExternalLink, FilePlus } from "lucid
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-// Older records (saved before Total Design Duration was auto-computed and
-// stored) have an empty totalDesignDuration — fall back to summing the
-// Project Timeframes durations live, same as the detail modal's footer.
+// Project Timeframes is the source of truth for duration — sum its weeks
+// live so the column always reads "X Weeks" consistently, even for older
+// records whose stored totalDesignDuration is missing or was saved in a
+// raw, un-formatted shape (e.g. just "9" from an older PDF extraction).
+// Only records with no timeframe rows at all fall back to the stored text.
 function formatDuration(rec: SavedRecord): string {
-  if (rec.totalDesignDuration) return rec.totalDesignDuration;
   const weeks = getTotalWeeks(rec.timeFrames || []);
-  return weeks > 0 ? `${weeks} Weeks` : "-";
+  if (weeks > 0) return `${weeks} Weeks`;
+  return rec.totalDesignDuration || "-";
 }
 
 const STATUS_STYLES: Record<string, string> = {
