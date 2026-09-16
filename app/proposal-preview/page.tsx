@@ -14,12 +14,22 @@ import {
 } from "@/lib/supabase";
 import { useSettings } from "@/lib/settings-context";
 import { getCompanyLabel } from "@/lib/company-utils";
+import { getTotalWeeks } from "@/lib/timeframe-utils";
 import { PdfPreviewModal } from "@/components/pdf-preview-modal";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
 import { AddProposalModal } from "@/components/add-proposal-modal";
 import { FileSearch, Eye, Trash2, FileText, ExternalLink, FilePlus } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+
+// Older records (saved before Total Design Duration was auto-computed and
+// stored) have an empty totalDesignDuration — fall back to summing the
+// Project Timeframes durations live, same as the detail modal's footer.
+function formatDuration(rec: SavedRecord): string {
+  if (rec.totalDesignDuration) return rec.totalDesignDuration;
+  const weeks = getTotalWeeks(rec.timeFrames || []);
+  return weeks > 0 ? `${weeks} Weeks` : "-";
+}
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-300",
@@ -208,7 +218,7 @@ function ProposalPreviewContent() {
                         {rec.projectName}
                       </td>
                       <td className="p-3.5 text-slate-600">{rec.companyName || "-"}</td>
-                      <td className="p-3.5 text-slate-600">{rec.totalDesignDuration || "-"}</td>
+                      <td className="p-3.5 text-slate-600">{formatDuration(rec)}</td>
                       <td className="p-3.5 text-right font-mono font-bold text-slate-800">
                         {Number(rec.totalFee).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
