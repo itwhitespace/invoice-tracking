@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, ReactNode } from "react";
+import { useEffect, useMemo, useState, ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import type { Session } from "@supabase/supabase-js";
 import {
   LayoutDashboard,
   CalendarRange,
@@ -12,10 +13,21 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
+  LogOut,
+  Loader2,
+  UserCircle2,
 } from "lucide-react";
 import { COMPANY_OPTIONS } from "@/lib/company-utils";
+import { useSettings } from "@/lib/settings-context";
+import { getSupabaseClient } from "@/lib/supabase";
+import { signOut } from "@/lib/auth";
 
 const SIDEBAR_COLLAPSED_KEY = "invoice_tracking_sidebar_collapsed";
+
+// Pages reachable without being logged in — /login itself (rendered bare,
+// no sidebar) and /settings (needs to stay reachable so a brand-new browser
+// can configure the Supabase URL/key before any login is even possible).
+const PUBLIC_PATHS = ["/settings"];
 
 interface NavChild {
   label: string;
@@ -57,8 +69,17 @@ const NAV_ITEMS: NavItemDef[] = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { settings } = useSettings();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  // undefined = still checking, null = confirmed logged out, Session = logged in
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+
+  const supabase = useMemo(
+    () => getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey),
+    [settings.supabaseUrl, settings.supabaseAnonKey]
+  );
 
   useEffect(() => {
     try {
@@ -85,6 +106,25 @@ export function AppShell({ children }: { children: ReactNode }) {
     });
   }, [pathname]);
 
+  useEffect(() => {
+    if (!supabase) {
+      setSession(null);
+      return;
+    }
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [supabase]);
+
+  const isPublicPath = PUBLIC_PATHS.some((p) => pathname === p || pathname?.startsWith(p + "/"));
+
+  useEffect(() => {
+    if (pathname === "/login" || isPublicPath) return;
+    if (session === null) router.replace("/login");
+  }, [session, isPublicPath, pathname, router]);
+
   const toggleExpanded = (href: string) => {
     setExpandedItems((prev) => {
       const next = new Set(prev);
@@ -105,6 +145,31 @@ export function AppShell({ children }: { children: ReactNode }) {
       return next;
     });
   };
+
+  const handleLogout = async () => {
+    if (supabase) await signOut(supabase);
+    router.replace("/login");
+  };
+
+  // The login page renders its own full-page layout — no sidebar, no guard.
+  if (pathname === "/login") {
+    return <>{children}</>;
+  }
+
+  // Protected page, session not resolved yet — hold off rendering the app
+  // chrome (and definitely the page content) until we know one way or another.
+  if (!isPublicPath && session === undefined) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-100">
+        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+  if (!isPublicPath && session === null) {
+    return null; // redirecting to /login via the effect above
+  }
+
+  const username = session?.user?.email?.split("@")[0] || "";
 
   return (
     <div className="h-screen flex bg-slate-100 overflow-hidden font-sans">
@@ -203,6 +268,29 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+
+        {/* Logged-in user + Logout */}
+        {session && (
+          <div className="border-t border-slate-200 p-2 shrink-0">
+            {!collapsed && username && (
+              <div className="flex items-center gap-2 px-2.5 py-1.5 text-[11px] text-slate-500">
+                <UserCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{username}</span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleLogout}
+              title={collapsed ? "ออกจากระบบ" : undefined}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-semibold text-slate-600 hover:bg-red-50 hover:text-red-700 transition ${
+                collapsed ? "justify-center" : ""
+              }`}
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              {!collapsed && <span>ออกจากระบบ</span>}
+            </button>
+          </div>
+        )}
       </aside>
 
       {/* Main Content */}
