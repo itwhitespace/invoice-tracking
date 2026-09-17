@@ -27,6 +27,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  EyeOff,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -244,6 +245,21 @@ export function ProposalDetailModal({
     }
   };
 
+  // Hides/shows this project's row on the Project Roadmap (and its Excel
+  // export) — its amount keeps counting toward every monthly/annual total
+  // either way, only the row itself is hidden. Saves immediately, same as
+  // Approve/Unapprove, rather than waiting on the dirty-state Save flow.
+  const handleToggleRoadmapHidden = async () => {
+    const updated: SavedRecord = { ...localRecord, roadmapHidden: !localRecord.roadmapHidden };
+    setLocalRecord(updated);
+    setIsSaving(true);
+    try {
+      await onUpdate(updated);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Pulls an approved project back off the Project Roadmap.
   const handleConfirmUnapprove = async () => {
     const updated: SavedRecord = {
@@ -289,6 +305,37 @@ export function ProposalDetailModal({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {localRecord.status === "approved" && (
+              <button
+                type="button"
+                onClick={handleToggleRoadmapHidden}
+                disabled={isSaving}
+                title={
+                  localRecord.roadmapHidden
+                    ? "ซ่อนอยู่จากหน้า Project Roadmap — กดเพื่อแสดงอีกครั้ง (ยอดเงินคำนวณอยู่เสมอ)"
+                    : "แสดงอยู่บนหน้า Project Roadmap — กดเพื่อซ่อน (ยอดเงินยังคำนวณอยู่เหมือนเดิม)"
+                }
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg shadow-2xs transition disabled:opacity-60 whitespace-nowrap"
+              >
+                {localRecord.roadmapHidden ? (
+                  <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                ) : (
+                  <Eye className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                )}
+                {localRecord.roadmapHidden ? "ซ่อนจาก Roadmap" : "แสดงใน Roadmap"}
+                <span
+                  className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors shrink-0 ${
+                    localRecord.roadmapHidden ? "bg-slate-300" : "bg-emerald-500"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${
+                      localRecord.roadmapHidden ? "translate-x-0.5" : "translate-x-3.5"
+                    }`}
+                  />
+                </span>
+              </button>
+            )}
             {localRecord.pdfUrl && onOpenPdf && (
               <button
                 onClick={() => onOpenPdf(localRecord)}

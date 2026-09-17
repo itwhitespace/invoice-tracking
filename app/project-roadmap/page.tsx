@@ -8,10 +8,12 @@ import {
   saveRecordLocally,
   updateRecordRemote,
   isRemoteId,
+  getDepartmentTargets,
 } from "@/lib/supabase";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation } from "@/lib/department-utils";
 import { getCompanyLabel } from "@/lib/company-utils";
+import { getFiscalYearStartYear } from "@/lib/roadmap-timeline";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 import { useSettings } from "@/lib/settings-context";
 import { useSearchParams } from "next/navigation";
@@ -198,6 +200,9 @@ function ProjectRoadmapContent() {
   const [previewPdfRecord, setPreviewPdfRecord] = useState<SavedRecord | null>(null);
 
   const [isExporting, setIsExporting] = useState(false);
+  // Only used for the Excel export's Annual Billing block, scoped to the
+  // fiscal year currently running (same default the Dashboard opens on).
+  const [targets, setTargets] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (statusEditor) setPendingStatus(statusEditor.currentStatus);
@@ -208,6 +213,7 @@ function ProjectRoadmapContent() {
   useEffect(() => {
     const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
     getSavedRecords(supabase).then(setRecords);
+    getDepartmentTargets(supabase).then(setTargets);
   }, [settings.supabaseUrl, settings.supabaseAnonKey]);
 
   // Only fully Approved proposals belong on the roadmap, narrowed further by
@@ -462,6 +468,14 @@ function ProjectRoadmapContent() {
     return totals;
   }, [timelineRows, monthHeaders]);
 
+  // Rows actually rendered in the Gantt — hidden projects are left out of
+  // the visible table, but monthlyTotals above (computed from the full
+  // timelineRows) still counts their amounts.
+  const visibleTimelineRows = useMemo(
+    () => timelineRows.filter((row) => !row.project.roadmapHidden),
+    [timelineRows]
+  );
+
   // Starts a drag: measure the row's payment-marker grid once so pointermove
   // (handled by the window-level effect above) can cheaply convert cursor X
   // into a column index for the rest of the gesture.
@@ -625,7 +639,7 @@ function ProjectRoadmapContent() {
     setIsExporting(true);
     try {
       const { exportRoadmapToExcel } = await import("@/lib/roadmap-export");
-      await exportRoadmapToExcel({ projects: allApproved });
+      await exportRoadmapToExcel({ projects: allApproved, targets, fiscalYearStart: getFiscalYearStartYear() });
     } catch (err: any) {
       window.alert("Export Excel ไม่สำเร็จ: " + (err?.message || String(err)));
     } finally {
@@ -771,7 +785,7 @@ function ProjectRoadmapContent() {
                     <Building2 className="w-4 h-4 text-slate-700" />
                     <span>Project Name</span>
                   </div>
-                  <span className="text-[10px] text-slate-600 font-mono">({filteredProjects.length})</span>
+                  <span className="text-[10px] text-slate-600 font-mono">({visibleTimelineRows.length})</span>
                 </div>
 
                 {/* Right Month Columns */}
@@ -827,7 +841,7 @@ function ProjectRoadmapContent() {
 
               {/* Gantt Project Rows on Clean White Background */}
               <div className="divide-y divide-slate-200 relative bg-white">
-                {timelineRows.map((row, rowIdx) => {
+                {visibleTimelineRows.map((row, rowIdx) => {
                   const proj = row.project;
 
                   return (

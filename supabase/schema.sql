@@ -29,8 +29,9 @@ create table if not exists public.projects (
   start_date             date,                                 -- Operations tab: project kickoff date, drives the Roadmap Gantt position
   department             text,                                 -- Operations tab: studio-1/studio-2/studio-3/studio-4/Signage/Branding
   approved_at            timestamptz,                           -- Set when status is switched to 'approved'
-  on_hold                boolean not null default false,       -- Approved only: stays on the Roadmap but excluded from monthly totals
-  roadmap_note           text                                   -- Free-text note editable from the Project Roadmap page
+  on_hold                boolean not null default false,       -- deprecated, no longer written by the app
+  roadmap_note           text,                                  -- Free-text note editable from the Project Roadmap page
+  roadmap_hidden         boolean not null default false        -- Hides the project's row from the Roadmap Gantt/export, amount still counts toward totals
 );
 
 comment on table public.projects is 'One row per proposal/invoice document extracted or entered in the app.';
@@ -205,6 +206,8 @@ alter table public.department_targets enable row level security;
 drop policy if exists "Allow all access" on public.department_targets;
 create policy "Allow all access" on public.department_targets
   for all using (true) with check (true);
+
+alter table public.projects add column if not exists roadmap_hidden boolean not null default false;
 
 -- ============================================================================
 -- Done. In the app's Settings page, set:

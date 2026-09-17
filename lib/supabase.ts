@@ -124,6 +124,7 @@ function mapProjectRowToRecord(row: any): SavedRecord {
     department: row.department || "",
     approvedAt: row.approved_at || "",
     roadmapNote: row.roadmap_note || "",
+    roadmapHidden: !!row.roadmap_hidden,
   };
 }
 
@@ -170,6 +171,7 @@ export async function updateRecordRemote(
         department: record.department || null,
         approved_at: record.approvedAt || null,
         roadmap_note: record.roadmapNote || null,
+        roadmap_hidden: record.roadmapHidden ?? false,
       })
       .eq("id", record.id);
 

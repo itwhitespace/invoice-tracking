@@ -53,6 +53,10 @@ export interface SavedRecord {
   // Free-text note editable from the Project Roadmap page (click the
   // department badge), shown under the project name there.
   roadmapNote?: string;
+  // When true, this project's row is hidden from the Project Roadmap table
+  // (and the exported Gantt sheets) — its amount still counts toward every
+  // monthly/annual total, it just isn't shown as its own row.
+  roadmapHidden?: boolean;
 }
 
 export interface AppSettings {
