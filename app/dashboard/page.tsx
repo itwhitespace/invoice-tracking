@@ -246,10 +246,15 @@ function CompanySummaryTable({
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-slate-200 bg-slate-50">
-              <td className="p-3.5 text-right font-bold text-slate-900 sticky left-0 z-10 bg-slate-50">Total</td>
+            <tr className="border-t-2 border-emerald-200 bg-emerald-50/70">
+              <td className="p-4 text-right text-sm font-extrabold text-slate-900 tracking-wide sticky left-0 z-10 bg-emerald-50/70">
+                Total
+              </td>
               {totalRow.map((amt, idx) => (
-                <td key={idx} className="p-3.5 text-center font-mono tabular-nums font-bold text-emerald-700">
+                <td
+                  key={idx}
+                  className="p-4 text-center font-mono tabular-nums text-sm font-extrabold text-emerald-700"
+                >
                   {formatAmount(amt)}
                 </td>
               ))}
@@ -350,11 +355,15 @@ function AnnualBillingSection({
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-slate-200 font-bold">
-                <td className="py-2 pr-3 text-slate-900">Total</td>
-                <td className="py-2 px-3 text-right font-mono text-slate-900">{formatMillions(totalTarget)}</td>
-                <td className="py-2 px-3 text-right font-mono text-slate-900">{formatMillions(totalActual)}</td>
-                <td className="py-2 pl-3 text-right font-mono text-emerald-700">
+              <tr className="border-t-2 border-emerald-200 bg-emerald-50/70">
+                <td className="py-3 pr-3 text-sm font-extrabold text-slate-900 tracking-wide">Total</td>
+                <td className="py-3 px-3 text-right font-mono text-sm font-extrabold text-slate-900">
+                  {formatMillions(totalTarget)}
+                </td>
+                <td className="py-3 px-3 text-right font-mono text-sm font-extrabold text-slate-900">
+                  {formatMillions(totalActual)}
+                </td>
+                <td className="py-3 pl-3 text-right font-mono text-base font-extrabold text-emerald-700">
                   {totalTarget > 0 ? `${Math.round(totalPct)}%` : "-"}
                 </td>
               </tr>
