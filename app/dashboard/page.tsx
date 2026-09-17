@@ -52,8 +52,10 @@ const COMPANIES: CompanyStyle[] = [
 
 const BAR_PALETTE = ["#F4A03C", "#FFD34D", "#8FCB7E", "#C55A11", "#4FB6C4", "#B08BD9"];
 
-const formatAmount = (amount: number): string =>
-  amount > 0 ? `฿${amount.toLocaleString("en-US")}` : "-";
+// Monthly Summary table — shown in thousands of baht (K THB) to keep the
+// per-month figures compact and easy to scan across a 6-month span.
+const formatKThousands = (amount: number): string =>
+  amount > 0 ? Math.round(amount / 1000).toLocaleString("en-US") : "-";
 
 const formatMillions = (amount: number): string =>
   amount > 0 ? (amount / 1_000_000).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "-";
@@ -214,6 +216,7 @@ function CompanySummaryTable({
                 className={`p-3.5 sticky left-0 z-10 ${company.headerBg} ${company.headerText} font-bold whitespace-nowrap min-w-[200px] tracking-wide`}
               >
                 {company.shortLabel}
+                <span className="ml-1.5 font-normal opacity-75">(K THB)</span>
               </th>
               {monthHeaders.map((m, idx) => (
                 <th
@@ -239,7 +242,7 @@ function CompanySummaryTable({
                     key={idx}
                     className={`p-3.5 text-center font-mono tabular-nums ${amt > 0 ? "text-slate-800 font-semibold" : "text-slate-300"}`}
                   >
-                    {formatAmount(amt)}
+                    {formatKThousands(amt)}
                   </td>
                 ))}
               </tr>
@@ -255,7 +258,7 @@ function CompanySummaryTable({
                   key={idx}
                   className="p-4 text-center font-mono tabular-nums text-sm font-extrabold text-emerald-700"
                 >
-                  {formatAmount(amt)}
+                  {formatKThousands(amt)}
                 </td>
               ))}
             </tr>
