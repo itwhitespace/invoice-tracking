@@ -52,10 +52,13 @@ const COMPANIES: CompanyStyle[] = [
 
 const BAR_PALETTE = ["#F4A03C", "#FFD34D", "#8FCB7E", "#C55A11", "#4FB6C4", "#B08BD9"];
 
-// Summary and Annual Billing tables — shown in thousands of baht (K THB) to
-// keep figures compact and easy to scan.
+// Monthly Summary table — shown in thousands of baht (K THB) to keep the
+// per-month figures compact and easy to scan across a 6-month span.
 const formatKThousands = (amount: number): string =>
   amount > 0 ? Math.round(amount / 1000).toLocaleString("en-US") : "-";
+
+const formatMillions = (amount: number): string =>
+  amount > 0 ? (amount / 1_000_000).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "-";
 
 export default function DashboardPage() {
   const { settings } = useSettings();
@@ -309,7 +312,7 @@ function AnnualBillingSection({
     <div className="space-y-3">
       <div className={`px-5 py-3.5 rounded-xl ${company.headerBg} ${company.headerText} flex items-center gap-2 shadow-sm`}>
         <BarChart3 className="w-4 h-4" />
-        <h3 className="text-sm font-bold tracking-wide">{company.shortLabel} — Annual Billing (K THB)</h3>
+        <h3 className="text-sm font-bold tracking-wide">{company.shortLabel} — Annual Billing (M THB)</h3>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -335,12 +338,12 @@ function AnnualBillingSection({
                       title="แก้ไข Target"
                       className="inline-flex items-center gap-1.5 font-mono font-semibold text-slate-800 hover:text-indigo-600 transition-colors group"
                     >
-                      {formatKThousands(r.target)}
+                      {formatMillions(r.target)}
                       <Pencil className="w-3 h-3 text-slate-300 group-hover:text-indigo-500 transition-colors" />
                     </button>
                   </td>
                   <td className="py-2 px-3 text-right font-mono font-semibold text-slate-800">
-                    {formatKThousands(r.actual)}
+                    {formatMillions(r.actual)}
                   </td>
                   <td className="py-2 pl-3 text-right">
                     <span
@@ -358,10 +361,10 @@ function AnnualBillingSection({
               <tr className="border-t-2 border-emerald-200 bg-emerald-50/70">
                 <td className="py-3 pr-3 text-sm font-extrabold text-slate-900 tracking-wide">Total</td>
                 <td className="py-3 px-3 text-right font-mono text-sm font-extrabold text-slate-900">
-                  {formatKThousands(totalTarget)}
+                  {formatMillions(totalTarget)}
                 </td>
                 <td className="py-3 px-3 text-right font-mono text-sm font-extrabold text-slate-900">
-                  {formatKThousands(totalActual)}
+                  {formatMillions(totalActual)}
                 </td>
                 <td className="py-3 pl-3 text-right font-mono text-base font-extrabold text-emerald-700">
                   {totalTarget > 0 ? `${Math.round(totalPct)}%` : "-"}
