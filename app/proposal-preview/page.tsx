@@ -14,11 +14,12 @@ import {
 } from "@/lib/supabase";
 import { useSettings } from "@/lib/settings-context";
 import { getCompanyLabel } from "@/lib/company-utils";
+import { formatDepartmentLabel } from "@/lib/department-utils";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
 import { PdfPreviewModal } from "@/components/pdf-preview-modal";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
 import { AddProposalModal } from "@/components/add-proposal-modal";
-import { FileSearch, Eye, Trash2, FileText, ExternalLink, FilePlus } from "lucide-react";
+import { FileSearch, Eye, Trash2, FileText, ExternalLink, FilePlus, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -57,10 +58,14 @@ function ProposalPreviewContent() {
   const [previewPdfRecord, setPreviewPdfRecord] = useState<SavedRecord | null>(null);
   const [detailRecord, setDetailRecord] = useState<SavedRecord | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredRecords = useMemo(() => {
-    return companyFilter ? records.filter((r) => r.companyName === companyFilter) : records;
-  }, [records, companyFilter]);
+    let list = companyFilter ? records.filter((r) => r.companyName === companyFilter) : records;
+    const q = searchQuery.trim().toLowerCase();
+    if (q) list = list.filter((r) => r.projectName.toLowerCase().includes(q));
+    return list;
+  }, [records, companyFilter, searchQuery]);
 
   useEffect(() => {
     const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
@@ -142,6 +147,24 @@ function ProposalPreviewContent() {
     }
   };
 
+  // Same persistence as handleUpdateRecord, but doesn't touch detailRecord —
+  // called straight from the table's switch column, which must not pop the
+  // detail modal open.
+  const handleToggleRoadmapHidden = async (rec: SavedRecord) => {
+    const updated: SavedRecord = { ...rec, roadmapHidden: !rec.roadmapHidden };
+    setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    setDetailRecord((prev) => (prev && prev.id === updated.id ? updated : prev));
+    saveRecordLocally(updated);
+
+    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    if (supabase && isRemoteId(updated.id)) {
+      const { error } = await updateRecordRemote(supabase, updated);
+      if (error) {
+        window.alert("บันทึกใน Local History แล้ว แต่อัปเดตขึ้น Supabase ไม่สำเร็จ: " + error);
+      }
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-100 overflow-hidden">
       <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
@@ -179,7 +202,7 @@ function ProposalPreviewContent() {
             <FileSearch className="w-10 h-10 animate-pulse" />
             <p className="text-xs font-medium">กำลังโหลดข้อมูล...</p>
           </div>
-        ) : filteredRecords.length === 0 ? (
+        ) : records.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400">
             <FileSearch className="w-10 h-10" />
             <p className="text-xs font-medium">
@@ -193,17 +216,43 @@ function ProposalPreviewContent() {
           </div>
         ) : (
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
+            <div className="p-3.5 border-b border-slate-200 flex items-center justify-start">
+              <div className="relative w-full max-w-xs">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ค้นหาชื่อโครงการ..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs font-medium text-slate-800 bg-slate-50/70 border border-slate-300 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                />
+              </div>
+            </div>
+            {filteredRecords.length === 0 ? (
+              <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
+                <FileSearch className="w-8 h-8" />
+                <p className="text-xs font-medium">ไม่พบโครงการที่ตรงกับ &quot;{searchQuery}&quot;</p>
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold underline"
+                >
+                  ล้างช่องค้นหา
+                </button>
+              </div>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                   <tr>
                     <th className="p-3.5">Project Name</th>
                     <th className="p-3.5">Project by</th>
+                    <th className="p-3.5">Department</th>
                     <th className="p-3.5">Duration</th>
                     <th className="p-3.5 text-right">Total Fee (THB)</th>
                     <th className="p-3.5">Status</th>
                     <th className="p-3.5">วันที่บันทึก</th>
                     <th className="p-3.5">Approve Date</th>
+                    <th className="p-3.5 text-center">Roadmap</th>
                     <th className="p-3.5 text-center">Action (ดูข้อมูล)</th>
                     <th className="p-3.5 w-16 text-center">PDF</th>
                     <th className="p-3.5 w-16 text-center">ลบ</th>
@@ -220,6 +269,9 @@ function ProposalPreviewContent() {
                         {rec.projectName}
                       </td>
                       <td className="p-3.5 text-slate-600">{rec.companyName || "-"}</td>
+                      <td className="p-3.5 text-slate-600">
+                        {rec.department ? formatDepartmentLabel(rec.department) : "-"}
+                      </td>
                       <td className="p-3.5 text-slate-600">{formatDuration(rec)}</td>
                       <td className="p-3.5 text-right font-mono font-bold text-slate-800">
                         {Number(rec.totalFee).toLocaleString("en-US", {
@@ -241,6 +293,30 @@ function ProposalPreviewContent() {
                       </td>
                       <td className="p-3.5 text-slate-500 font-mono text-[11px]">
                         {rec.approvedAt ? new Date(rec.approvedAt).toLocaleString("th-TH") : "-"}
+                      </td>
+                      <td className="p-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                        {rec.status === "approved" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRoadmapHidden(rec)}
+                            title={
+                              rec.roadmapHidden
+                                ? "ซ่อนอยู่จากหน้า Project Roadmap — กดเพื่อแสดงอีกครั้ง (ยอดเงินคำนวณอยู่เสมอ)"
+                                : "แสดงอยู่บนหน้า Project Roadmap — กดเพื่อซ่อน (ยอดเงินยังคำนวณอยู่เหมือนเดิม)"
+                            }
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${
+                              rec.roadmapHidden ? "bg-slate-300" : "bg-emerald-500"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                                rec.roadmapHidden ? "translate-x-1" : "translate-x-5"
+                              }`}
+                            />
+                          </button>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
                       </td>
                       <td className="p-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -275,6 +351,7 @@ function ProposalPreviewContent() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         )}
       </div>
