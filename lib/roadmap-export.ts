@@ -227,6 +227,7 @@ function addRoadmapSheet(
 function addAnnualBillingBlock(
   sheet: ExcelJSType.Worksheet,
   startRow: number,
+  startCol: number,
   company: { name: string; label: string; headerFill: string; headerFont: string; deptFont: string },
   companyProjects: SavedRecord[],
   fiscalMonthHeaders: RoadmapMonthConfig[],
@@ -235,9 +236,11 @@ function addAnnualBillingBlock(
 ): number {
   let r = startRow;
   const departments = COMPANY_DEPARTMENTS[company.name] || [];
+  const col = (offset: number) => startCol + offset;
 
   const titleRow = sheet.getRow(r);
-  const titleCell = titleRow.getCell(1);
+  sheet.mergeCells(r, col(0), r, col(3));
+  const titleCell = titleRow.getCell(col(0));
   titleCell.value = `${company.label} — Annual Billing`;
   titleCell.font = { bold: true, size: 11, color: { argb: company.headerFont } };
   titleCell.fill = solidFill(company.headerFill);
@@ -247,7 +250,7 @@ function addAnnualBillingBlock(
 
   const colHeaderRow = sheet.getRow(r);
   ["Department", "Target", "Actual", "% Complete"].forEach((label, idx) => {
-    const cell = colHeaderRow.getCell(idx + 1);
+    const cell = colHeaderRow.getCell(col(idx));
     cell.value = label;
     cell.font = { bold: true, size: 10 };
     cell.alignment = { horizontal: idx === 0 ? "left" : "center" };
@@ -265,11 +268,11 @@ function addAnnualBillingBlock(
     totalActual += actual;
 
     const row = sheet.getRow(r);
-    const nameCell = row.getCell(1);
+    const nameCell = row.getCell(col(0));
     nameCell.value = formatDepartmentLabel(dept);
     nameCell.font = { size: 10, color: { argb: company.deptFont } };
 
-    const targetCell = row.getCell(2);
+    const targetCell = row.getCell(col(1));
     if (target > 0) {
       targetCell.value = target;
       targetCell.numFmt = '"฿"#,##0';
@@ -277,7 +280,7 @@ function addAnnualBillingBlock(
     targetCell.font = { size: 10 };
     targetCell.alignment = { horizontal: "center" };
 
-    const actualCell = row.getCell(3);
+    const actualCell = row.getCell(col(2));
     if (actual > 0) {
       actualCell.value = actual;
       actualCell.numFmt = '"฿"#,##0';
@@ -285,7 +288,7 @@ function addAnnualBillingBlock(
     actualCell.font = { size: 10 };
     actualCell.alignment = { horizontal: "center" };
 
-    const pctCell = row.getCell(4);
+    const pctCell = row.getCell(col(3));
     if (target > 0) {
       pctCell.value = actual / target;
       pctCell.numFmt = "0%";
@@ -299,12 +302,12 @@ function addAnnualBillingBlock(
   }
 
   const totalRow = sheet.getRow(r);
-  const totalLabelCell = totalRow.getCell(1);
+  const totalLabelCell = totalRow.getCell(col(0));
   totalLabelCell.value = "Total";
   totalLabelCell.font = { bold: true, size: 10 };
   totalLabelCell.border = { top: { style: "thin" } };
 
-  const totalTargetCell = totalRow.getCell(2);
+  const totalTargetCell = totalRow.getCell(col(1));
   if (totalTarget > 0) {
     totalTargetCell.value = totalTarget;
     totalTargetCell.numFmt = '"฿"#,##0';
@@ -313,7 +316,7 @@ function addAnnualBillingBlock(
   totalTargetCell.alignment = { horizontal: "center" };
   totalTargetCell.border = { top: { style: "thin" } };
 
-  const totalActualCell = totalRow.getCell(3);
+  const totalActualCell = totalRow.getCell(col(2));
   if (totalActual > 0) {
     totalActualCell.value = totalActual;
     totalActualCell.numFmt = '"฿"#,##0';
@@ -322,7 +325,7 @@ function addAnnualBillingBlock(
   totalActualCell.alignment = { horizontal: "center" };
   totalActualCell.border = { top: { style: "thin" } };
 
-  const totalPctCell = totalRow.getCell(4);
+  const totalPctCell = totalRow.getCell(col(3));
   if (totalTarget > 0) {
     totalPctCell.value = totalActual / totalTarget;
     totalPctCell.numFmt = "0%";
@@ -448,7 +451,7 @@ function addSummarySheet(
     });
     r += 2; // blank row gap before the Annual Billing block
 
-    r = addAnnualBillingBlock(sheet, r, company, companyProjects, fiscalMonthHeaders, targets, fiscalYearStart);
+    r = addAnnualBillingBlock(sheet, r, 1, company, companyProjects, fiscalMonthHeaders, targets, fiscalYearStart);
   }
 }
 
