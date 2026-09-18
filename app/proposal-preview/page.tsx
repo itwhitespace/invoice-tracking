@@ -14,11 +14,12 @@ import {
 } from "@/lib/supabase";
 import { useSettings } from "@/lib/settings-context";
 import { getCompanyLabel } from "@/lib/company-utils";
-import { formatDepartmentLabel } from "@/lib/department-utils";
+import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-utils";
 import { formatProjectDuration } from "@/lib/timeframe-utils";
 import { PdfPreviewModal } from "@/components/pdf-preview-modal";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
 import { AddProposalModal } from "@/components/add-proposal-modal";
+import { AnimatedTabs } from "@/components/animated-tabs";
 import { FileSearch, Eye, Trash2, FileText, ExternalLink, FilePlus, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -48,13 +49,47 @@ function ProposalPreviewContent() {
   const [detailRecord, setDetailRecord] = useState<SavedRecord | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+
+  // Narrowed by company only — the base set the department tabs and their
+  // counts are derived from, so switching department never hides the other
+  // tabs themselves.
+  const companyScopedRecords = useMemo(
+    () => (companyFilter ? records.filter((r) => r.companyName === companyFilter) : records),
+    [records, companyFilter]
+  );
+
+  const availableDepartments = useMemo(() => {
+    const set = new Set<string>();
+    for (const rec of companyScopedRecords) {
+      if (rec.department) set.add(rec.department);
+    }
+    return DEPARTMENT_OPTIONS.filter((d) => set.has(d));
+  }, [companyScopedRecords]);
+
+  const departmentTabs = useMemo(
+    () => [
+      { label: "ทั้งหมด", value: "" },
+      ...availableDepartments.map((d) => ({ label: formatDepartmentLabel(d), value: d })),
+    ],
+    [availableDepartments]
+  );
+
+  // The department tab set changes when the company filter (a different
+  // page/submenu) changes — reset back to "ทั้งหมด" so the filter never
+  // silently keeps a department that doesn't apply to the new company.
+  useEffect(() => {
+    setDepartmentFilter("");
+  }, [companyFilter]);
 
   const filteredRecords = useMemo(() => {
-    let list = companyFilter ? records.filter((r) => r.companyName === companyFilter) : records;
+    let list = departmentFilter
+      ? companyScopedRecords.filter((r) => r.department === departmentFilter)
+      : companyScopedRecords;
     const q = searchQuery.trim().toLowerCase();
     if (q) list = list.filter((r) => r.projectName.toLowerCase().includes(q));
     return list;
-  }, [records, companyFilter, searchQuery]);
+  }, [companyScopedRecords, departmentFilter, searchQuery]);
 
   useEffect(() => {
     const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
@@ -204,6 +239,12 @@ function ProposalPreviewContent() {
             </p>
           </div>
         ) : (
+          <>
+          {availableDepartments.length > 0 && (
+            <div className="mb-4 flex justify-start">
+              <AnimatedTabs tabs={departmentTabs} value={departmentFilter} onChange={setDepartmentFilter} />
+            </div>
+          )}
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
             <div className="p-3.5 border-b border-slate-200 flex items-center justify-start">
               <div className="relative w-full max-w-xs">
@@ -220,12 +261,19 @@ function ProposalPreviewContent() {
             {filteredRecords.length === 0 ? (
               <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
                 <FileSearch className="w-8 h-8" />
-                <p className="text-xs font-medium">ไม่พบโครงการที่ตรงกับ &quot;{searchQuery}&quot;</p>
+                <p className="text-xs font-medium">
+                  {searchQuery
+                    ? <>ไม่พบโครงการที่ตรงกับ &quot;{searchQuery}&quot;</>
+                    : <>ไม่มีโครงการในแผนก &quot;{formatDepartmentLabel(departmentFilter)}&quot;</>}
+                </p>
                 <button
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => {
+                    setSearchQuery("");
+                    setDepartmentFilter("");
+                  }}
                   className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold underline"
                 >
-                  ล้างช่องค้นหา
+                  ล้างตัวกรองทั้งหมด
                 </button>
               </div>
             ) : (
@@ -342,6 +390,7 @@ function ProposalPreviewContent() {
             </div>
             )}
           </div>
+          </>
         )}
       </div>
 
