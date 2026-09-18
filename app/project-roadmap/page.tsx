@@ -766,7 +766,7 @@ function ProjectRoadmapContent() {
       </header>
 
       {/* Main Workspace Area */}
-      <div className="flex-1 overflow-y-auto p-5 md:p-6 space-y-4">
+      <div className="flex-1 min-h-0 flex flex-col p-5 md:p-6 space-y-4 overflow-hidden">
         {allProjects.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-24">
             <CalendarRange className="w-10 h-10" />
@@ -793,7 +793,7 @@ function ProjectRoadmapContent() {
         ) : (
         <>
         {/* Color Legend */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+        <div className="shrink-0 bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
           <div className="flex items-center justify-between flex-wrap gap-3 text-xs">
             <div className="flex items-center gap-1.5 font-bold text-slate-800">
               <Layers className="w-4 h-4 text-slate-600" />
@@ -815,10 +815,18 @@ function ProjectRoadmapContent() {
           </div>
         </div>
 
-        {/* Minimal White Stacked Gantt Chart Container */}
-        <div className="bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
+        {/* Minimal White Stacked Gantt Chart Container — fills the rest of
+            the page and scrolls internally (both directions) so the header
+            rows below can stay pinned to the top of THIS box while the
+            project rows scroll underneath them. */}
+        <div className="flex-1 min-h-0 bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
+          <div className="h-full overflow-auto">
             <div style={{ minWidth: PROJECT_NAME_COL_PX + Math.max(CHART_MIN_PX, totalGridColumns * WEEK_COLUMN_MIN_PX) }}>
+              {/* Header Rows 1-3, pinned together to the top of the scroll
+                  box above — a solid background is needed here since the
+                  individual rows below use translucent fills that would
+                  otherwise let scrolled-past project rows show through. */}
+              <div className="sticky top-0 z-50 bg-white">
               {/* Header Row 1: Month Names (e.g. Jul-26, Aug-26, Sep-26...) */}
               <div className="flex border-b border-slate-300 bg-amber-50/70">
                 {/* Left Top Box (Project Name Header) */}
@@ -879,6 +887,7 @@ function ProjectRoadmapContent() {
                     ))
                   )}
                 </div>
+              </div>
               </div>
 
               {/* Gantt Project Rows on Clean White Background */}
