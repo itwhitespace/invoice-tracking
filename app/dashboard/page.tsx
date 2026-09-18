@@ -19,7 +19,7 @@ import {
   getFiscalYearStartYear,
   RoadmapMonthConfig,
 } from "@/lib/roadmap-timeline";
-import { LayoutDashboard, Loader2, ChevronLeft, ChevronRight, BarChart3, Pencil } from "lucide-react";
+import { LayoutDashboard, Loader2, ChevronLeft, ChevronRight, BarChart3, Pencil, Download } from "lucide-react";
 import { TargetEditModal } from "@/components/target-edit-modal";
 
 interface CompanyStyle {
@@ -66,6 +66,7 @@ export default function DashboardPage() {
   const [targets, setTargets] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [fiscalYearStart, setFiscalYearStart] = useState(() => getFiscalYearStartYear());
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
@@ -105,6 +106,23 @@ export default function DashboardPage() {
   const rangeLabel =
     monthHeaders.length > 0 ? `${monthHeaders[0].name} – ${monthHeaders[monthHeaders.length - 1].name}` : "";
 
+  // Every sheet in this workbook (Gantt per department, Summary monthly
+  // totals, Annual Billing) is scoped to this same fiscal year — unlike the
+  // Project Roadmap page's own export, which covers every project's full
+  // lifetime with no fiscal-year scoping at all.
+  const handleExportExcel = async () => {
+    if (isExporting || approvedProjects.length === 0) return;
+    setIsExporting(true);
+    try {
+      const { exportFiscalYearBillingReportToExcel } = await import("@/lib/roadmap-export");
+      await exportFiscalYearBillingReportToExcel({ projects: approvedProjects, targets, fiscalYearStart });
+    } catch (err: any) {
+      window.alert("Export Excel ไม่สำเร็จ: " + (err?.message || String(err)));
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
       <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
@@ -118,26 +136,45 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full pl-1.5 pr-3 py-1.5">
-          <button
-            type="button"
-            onClick={() => setFiscalYearStart((y) => y - 1)}
-            title="รอบงบประมาณก่อนหน้า"
-            className="w-7 h-7 rounded-full bg-slate-500 hover:bg-slate-700 text-white flex items-center justify-center transition-colors shrink-0"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-xs font-bold text-slate-700 font-mono whitespace-nowrap px-1">
-            รอบงบประมาณ {rangeLabel}
-          </span>
-          <button
-            type="button"
-            onClick={() => setFiscalYearStart((y) => y + 1)}
-            title="รอบงบประมาณถัดไป"
-            className="w-7 h-7 rounded-full bg-slate-500 hover:bg-slate-700 text-white flex items-center justify-center transition-colors shrink-0"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full pl-1.5 pr-3 py-1.5">
+            <button
+              type="button"
+              onClick={() => setFiscalYearStart((y) => y - 1)}
+              title="รอบงบประมาณก่อนหน้า"
+              className="w-7 h-7 rounded-full bg-slate-500 hover:bg-slate-700 text-white flex items-center justify-center transition-colors shrink-0"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-bold text-slate-700 font-mono whitespace-nowrap px-1">
+              รอบงบประมาณ {rangeLabel}
+            </span>
+            <button
+              type="button"
+              onClick={() => setFiscalYearStart((y) => y + 1)}
+              title="รอบงบประมาณถัดไป"
+              className="w-7 h-7 rounded-full bg-slate-500 hover:bg-slate-700 text-white flex items-center justify-center transition-colors shrink-0"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {approvedProjects.length > 0 && (
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={isExporting}
+              title="ครอบคลุมเฉพาะรอบงบประมาณที่แสดงอยู่ตอนนี้ (Gantt, Summary รายเดือน, Annual Billing ทั้งหมด scope เดียวกัน)"
+              className="flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg px-3 py-1.5 shadow-2xs transition-colors"
+            >
+              {isExporting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              {isExporting ? "กำลังสร้างไฟล์..." : `Export รอบงบประมาณ ${rangeLabel} (Excel)`}
+            </button>
+          )}
         </div>
       </header>
 

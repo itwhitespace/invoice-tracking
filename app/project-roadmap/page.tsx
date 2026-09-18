@@ -8,12 +8,10 @@ import {
   saveRecordLocally,
   updateRecordRemote,
   isRemoteId,
-  getDepartmentTargets,
 } from "@/lib/supabase";
 import { getTotalWeeks, formatProjectDuration } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation } from "@/lib/department-utils";
 import { getCompanyLabel } from "@/lib/company-utils";
-import { getFiscalYearStartYear } from "@/lib/roadmap-timeline";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 import { useSettings } from "@/lib/settings-context";
 import { useSearchParams } from "next/navigation";
@@ -200,9 +198,6 @@ function ProjectRoadmapContent() {
   const [previewPdfRecord, setPreviewPdfRecord] = useState<SavedRecord | null>(null);
 
   const [isExporting, setIsExporting] = useState(false);
-  // Only used for the Excel export's Annual Billing block, scoped to the
-  // fiscal year currently running (same default the Dashboard opens on).
-  const [targets, setTargets] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (statusEditor) setPendingStatus(statusEditor.currentStatus);
@@ -213,7 +208,6 @@ function ProjectRoadmapContent() {
   useEffect(() => {
     const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
     getSavedRecords(supabase).then(setRecords);
-    getDepartmentTargets(supabase).then(setTargets);
   }, [settings.supabaseUrl, settings.supabaseAnonKey]);
 
   // Only fully Approved proposals belong on the roadmap, narrowed further by
@@ -683,7 +677,7 @@ function ProjectRoadmapContent() {
     setIsExporting(true);
     try {
       const { exportRoadmapToExcel } = await import("@/lib/roadmap-export");
-      await exportRoadmapToExcel({ projects: allApproved, targets, fiscalYearStart: getFiscalYearStartYear() });
+      await exportRoadmapToExcel({ projects: allApproved });
     } catch (err: any) {
       window.alert("Export Excel ไม่สำเร็จ: " + (err?.message || String(err)));
     } finally {
@@ -748,12 +742,16 @@ function ProjectRoadmapContent() {
           </div>
         )}
 
-        {/* Export to Excel — always exports every approved project, regardless of the filters above */}
+        {/* Export to Excel — always exports every approved project across its
+            full lifetime, regardless of the filters above or any fiscal
+            year; no Annual Billing here (see the Dashboard's own export for
+            a single fiscal year's budget report). */}
         {records.some((r) => r.status === "approved") && (
           <button
             type="button"
             onClick={handleExportExcel}
             disabled={isExporting}
+            title="ครอบคลุมทุกโครงการ Approved ทั้งหมด ทุกช่วงเวลา (ไม่ใช่รายงานตามรอบงบประมาณ)"
             className="flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg px-3 py-1.5 shadow-2xs transition-colors"
           >
             {isExporting ? (
@@ -761,7 +759,7 @@ function ProjectRoadmapContent() {
             ) : (
               <Download className="w-3.5 h-3.5" />
             )}
-            {isExporting ? "กำลังสร้างไฟล์..." : "Export to Excel"}
+            {isExporting ? "กำลังสร้างไฟล์..." : "Export ภาพรวมทั้งหมด (Excel)"}
           </button>
         )}
         </div>

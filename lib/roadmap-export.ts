@@ -342,16 +342,17 @@ function addAnnualBillingBlock(
 
 // One combined Summary sheet, placed first: a monthly-totals table per
 // company (Whitespace Partners, then Whitespaceconnect), broken down by
-// Department, with a Total row per company, followed by that company's
-// Annual Billing (Target / Actual / % Complete) block. Both companies'
-// monthly grids share the same auto-fit month range so their columns line up.
+// Department, with a Total row per company. When includeAnnualBilling is
+// on (the fiscal-year budget report only — monthHeaders there is already
+// the fixed Oct-Sep range, not an auto-fit one), each company's Annual
+// Billing (Target / Actual / % Complete) block follows its monthly grid.
 function addSummarySheet(
   workbook: ExcelJSType.Workbook,
   projects: SavedRecord[],
   monthHeaders: RoadmapMonthConfig[],
-  targets: Record<string, number>,
-  fiscalYearStart: number
+  options: { includeAnnualBilling: boolean; targets?: Record<string, number>; fiscalYearStart?: number }
 ) {
+  const { includeAnnualBilling, targets = {}, fiscalYearStart = getFiscalYearStartYear() } = options;
   const sheet = workbook.addWorksheet("Summary", {
     views: [{ state: "frozen", xSplit: 1, ySplit: 0 }],
   });
@@ -366,7 +367,7 @@ function addSummarySheet(
   };
 
   let r = 1;
-  const fiscalMonthHeaders = buildFiscalYearMonthHeadersForStartYear(fiscalYearStart);
+  const fiscalMonthHeaders = includeAnnualBilling ? buildFiscalYearMonthHeadersForStartYear(fiscalYearStart) : [];
 
   const companies: { name: string; label: string; headerFill: string; headerFont: string; deptFont: string }[] = [
     { name: WSPN, label: "WSPN", headerFill: SUMMARY_HEADER_WSPN_FILL, headerFont: "FFFFFFFF", deptFont: SUMMARY_DEPT_FONT_WSPN },
@@ -449,34 +450,17 @@ function addSummarySheet(
       cell.alignment = { horizontal: "center" };
       cell.border = { top: { style: "thin" } };
     });
-    r += 2; // blank row gap before the Annual Billing block
+    r += 2; // blank row gap before the next section
 
-    r = addAnnualBillingBlock(sheet, r, 1, company, companyProjects, fiscalMonthHeaders, targets, fiscalYearStart);
+    if (includeAnnualBilling) {
+      r = addAnnualBillingBlock(sheet, r, 1, company, companyProjects, fiscalMonthHeaders, targets, fiscalYearStart);
+    }
   }
 }
 
-// Builds the whole workbook: a combined Summary sheet first, then one
-// Gantt-style sheet per Department (tab-colored by which company that
-// department belongs to) — always covering every approved project handed
-// in, regardless of any company/department filter active on screen.
-export async function exportRoadmapToExcel(params: {
-  projects: SavedRecord[];
-  targets?: Record<string, number>;
-  fiscalYearStart?: number;
-}) {
-  const { projects, targets = {}, fiscalYearStart = getFiscalYearStartYear() } = params;
-
-  const ExcelJS = (await import("exceljs")).default;
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Invoice Tracking Program";
-  workbook.created = new Date();
-
-  // Summary sheet first, on one shared auto-fit month range across every
-  // project so both companies' blocks share the same columns.
-  const summaryMonthHeaders = buildMonthHeaders(projects);
-  addSummarySheet(workbook, projects, summaryMonthHeaders, targets, fiscalYearStart);
-
-  // Group the rest by Department for the per-sheet Gantt breakdown.
+// Groups projects by Department, ordered to match DEPARTMENT_OPTIONS with
+// unassigned ones last — shared by both export flavors below.
+function groupProjectsByDepartment(projects: SavedRecord[]): [string, SavedRecord[]][] {
   const groups = new Map<string, SavedRecord[]>();
   for (const proj of projects) {
     const key = proj.department || "";
@@ -495,12 +479,44 @@ export async function exportRoadmapToExcel(params: {
     return departmentSortIndex(a) - departmentSortIndex(b);
   });
 
-  const usedSheetNames = new Set<string>(["Summary"]);
+  return orderedKeys.map((key) => [key, groups.get(key)!]);
+}
 
-  for (const key of orderedKeys) {
-    const groupProjects = groups.get(key)!;
-    const { monthHeaders, timelineRows, monthlyTotals, totalGridColumns } =
-      buildRoadmapTimeline(groupProjects);
+function triggerWorkbookDownload(buffer: ArrayBuffer, fileName: string) {
+  const blob = new Blob([buffer as BlobPart], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// The Project Roadmap page's export — a complete, all-time overview: every
+// approved project across its full lifetime (auto-fit month range, no
+// fiscal-year scoping), so it never omits or clips anything. Has no Annual
+// Billing block since that figure is inherently tied to one specific
+// fiscal year, which this overview isn't scoped to.
+export async function exportRoadmapToExcel(params: { projects: SavedRecord[] }) {
+  const { projects } = params;
+
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Invoice Tracking Program";
+  workbook.created = new Date();
+
+  // Summary sheet first, on one shared auto-fit month range across every
+  // project so both companies' blocks share the same columns.
+  const summaryMonthHeaders = buildMonthHeaders(projects);
+  addSummarySheet(workbook, projects, summaryMonthHeaders, { includeAnnualBilling: false });
+
+  const usedSheetNames = new Set<string>(["Summary"]);
+  for (const [key, groupProjects] of groupProjectsByDepartment(projects)) {
+    const { monthHeaders, timelineRows, monthlyTotals, totalGridColumns } = buildRoadmapTimeline(groupProjects);
 
     const rangeLabel =
       monthHeaders.length > 0
@@ -514,15 +530,57 @@ export async function exportRoadmapToExcel(params: {
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer as BlobPart], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Project-Roadmap-${new Date().toISOString().slice(0, 10)}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  triggerWorkbookDownload(buffer as ArrayBuffer, `Project-Roadmap-Overview-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+// The Dashboard page's export — a single fiscal-year budget report: every
+// sheet (Gantt per department, Summary monthly totals, and Annual Billing)
+// scoped to the same fixed Oct-Sep window the Dashboard is currently
+// showing, so the whole workbook reads as one consistent period. A project
+// active outside that window just won't show on it.
+export async function exportFiscalYearBillingReportToExcel(params: {
+  projects: SavedRecord[];
+  targets: Record<string, number>;
+  fiscalYearStart: number;
+}) {
+  const { projects, targets, fiscalYearStart } = params;
+
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Invoice Tracking Program";
+  workbook.created = new Date();
+
+  const fiscalMonthHeaders = buildFiscalYearMonthHeadersForStartYear(fiscalYearStart);
+  const rangeLabel =
+    fiscalMonthHeaders.length > 0
+      ? `${fiscalMonthHeaders[0].name} – ${fiscalMonthHeaders[fiscalMonthHeaders.length - 1].name}`
+      : undefined;
+
+  addSummarySheet(workbook, projects, fiscalMonthHeaders, { includeAnnualBilling: true, targets, fiscalYearStart });
+
+  const usedSheetNames = new Set<string>(["Summary"]);
+  for (const [key, groupProjects] of groupProjectsByDepartment(projects)) {
+    const { timelineRows, monthlyTotals, totalGridColumns } = buildTimelineForMonthHeaders(
+      groupProjects,
+      fiscalMonthHeaders
+    );
+
+    const sheetName = sanitizeSheetName(key ? formatDepartmentLabel(key) : "ไม่ระบุแผนก", usedSheetNames);
+    const tabColor = tabColorForCompany(majorityCompany(groupProjects));
+
+    addRoadmapSheet(
+      workbook,
+      sheetName,
+      fiscalMonthHeaders,
+      timelineRows,
+      monthlyTotals,
+      totalGridColumns,
+      rangeLabel,
+      tabColor
+    );
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const fileRangeLabel = rangeLabel ? rangeLabel.replace(/\s+/g, "") : String(fiscalYearStart);
+  triggerWorkbookDownload(buffer as ArrayBuffer, `Budget-Report-${fileRangeLabel}.xlsx`);
 }
