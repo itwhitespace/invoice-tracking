@@ -10,7 +10,7 @@ import {
   isRemoteId,
   getDepartmentTargets,
 } from "@/lib/supabase";
-import { getTotalWeeks } from "@/lib/timeframe-utils";
+import { getTotalWeeks, formatProjectDuration } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation } from "@/lib/department-utils";
 import { getCompanyLabel } from "@/lib/company-utils";
 import { getFiscalYearStartYear } from "@/lib/roadmap-timeline";
@@ -263,38 +263,82 @@ function ProjectRoadmapContent() {
   // calendar years as needed.
   const monthHeaders: MonthConfig[] = useMemo(() => {
     if (!dateRange) return [];
-    const list: MonthConfig[] = [];
 
-    let y = dateRange.minDate.getFullYear();
-    let m = dateRange.minDate.getMonth();
-    const endY = dateRange.maxDate.getFullYear();
-    const endM = dateRange.maxDate.getMonth();
+    const buildList = (endYear: number, endMonthIndex: number): MonthConfig[] => {
+      const list: MonthConfig[] = [];
+      let y = dateRange.minDate.getFullYear();
+      let m = dateRange.minDate.getMonth();
+      let guard = 0;
+      while ((y < endYear || (y === endYear && m <= endMonthIndex)) && guard < 240) {
+        const yrShort = String(y).slice(-2);
+        // Give Jan, Jul and Oct 5 weeks, others 4 weeks for realistic month division
+        const weeksCount = [0, 6, 9].includes(m) ? 5 : 4;
+        const weeks = Array.from({ length: weeksCount }, (_, w) => `W${w + 1}`);
+        list.push({ name: `${MONTH_NAMES[m]}-${yrShort}`, year: y, monthIndex: m, weeksCount, weeks });
+        m++;
+        if (m > 11) {
+          m = 0;
+          y++;
+        }
+        guard++;
+      }
+      return list;
+    };
+
+    let endYear = dateRange.maxDate.getFullYear();
+    let endMonthIndex = dateRange.maxDate.getMonth();
+    let list = buildList(endYear, endMonthIndex);
+
+    // The 4-or-5-weeks-per-calendar-month scheme above is a stylized
+    // approximation, not a literal week count — over a long span it can add
+    // up to fewer synthetic columns than a project's real duration needs
+    // (e.g. its own Start Date -> furthest payment week), which would
+    // otherwise silently clip that project's Stage-All bar and drop its
+    // payment markers right at the grid's edge. Keep appending trailing
+    // months until every visible project's own required span actually fits.
+    const colOffsetForDate = (hdrs: MonthConfig[], dateStr?: string): number | null => {
+      if (!dateStr) return null;
+      const date = new Date(`${dateStr}T00:00:00`);
+      if (isNaN(date.getTime())) return null;
+      let colOffset = 0;
+      for (const mh of hdrs) {
+        if (date.getFullYear() === mh.year && date.getMonth() === mh.monthIndex) {
+          const dayOfMonth = date.getDate();
+          const weekInMonth = Math.min(mh.weeksCount, Math.ceil(dayOfMonth / 7));
+          return colOffset + (weekInMonth - 1);
+        }
+        colOffset += mh.weeksCount;
+      }
+      return null;
+    };
 
     let guard = 0;
-    while ((y < endY || (y === endY && m <= endM)) && guard < 240) {
-      const yrShort = String(y).slice(-2);
-      // Give Jan, Jul and Oct 5 weeks, others 4 weeks for realistic month division
-      const weeksCount = [0, 6, 9].includes(m) ? 5 : 4;
-      const weeks = Array.from({ length: weeksCount }, (_, w) => `W${w + 1}`);
-
-      list.push({
-        name: `${MONTH_NAMES[m]}-${yrShort}`,
-        year: y,
-        monthIndex: m,
-        weeksCount,
-        weeks,
+    while (guard < 240) {
+      const totalCols = list.reduce((acc, mh) => acc + mh.weeksCount, 0);
+      const needsMore = filteredProjects.some((proj) => {
+        const startCol = colOffsetForDate(list, proj.startDate);
+        if (startCol === null) return false;
+        const totalWeeksWorked = Math.max(1, getTotalWeeks(proj.timeFrames));
+        const maxPaymentWeek = (proj.paymentTerms || []).reduce(
+          (max, pt) => (pt.paymentWeek ? Math.max(max, pt.paymentWeek) : max),
+          0
+        );
+        const neededWeeks = Math.max(totalWeeksWorked, maxPaymentWeek);
+        return startCol + neededWeeks > totalCols;
       });
+      if (!needsMore) break;
 
-      m++;
-      if (m > 11) {
-        m = 0;
-        y++;
+      endMonthIndex++;
+      if (endMonthIndex > 11) {
+        endMonthIndex = 0;
+        endYear++;
       }
+      list = buildList(endYear, endMonthIndex);
       guard++;
     }
 
     return list;
-  }, [dateRange]);
+  }, [dateRange, filteredProjects]);
 
   // Total columns in grid
   const totalGridColumns = useMemo(() => {
@@ -879,7 +923,7 @@ function ProjectRoadmapContent() {
                               ฿{Number(proj.totalFee).toLocaleString()}
                             </span>
                             <span>•</span>
-                            <span>{proj.totalDesignDuration || "Active"}</span>
+                            <span>{formatProjectDuration(proj)}</span>
                           </div>
 
                           {/* Roadmap note — click here (or the department badge) to add/edit */}

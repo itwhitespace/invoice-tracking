@@ -1,6 +1,7 @@
 "use client";
 
 import { SavedRecord } from "@/lib/types";
+import { formatProjectDuration } from "@/lib/timeframe-utils";
 import {
   X,
   Clock,
@@ -93,7 +94,7 @@ export function HistoryDrawer({
                   <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
                     <div>
                       <span className="text-slate-400">Duration: </span>
-                      <span>{rec.totalDesignDuration || "-"}</span>
+                      <span>{formatProjectDuration(rec)}</span>
                     </div>
                     <div>
                       <span className="text-slate-400">Total Fee: </span>

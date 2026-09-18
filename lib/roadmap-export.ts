@@ -3,6 +3,7 @@ import { SavedRecord, PaymentStatus } from "./types";
 import { DEPARTMENT_OPTIONS, getDepartmentAbbreviation, formatDepartmentLabel } from "./department-utils";
 import { COMPANY_DEPARTMENTS } from "./company-utils";
 import { departmentTargetKey } from "./supabase";
+import { formatProjectDuration } from "./timeframe-utils";
 import {
   buildRoadmapTimeline,
   buildMonthHeaders,
@@ -173,7 +174,7 @@ function addRoadmapSheet(
     const proj = row.project;
     const nameLines = [
       `${getDepartmentAbbreviation(proj.department)}  ${proj.projectName}`,
-      `฿${(proj.totalFee || 0).toLocaleString("en-US")} • ${proj.totalDesignDuration || ""}`,
+      `฿${(proj.totalFee || 0).toLocaleString("en-US")} • ${formatProjectDuration(proj)}`,
     ];
     if (proj.roadmapNote) nameLines.push(proj.roadmapNote);
 

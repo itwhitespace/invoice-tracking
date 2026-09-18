@@ -15,24 +15,13 @@ import {
 import { useSettings } from "@/lib/settings-context";
 import { getCompanyLabel } from "@/lib/company-utils";
 import { formatDepartmentLabel } from "@/lib/department-utils";
-import { getTotalWeeks } from "@/lib/timeframe-utils";
+import { formatProjectDuration } from "@/lib/timeframe-utils";
 import { PdfPreviewModal } from "@/components/pdf-preview-modal";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
 import { AddProposalModal } from "@/components/add-proposal-modal";
 import { FileSearch, Eye, Trash2, FileText, ExternalLink, FilePlus, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-
-// Project Timeframes is the source of truth for duration — sum its weeks
-// live so the column always reads "X Weeks" consistently, even for older
-// records whose stored totalDesignDuration is missing or was saved in a
-// raw, un-formatted shape (e.g. just "9" from an older PDF extraction).
-// Only records with no timeframe rows at all fall back to the stored text.
-function formatDuration(rec: SavedRecord): string {
-  const weeks = getTotalWeeks(rec.timeFrames || []);
-  if (weeks > 0) return `${weeks} Weeks`;
-  return rec.totalDesignDuration || "-";
-}
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-300",
@@ -272,7 +261,7 @@ function ProposalPreviewContent() {
                       <td className="p-3.5 text-slate-600">
                         {rec.department ? formatDepartmentLabel(rec.department) : "-"}
                       </td>
-                      <td className="p-3.5 text-slate-600">{formatDuration(rec)}</td>
+                      <td className="p-3.5 text-slate-600">{formatProjectDuration(rec)}</td>
                       <td className="p-3.5 text-right font-mono font-bold text-slate-800">
                         {Number(rec.totalFee).toLocaleString("en-US", {
                           minimumFractionDigits: 2,

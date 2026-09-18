@@ -419,13 +419,6 @@ export function ProposalDetailModal({
                     <span className="text-slate-400 block text-[11px]">ชื่อโครงการ</span>
                     <span className="font-semibold text-slate-800">{localRecord.projectName || "-"}</span>
                   </div>
-                  {localRecord.totalDesignDuration && (
-                    <div className="col-span-2 flex items-center gap-1.5 text-slate-600 pt-1">
-                      <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="text-[11px] text-slate-400">ระยะเวลารวม:</span>
-                      <span className="font-medium text-slate-800">{localRecord.totalDesignDuration}</span>
-                    </div>
-                  )}
                 </div>
               </div>
 
