@@ -84,75 +84,6 @@ function buildMonthHeadersInRange(
   return monthHeaders;
 }
 
-// Column offset of a date within an already-built month grid — same
-// day-of-month -> synthetic-week mapping used everywhere else.
-function colOffsetForDate(monthHeaders: RoadmapMonthConfig[], dateStr?: string): number | null {
-  if (!dateStr) return null;
-  const date = new Date(`${dateStr}T00:00:00`);
-  if (isNaN(date.getTime())) return null;
-  let colOffset = 0;
-  for (const mh of monthHeaders) {
-    if (date.getFullYear() === mh.year && date.getMonth() === mh.monthIndex) {
-      const dayOfMonth = date.getDate();
-      const weekInMonth = Math.min(mh.weeksCount, Math.ceil(dayOfMonth / 7));
-      return colOffset + (weekInMonth - 1);
-    }
-    colOffset += mh.weeksCount;
-  }
-  return null;
-}
-
-// Auto-fit month/week headers spanning every given project's full date range.
-export function buildMonthHeaders(projects: SavedRecord[]): RoadmapMonthConfig[] {
-  let minDate: Date | null = null;
-  let maxDate: Date | null = null;
-  for (const proj of projects) {
-    const range = getProjectDateRange(proj);
-    if (!range) continue;
-    if (!minDate || range.start < minDate) minDate = range.start;
-    if (!maxDate || range.end > maxDate) maxDate = range.end;
-  }
-  if (!minDate || !maxDate) return [];
-
-  let endYear = maxDate.getFullYear();
-  let endMonthIndex = maxDate.getMonth();
-  let monthHeaders = buildMonthHeadersInRange(minDate.getFullYear(), minDate.getMonth(), endYear, endMonthIndex);
-
-  // The 4-or-5-weeks-per-calendar-month scheme is a stylized approximation,
-  // not a literal week count — over a long span it can add up to fewer
-  // synthetic columns than a project's real duration needs (Start Date ->
-  // furthest payment week), which would otherwise silently clip that
-  // project's Stage-All bar and drop its payment markers right at the
-  // grid's edge. Keep appending trailing months until every project's own
-  // required span actually fits.
-  let guard = 0;
-  while (guard < 240) {
-    const totalCols = monthHeaders.reduce((acc, mh) => acc + mh.weeksCount, 0);
-    const needsMore = projects.some((proj) => {
-      const startCol = colOffsetForDate(monthHeaders, proj.startDate);
-      if (startCol === null) return false;
-      const totalWeeksWorked = Math.max(1, getTotalWeeks(proj.timeFrames));
-      const maxPaymentWeek = (proj.paymentTerms || []).reduce(
-        (max, pt) => (pt.paymentWeek ? Math.max(max, pt.paymentWeek) : max),
-        0
-      );
-      const neededWeeks = Math.max(totalWeeksWorked, maxPaymentWeek);
-      return startCol + neededWeeks > totalCols;
-    });
-    if (!needsMore) break;
-
-    endMonthIndex++;
-    if (endMonthIndex > 11) {
-      endMonthIndex = 0;
-      endYear++;
-    }
-    monthHeaders = buildMonthHeadersInRange(minDate.getFullYear(), minDate.getMonth(), endYear, endMonthIndex);
-    guard++;
-  }
-
-  return monthHeaders;
-}
-
 // Our fiscal year runs October through September, identified by its start
 // year (e.g. 2025 means Oct-2025 through Sep-2026).
 export const FISCAL_START_MONTH = 9; // October (0-indexed)
@@ -292,13 +223,3 @@ export function buildTimelineForMonthHeaders(
   return { timelineRows, monthlyTotals, totalGridColumns };
 }
 
-export function buildRoadmapTimeline(projects: SavedRecord[]): {
-  monthHeaders: RoadmapMonthConfig[];
-  timelineRows: RoadmapTimelineRow[];
-  monthlyTotals: number[];
-  totalGridColumns: number;
-} {
-  const monthHeaders = buildMonthHeaders(projects);
-  const { timelineRows, monthlyTotals, totalGridColumns } = buildTimelineForMonthHeaders(projects, monthHeaders);
-  return { monthHeaders, timelineRows, monthlyTotals, totalGridColumns };
-}

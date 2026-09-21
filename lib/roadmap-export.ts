@@ -5,11 +5,8 @@ import { COMPANY_DEPARTMENTS } from "./company-utils";
 import { departmentTargetKey } from "./supabase";
 import { formatProjectDuration } from "./timeframe-utils";
 import {
-  buildRoadmapTimeline,
-  buildMonthHeaders,
   buildTimelineForMonthHeaders,
   buildFiscalYearMonthHeadersForStartYear,
-  getFiscalYearStartYear,
   RoadmapMonthConfig,
   RoadmapTimelineRow,
 } from "./roadmap-timeline";
@@ -106,7 +103,7 @@ function addRoadmapSheet(
   tabColorArgb: string | undefined
 ): ExcelJSType.Worksheet {
   const sheet = workbook.addWorksheet(sheetName, {
-    views: [{ state: "frozen", xSplit: 1, ySplit: 3 }],
+    views: [{ state: "frozen", xSplit: 1, ySplit: 2 }],
   });
   if (tabColorArgb) sheet.properties.tabColor = { argb: tabColorArgb };
 
@@ -115,18 +112,25 @@ function addRoadmapSheet(
   sheet.getColumn(1).width = 40;
   for (let c = 2; c <= totalCols; c++) sheet.getColumn(c).width = 9;
 
-  // --- Row 1: month names / Row 2: monthly totals / Row 3: week labels ---
+  // Same quarter-banded palette the Summary sheet's month header uses,
+  // carried down through every row here (not just the header) so a whole
+  // month's columns read as one visual group all the way down the sheet —
+  // one entry per grid column (0-indexed).
+  const colBandFill: string[] = [];
+  monthHeaders.forEach((m, mIdx) => {
+    const band = MONTH_BAND_PALETTE[Math.floor(mIdx / 3) % MONTH_BAND_PALETTE.length];
+    for (let w = 0; w < m.weeksCount; w++) colBandFill.push(band);
+  });
+
+  // --- Row 1: month names / Row 2: week labels — the monthly totals row
+  // moves to the very bottom of the sheet, after every project row, instead
+  // of sitting up here. ---
   const monthRow = sheet.getRow(1);
   monthRow.getCell(1).value = `Project Name${rangeLabel ? ` (${rangeLabel})` : ""}`;
   monthRow.getCell(1).font = { bold: true, size: 10 };
   monthRow.getCell(1).fill = solidFill(HEADER_FILL);
 
-  const totalsRow = sheet.getRow(2);
-  totalsRow.getCell(1).value = "ยอดรวมต่อเดือน";
-  totalsRow.getCell(1).font = { bold: true, size: 9, color: { argb: TOTALS_FONT } };
-  totalsRow.getCell(1).fill = solidFill(TOTALS_FILL);
-
-  const weekRow = sheet.getRow(3);
+  const weekRow = sheet.getRow(2);
   weekRow.getCell(1).value = "ข้อมูลโครงการจาก Proposal";
   weekRow.getCell(1).font = { size: 8, color: { argb: "FF64748B" } };
   weekRow.getCell(1).fill = solidFill(WEEK_ROW_FILL);
@@ -135,33 +139,21 @@ function addRoadmapSheet(
   monthHeaders.forEach((m, mIdx) => {
     const startC = colCursor;
     const endC = colCursor + m.weeksCount - 1;
+    const band = MONTH_BAND_PALETTE[Math.floor(mIdx / 3) % MONTH_BAND_PALETTE.length];
 
     if (endC > startC) sheet.mergeCells(1, startC, 1, endC);
     const monthCell = monthRow.getCell(startC);
     monthCell.value = m.name;
     monthCell.font = { bold: true, size: 10 };
     monthCell.alignment = { horizontal: "center", vertical: "middle" };
-    for (let c = startC; c <= endC; c++) monthRow.getCell(c).fill = solidFill(HEADER_FILL);
-
-    if (endC > startC) sheet.mergeCells(2, startC, 2, endC);
-    const totalCell = totalsRow.getCell(startC);
-    const amt = monthlyTotals[mIdx] || 0;
-    if (amt > 0) {
-      totalCell.value = amt;
-      totalCell.numFmt = '"฿"#,##0';
-    } else {
-      totalCell.value = "-";
-    }
-    totalCell.font = { bold: true, size: 9, color: { argb: TOTALS_FONT } };
-    totalCell.alignment = { horizontal: "center", vertical: "middle" };
-    for (let c = startC; c <= endC; c++) totalsRow.getCell(c).fill = solidFill(TOTALS_FILL);
+    for (let c = startC; c <= endC; c++) monthRow.getCell(c).fill = solidFill(band);
 
     for (let w = 0; w < m.weeksCount; w++) {
       const wc = weekRow.getCell(startC + w);
       wc.value = `W${w + 1}`;
       wc.font = { size: 8, color: { argb: "FF334155" } };
       wc.alignment = { horizontal: "center" };
-      wc.fill = solidFill(WEEK_ROW_FILL);
+      wc.fill = solidFill(band);
     }
 
     colCursor = endC + 1;
@@ -169,7 +161,7 @@ function addRoadmapSheet(
 
   // --- One row per project — the Excel export always lists every project
   // regardless of roadmapHidden; only the on-screen Roadmap table hides them.
-  let r = 4;
+  let r = 3;
   for (const row of timelineRows) {
     const proj = row.project;
     const nameLines = [
@@ -198,6 +190,12 @@ function addRoadmapSheet(
       continue;
     }
 
+    // Base layer: the quarter band shows through everywhere in this row
+    // except where Stage-All or a payment marker draws over it below.
+    for (let c = 2; c <= totalCols; c++) {
+      rr.getCell(c).fill = solidFill(colBandFill[c - 2]);
+    }
+
     const startC = row.startCol + 2; // +1 to skip the name column, +1 for 1-based indexing
     const endC = startC + row.totalSpanCols - 1;
     for (let c = startC; c <= endC; c++) {
@@ -217,6 +215,37 @@ function addRoadmapSheet(
 
     r += 1;
   }
+
+  // --- Monthly totals row, at the very bottom ---
+  const totalsRow = sheet.getRow(r);
+  totalsRow.getCell(1).value = "ยอดรวมต่อเดือน";
+  totalsRow.getCell(1).font = { bold: true, size: 9, color: { argb: TOTALS_FONT } };
+  totalsRow.getCell(1).fill = solidFill(TOTALS_FILL);
+  totalsRow.getCell(1).border = { top: { style: "thin" } };
+
+  let totalsColCursor = 2;
+  monthHeaders.forEach((m, mIdx) => {
+    const startC = totalsColCursor;
+    const endC = totalsColCursor + m.weeksCount - 1;
+
+    if (endC > startC) sheet.mergeCells(r, startC, r, endC);
+    const totalCell = totalsRow.getCell(startC);
+    const amt = monthlyTotals[mIdx] || 0;
+    if (amt > 0) {
+      totalCell.value = amt;
+      totalCell.numFmt = '"฿"#,##0';
+    } else {
+      totalCell.value = "-";
+    }
+    totalCell.font = { bold: true, size: 9, color: { argb: TOTALS_FONT } };
+    totalCell.alignment = { horizontal: "center", vertical: "middle" };
+    for (let c = startC; c <= endC; c++) {
+      totalsRow.getCell(c).fill = solidFill(TOTALS_FILL);
+      totalsRow.getCell(c).border = { top: { style: "thin" } };
+    }
+
+    totalsColCursor = endC + 1;
+  });
 
   return sheet;
 }
@@ -340,19 +369,18 @@ function addAnnualBillingBlock(
   return r;
 }
 
-// One combined Summary sheet, placed first: a monthly-totals table per
-// company (Whitespace Partners, then Whitespaceconnect), broken down by
-// Department, with a Total row per company. When includeAnnualBilling is
-// on (the fiscal-year budget report only — monthHeaders there is already
-// the fixed Oct-Sep range, not an auto-fit one), each company's Annual
-// Billing (Target / Actual / % Complete) block follows its monthly grid.
+// One combined Summary sheet, placed first: both companies' monthly-totals
+// tables (Whitespace Partners, then Whitespaceconnect — each broken down by
+// Department, with a Total row) stacked first, followed by both companies'
+// Annual Billing (Target / Actual / % Complete) blocks after. monthHeaders
+// here is the fixed Oct-Sep fiscal-year range the whole report is scoped to.
 function addSummarySheet(
   workbook: ExcelJSType.Workbook,
   projects: SavedRecord[],
   monthHeaders: RoadmapMonthConfig[],
-  options: { includeAnnualBilling: boolean; targets?: Record<string, number>; fiscalYearStart?: number }
+  targets: Record<string, number>,
+  fiscalYearStart: number
 ) {
-  const { includeAnnualBilling, targets = {}, fiscalYearStart = getFiscalYearStartYear() } = options;
   const sheet = workbook.addWorksheet("Summary", {
     views: [{ state: "frozen", xSplit: 1, ySplit: 0 }],
   });
@@ -367,16 +395,19 @@ function addSummarySheet(
   };
 
   let r = 1;
-  const fiscalMonthHeaders = includeAnnualBilling ? buildFiscalYearMonthHeadersForStartYear(fiscalYearStart) : [];
 
   const companies: { name: string; label: string; headerFill: string; headerFont: string; deptFont: string }[] = [
     { name: WSPN, label: "WSPN", headerFill: SUMMARY_HEADER_WSPN_FILL, headerFont: "FFFFFFFF", deptFont: SUMMARY_DEPT_FONT_WSPN },
     { name: WSCN, label: "WSCN", headerFill: SUMMARY_HEADER_WSCN_FILL, headerFont: "FF1F2937", deptFont: SUMMARY_DEPT_FONT_WSCN },
   ];
 
+  const companiesWithProjects: { company: (typeof companies)[number]; companyProjects: SavedRecord[] }[] = [];
+
+  // --- Pass 1: every company's monthly grid, one after another ---
   for (const company of companies) {
     const companyProjects = projects.filter((p) => p.companyName === company.name);
     if (companyProjects.length === 0) continue;
+    companiesWithProjects.push({ company, companyProjects });
 
     // --- Header row: company label + month names, banded every 3 months ---
     const headerRow = sheet.getRow(r);
@@ -450,11 +481,12 @@ function addSummarySheet(
       cell.alignment = { horizontal: "center" };
       cell.border = { top: { style: "thin" } };
     });
-    r += 2; // blank row gap before the next section
+    r += 2; // blank row gap before the next company's monthly grid
+  }
 
-    if (includeAnnualBilling) {
-      r = addAnnualBillingBlock(sheet, r, 1, company, companyProjects, fiscalMonthHeaders, targets, fiscalYearStart);
-    }
+  // --- Pass 2: every company's Annual Billing block, after all the grids ---
+  for (const { company, companyProjects } of companiesWithProjects) {
+    r = addAnnualBillingBlock(sheet, r, 1, company, companyProjects, monthHeaders, targets, fiscalYearStart);
   }
 }
 
@@ -496,43 +528,6 @@ function triggerWorkbookDownload(buffer: ArrayBuffer, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
-// The Project Roadmap page's export — a complete, all-time overview: every
-// approved project across its full lifetime (auto-fit month range, no
-// fiscal-year scoping), so it never omits or clips anything. Has no Annual
-// Billing block since that figure is inherently tied to one specific
-// fiscal year, which this overview isn't scoped to.
-export async function exportRoadmapToExcel(params: { projects: SavedRecord[] }) {
-  const { projects } = params;
-
-  const ExcelJS = (await import("exceljs")).default;
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Invoice Tracking Program";
-  workbook.created = new Date();
-
-  // Summary sheet first, on one shared auto-fit month range across every
-  // project so both companies' blocks share the same columns.
-  const summaryMonthHeaders = buildMonthHeaders(projects);
-  addSummarySheet(workbook, projects, summaryMonthHeaders, { includeAnnualBilling: false });
-
-  const usedSheetNames = new Set<string>(["Summary"]);
-  for (const [key, groupProjects] of groupProjectsByDepartment(projects)) {
-    const { monthHeaders, timelineRows, monthlyTotals, totalGridColumns } = buildRoadmapTimeline(groupProjects);
-
-    const rangeLabel =
-      monthHeaders.length > 0
-        ? `${monthHeaders[0].name} – ${monthHeaders[monthHeaders.length - 1].name}`
-        : undefined;
-
-    const sheetName = sanitizeSheetName(key ? formatDepartmentLabel(key) : "ไม่ระบุแผนก", usedSheetNames);
-    const tabColor = tabColorForCompany(majorityCompany(groupProjects));
-
-    addRoadmapSheet(workbook, sheetName, monthHeaders, timelineRows, monthlyTotals, totalGridColumns, rangeLabel, tabColor);
-  }
-
-  const buffer = await workbook.xlsx.writeBuffer();
-  triggerWorkbookDownload(buffer as ArrayBuffer, `Project-Roadmap-Overview-${new Date().toISOString().slice(0, 10)}.xlsx`);
-}
-
 // The Dashboard page's export — a single fiscal-year budget report: every
 // sheet (Gantt per department, Summary monthly totals, and Annual Billing)
 // scoped to the same fixed Oct-Sep window the Dashboard is currently
@@ -556,7 +551,7 @@ export async function exportFiscalYearBillingReportToExcel(params: {
       ? `${fiscalMonthHeaders[0].name} – ${fiscalMonthHeaders[fiscalMonthHeaders.length - 1].name}`
       : undefined;
 
-  addSummarySheet(workbook, projects, fiscalMonthHeaders, { includeAnnualBilling: true, targets, fiscalYearStart });
+  addSummarySheet(workbook, projects, fiscalMonthHeaders, targets, fiscalYearStart);
 
   const usedSheetNames = new Set<string>(["Summary"]);
   for (const [key, groupProjects] of groupProjectsByDepartment(projects)) {

@@ -29,7 +29,6 @@ import {
   Filter,
   StickyNote,
   HelpCircle,
-  Download,
 } from "lucide-react";
 
 interface MonthConfig {
@@ -207,7 +206,6 @@ function ProjectRoadmapContent() {
   const [detailRecord, setDetailRecord] = useState<SavedRecord | null>(null);
   const [previewPdfRecord, setPreviewPdfRecord] = useState<SavedRecord | null>(null);
 
-  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (statusEditor) setPendingStatus(statusEditor.currentStatus);
@@ -691,25 +689,6 @@ function ProjectRoadmapContent() {
     }
   };
 
-  // Always exports every approved project across both companies — one sheet
-  // per Department (tab-colored by which company that department belongs
-  // to), plus a combined Summary sheet up front — regardless of whatever
-  // company/department filter is currently applied on screen.
-  // exceljs is dynamically imported so its ~1MB doesn't bloat the page's own bundle.
-  const handleExportExcel = async () => {
-    const allApproved = records.filter((r) => r.status === "approved");
-    if (isExporting || allApproved.length === 0) return;
-    setIsExporting(true);
-    try {
-      const { exportRoadmapToExcel } = await import("@/lib/roadmap-export");
-      await exportRoadmapToExcel({ projects: allApproved });
-    } catch (err: any) {
-      window.alert("Export Excel ไม่สำเร็จ: " + (err?.message || String(err)));
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   return (
     <div className="h-full flex flex-col bg-slate-100 text-slate-800 overflow-hidden font-sans">
       {/* Top Header */}
@@ -767,26 +746,6 @@ function ProjectRoadmapContent() {
           </div>
         )}
 
-        {/* Export to Excel — always exports every approved project across its
-            full lifetime, regardless of the filters above or any fiscal
-            year; no Annual Billing here (see the Dashboard's own export for
-            a single fiscal year's budget report). */}
-        {records.some((r) => r.status === "approved") && (
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            disabled={isExporting}
-            title="ครอบคลุมทุกโครงการ Approved ทั้งหมด ทุกช่วงเวลา (ไม่ใช่รายงานตามรอบงบประมาณ)"
-            className="flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg px-3 py-1.5 shadow-2xs transition-colors"
-          >
-            {isExporting ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Download className="w-3.5 h-3.5" />
-            )}
-            {isExporting ? "กำลังสร้างไฟล์..." : "Export ภาพรวมทั้งหมด (Excel)"}
-          </button>
-        )}
         </div>
       </header>
 
