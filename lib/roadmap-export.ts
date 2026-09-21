@@ -46,6 +46,10 @@ const MONTH_BAND_PALETTE = ["FFD9D9D9", "FFFFF2CC", "FFDDEBF7", "FFFCE4D6", "FFE
 // a same-colored fill spanning several adjacent cells (e.g. a Stage-All
 // bar), so weeks need an explicit line to stay tellable apart.
 const WEEK_COL_BORDER: Partial<ExcelJSType.Border> = { style: "thin", color: { argb: "FFCBD5E1" } };
+// A heavier, darker line at each month boundary specifically — one visual
+// tier up from the week separator above, so a whole month's columns read
+// as one group at a glance.
+const MONTH_COL_BORDER: Partial<ExcelJSType.Border> = { style: "medium", color: { argb: "FF64748B" } };
 
 function solidFill(argb: string): ExcelJSType.Fill {
   return { type: "pattern", pattern: "solid", fgColor: { argb } };
@@ -146,17 +150,28 @@ function addRoadmapSheet(
     monthCell.font = { bold: true, size: 10 };
     monthCell.alignment = { horizontal: "center", vertical: "middle" };
     for (let c = startC; c <= endC; c++) monthRow.getCell(c).fill = solidFill(band);
+    monthRow.getCell(endC).border = { right: MONTH_COL_BORDER };
 
     for (let w = 0; w < m.weeksCount; w++) {
+      const isMonthEnd = w === m.weeksCount - 1;
       const wc = weekRow.getCell(startC + w);
       wc.value = `W${w + 1}`;
       wc.font = { size: 8, color: { argb: "FF334155" } };
       wc.alignment = { horizontal: "center" };
       wc.fill = solidFill(WEEK_ROW_FILL);
-      wc.border = { left: WEEK_COL_BORDER, right: WEEK_COL_BORDER };
+      wc.border = { left: WEEK_COL_BORDER, right: isMonthEnd ? MONTH_COL_BORDER : WEEK_COL_BORDER };
     }
 
     colCursor = endC + 1;
+  });
+
+  // Which grid columns (0-indexed, matching c - 2) are a month's last week —
+  // used below to give project rows the same heavier month-boundary line.
+  const monthEndGridCols = new Set<number>();
+  let monthEndCursor = 0;
+  monthHeaders.forEach((m) => {
+    monthEndCursor += m.weeksCount;
+    monthEndGridCols.add(monthEndCursor - 1);
   });
 
   // --- One row per project — the Excel export always lists every project
@@ -190,10 +205,12 @@ function addRoadmapSheet(
       continue;
     }
 
-    // Thin week separators across the whole row first, so they stay visible
-    // even through a same-colored Stage-All span drawn over them next.
+    // Thin week separators (heavier at month boundaries) across the whole
+    // row first, so they stay visible even through a same-colored Stage-All
+    // span drawn over them next.
     for (let c = 2; c <= totalCols; c++) {
-      rr.getCell(c).border = { left: WEEK_COL_BORDER, right: WEEK_COL_BORDER };
+      const right = monthEndGridCols.has(c - 2) ? MONTH_COL_BORDER : WEEK_COL_BORDER;
+      rr.getCell(c).border = { left: WEEK_COL_BORDER, right };
     }
 
     const startC = row.startCol + 2; // +1 to skip the name column, +1 for 1-based indexing
@@ -243,6 +260,7 @@ function addRoadmapSheet(
       totalsRow.getCell(c).fill = solidFill(TOTALS_FILL);
       totalsRow.getCell(c).border = { top: { style: "thin" } };
     }
+    totalsRow.getCell(endC).border = { top: { style: "thin" }, right: MONTH_COL_BORDER };
 
     totalsColCursor = endC + 1;
   });
