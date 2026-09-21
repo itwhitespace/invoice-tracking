@@ -112,16 +112,6 @@ function addRoadmapSheet(
   sheet.getColumn(1).width = 40;
   for (let c = 2; c <= totalCols; c++) sheet.getColumn(c).width = 9;
 
-  // Same quarter-banded palette the Summary sheet's month header uses,
-  // carried down through every row here (not just the header) so a whole
-  // month's columns read as one visual group all the way down the sheet —
-  // one entry per grid column (0-indexed).
-  const colBandFill: string[] = [];
-  monthHeaders.forEach((m, mIdx) => {
-    const band = MONTH_BAND_PALETTE[Math.floor(mIdx / 3) % MONTH_BAND_PALETTE.length];
-    for (let w = 0; w < m.weeksCount; w++) colBandFill.push(band);
-  });
-
   // --- Row 1: month names / Row 2: week labels — the monthly totals row
   // moves to the very bottom of the sheet, after every project row, instead
   // of sitting up here. ---
@@ -139,21 +129,20 @@ function addRoadmapSheet(
   monthHeaders.forEach((m, mIdx) => {
     const startC = colCursor;
     const endC = colCursor + m.weeksCount - 1;
-    const band = MONTH_BAND_PALETTE[Math.floor(mIdx / 3) % MONTH_BAND_PALETTE.length];
 
     if (endC > startC) sheet.mergeCells(1, startC, 1, endC);
     const monthCell = monthRow.getCell(startC);
     monthCell.value = m.name;
     monthCell.font = { bold: true, size: 10 };
     monthCell.alignment = { horizontal: "center", vertical: "middle" };
-    for (let c = startC; c <= endC; c++) monthRow.getCell(c).fill = solidFill(band);
+    for (let c = startC; c <= endC; c++) monthRow.getCell(c).fill = solidFill(HEADER_FILL);
 
     for (let w = 0; w < m.weeksCount; w++) {
       const wc = weekRow.getCell(startC + w);
       wc.value = `W${w + 1}`;
       wc.font = { size: 8, color: { argb: "FF334155" } };
       wc.alignment = { horizontal: "center" };
-      wc.fill = solidFill(band);
+      wc.fill = solidFill(WEEK_ROW_FILL);
     }
 
     colCursor = endC + 1;
@@ -188,12 +177,6 @@ function addRoadmapSheet(
       rr.height = 40;
       r += 1;
       continue;
-    }
-
-    // Base layer: the quarter band shows through everywhere in this row
-    // except where Stage-All or a payment marker draws over it below.
-    for (let c = 2; c <= totalCols; c++) {
-      rr.getCell(c).fill = solidFill(colBandFill[c - 2]);
     }
 
     const startC = row.startCol + 2; // +1 to skip the name column, +1 for 1-based indexing
