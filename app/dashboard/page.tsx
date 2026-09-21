@@ -17,6 +17,7 @@ import {
   buildFiscalYearMonthHeadersForStartYear,
   buildTimelineForMonthHeaders,
   getFiscalYearStartYear,
+  getFiscalYearRangeWithData,
   RoadmapMonthConfig,
 } from "@/lib/roadmap-timeline";
 import { LayoutDashboard, Loader2, ChevronLeft, ChevronRight, BarChart3, Pencil, Download } from "lucide-react";
@@ -106,6 +107,13 @@ export default function DashboardPage() {
   const rangeLabel =
     monthHeaders.length > 0 ? `${monthHeaders[0].name} – ${monthHeaders[monthHeaders.length - 1].name}` : "";
 
+  // Clamp prev/next navigation to the fiscal years that actually have
+  // project activity, instead of letting it scroll indefinitely through
+  // empty years in either direction.
+  const fiscalYearRange = useMemo(() => getFiscalYearRangeWithData(approvedProjects), [approvedProjects]);
+  const canGoPrevYear = fiscalYearRange ? fiscalYearStart > fiscalYearRange.minFiscalYearStart : false;
+  const canGoNextYear = fiscalYearRange ? fiscalYearStart < fiscalYearRange.maxFiscalYearStart : false;
+
   // Every sheet in this workbook (Gantt per department, Summary monthly
   // totals, Annual Billing) is scoped to this same fiscal year — unlike the
   // Project Roadmap page's own export, which covers every project's full
@@ -141,8 +149,9 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => setFiscalYearStart((y) => y - 1)}
-              title="รอบงบประมาณก่อนหน้า"
-              className="w-7 h-7 rounded-full bg-slate-500 hover:bg-slate-700 text-white flex items-center justify-center transition-colors shrink-0"
+              disabled={!canGoPrevYear}
+              title={canGoPrevYear ? "รอบงบประมาณก่อนหน้า" : "ไม่มีข้อมูลก่อนหน้ารอบนี้"}
+              className="w-7 h-7 rounded-full bg-slate-500 hover:bg-slate-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shrink-0"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -152,8 +161,9 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => setFiscalYearStart((y) => y + 1)}
-              title="รอบงบประมาณถัดไป"
-              className="w-7 h-7 rounded-full bg-slate-500 hover:bg-slate-700 text-white flex items-center justify-center transition-colors shrink-0"
+              disabled={!canGoNextYear}
+              title={canGoNextYear ? "รอบงบประมาณถัดไป" : "ไม่มีข้อมูลถัดจากรอบนี้"}
+              className="w-7 h-7 rounded-full bg-slate-500 hover:bg-slate-700 disabled:bg-slate-200 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shrink-0"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

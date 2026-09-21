@@ -10,9 +10,10 @@ import {
   isRemoteId,
 } from "@/lib/supabase";
 import { getTotalWeeks, formatProjectDuration } from "@/lib/timeframe-utils";
-import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation } from "@/lib/department-utils";
+import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation, getDepartmentBadgeClasses } from "@/lib/department-utils";
 import { getCompanyLabel } from "@/lib/company-utils";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
+import { logActivity, paymentStatusChangeSummary } from "@/lib/activity-log";
 import { useSettings } from "@/lib/settings-context";
 import { useSearchParams } from "next/navigation";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
@@ -170,6 +171,7 @@ function ProjectRoadmapContent() {
     ptIdx: number;
     milestone: string;
     projectName: string;
+    originalWeek: number;
     newWeek: number;
     oldDate?: string;
     newDate: string;
@@ -388,6 +390,7 @@ function ProjectRoadmapContent() {
         ptIdx,
         milestone: pt.milestone,
         projectName: proj.projectName,
+        originalWeek,
         newWeek,
         oldDate,
         newDate,
@@ -571,6 +574,12 @@ function ProjectRoadmapContent() {
         if (error) {
           window.alert("อัปเดตขึ้น Supabase ไม่สำเร็จ: " + error);
         }
+        await logActivity(supabase, updated.id, [
+          {
+            action: "payment_week_moved",
+            summary: `ย้ายกำหนดเก็บเงินงวด "${pendingDrop.milestone}" จาก Week ${pendingDrop.originalWeek} เป็น Week ${pendingDrop.newWeek}`,
+          },
+        ]);
       }
 
       setShowDropSuccess({ oldDate: pendingDrop.oldDate, newDate: pendingDrop.newDate });
@@ -641,6 +650,14 @@ function ProjectRoadmapContent() {
         const { error } = await updateRecordRemote(supabase, updated);
         if (error) {
           window.alert("อัปเดตขึ้น Supabase ไม่สำเร็จ: " + error);
+        }
+        if (pendingStatus !== statusEditor.currentStatus) {
+          await logActivity(supabase, updated.id, [
+            {
+              action: "payment_status_changed",
+              summary: paymentStatusChangeSummary(statusEditor.milestone, statusEditor.currentStatus, pendingStatus),
+            },
+          ]);
         }
       }
 
@@ -911,7 +928,7 @@ function ProjectRoadmapContent() {
                               value: proj.roadmapNote || "",
                             })
                           }
-                          className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 flex items-center justify-center font-bold text-[10px] shrink-0 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 transition"
+                          className={`w-8 h-8 rounded-lg border flex items-center justify-center font-bold text-[10px] shrink-0 hover:brightness-95 hover:shadow-sm transition ${getDepartmentBadgeClasses(proj.department)}`}
                           title={`${proj.department ? formatDepartmentLabel(proj.department) : "ยังไม่ได้ระบุแผนก"} — คลิกเพื่อเพิ่ม/แก้ไขโน้ต`}
                         >
                           {getDepartmentAbbreviation(proj.department)}
@@ -946,8 +963,20 @@ function ProjectRoadmapContent() {
                             className="mt-1.5 flex items-start gap-1 text-left w-full group/note"
                             title="คลิกเพื่อเพิ่ม/แก้ไขโน้ต"
                           >
-                            <StickyNote className="w-2.5 h-2.5 text-slate-400 group-hover/note:text-indigo-500 shrink-0 mt-0.5 transition-colors" />
-                            <p className="text-[10px] text-slate-500 group-hover/note:text-indigo-600 leading-snug line-clamp-2 transition-colors">
+                            <StickyNote
+                              className={`w-2.5 h-2.5 shrink-0 mt-0.5 transition-colors ${
+                                proj.roadmapNote
+                                  ? "text-red-400 group-hover/note:text-red-500"
+                                  : "text-slate-400 group-hover/note:text-indigo-500"
+                              }`}
+                            />
+                            <p
+                              className={`text-[10px] leading-snug line-clamp-2 transition-colors ${
+                                proj.roadmapNote
+                                  ? "text-red-400 group-hover/note:text-red-500"
+                                  : "text-slate-500 group-hover/note:text-indigo-600"
+                              }`}
+                            >
                               {proj.roadmapNote || (
                                 <span className="text-slate-300 italic group-hover/note:text-indigo-300">
                                   คลิกเพื่อเพิ่มโน้ต

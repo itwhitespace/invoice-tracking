@@ -166,6 +166,29 @@ export function getFiscalYearStartYear(referenceDate: Date = new Date()): number
   return month >= FISCAL_START_MONTH ? year : year - 1;
 }
 
+// Earliest and latest fiscal year (by start year) that any of the given
+// projects has activity in — used to clamp the Dashboard's fiscal-year
+// prev/next navigation to a range that actually has data, instead of
+// letting it scroll indefinitely through empty years. null when none of
+// the projects has a Start Date at all.
+export function getFiscalYearRangeWithData(
+  projects: SavedRecord[]
+): { minFiscalYearStart: number; maxFiscalYearStart: number } | null {
+  let minDate: Date | null = null;
+  let maxDate: Date | null = null;
+  for (const proj of projects) {
+    const range = getProjectDateRange(proj);
+    if (!range) continue;
+    if (!minDate || range.start < minDate) minDate = range.start;
+    if (!maxDate || range.end > maxDate) maxDate = range.end;
+  }
+  if (!minDate || !maxDate) return null;
+  return {
+    minFiscalYearStart: getFiscalYearStartYear(minDate),
+    maxFiscalYearStart: getFiscalYearStartYear(maxDate),
+  };
+}
+
 export function buildFiscalYearMonthHeadersForStartYear(startYear: number): RoadmapMonthConfig[] {
   return buildMonthHeadersInRange(startYear, FISCAL_START_MONTH, startYear + 1, FISCAL_START_MONTH - 1);
 }

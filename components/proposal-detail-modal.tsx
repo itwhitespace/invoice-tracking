@@ -5,6 +5,14 @@ import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-utils";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 import { formatThousands, parseThousands } from "@/lib/format-utils";
+import { getSupabaseClient, isRemoteId } from "@/lib/supabase";
+import { useSettings } from "@/lib/settings-context";
+import {
+  logActivity,
+  fetchActivityLog,
+  buildProposalChangeSummaries,
+  ActivityLogEntry,
+} from "@/lib/activity-log";
 import { DateInputDDMMYYYY } from "@/components/date-input-ddmmyyyy";
 import {
   X,
@@ -28,6 +36,8 @@ import {
   Plus,
   Trash2,
   EyeOff,
+  History,
+  UserCircle2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -56,7 +66,9 @@ export function ProposalDetailModal({
   onOpenPdf,
   onUpdate,
 }: ProposalDetailModalProps) {
-  const [activeTab, setActiveTab] = useState<"all" | "payments" | "operations">("all");
+  const { settings } = useSettings();
+  const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+  const [activeTab, setActiveTab] = useState<"all" | "payments" | "operations" | "history">("all");
   const [localRecord, setLocalRecord] = useState<SavedRecord | null>(record);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -69,11 +81,23 @@ export function ProposalDetailModal({
   const [showTotalFeeEdit, setShowTotalFeeEdit] = useState(false);
   const [pendingTotalFee, setPendingTotalFee] = useState(0);
   const [showTotalFeeConfirm, setShowTotalFeeConfirm] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<ActivityLogEntry[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   useEffect(() => {
     setLocalRecord(record);
     setIsDirty(false);
   }, [record]);
+
+  // Loaded lazily the first time the History tab is opened for this record.
+  useEffect(() => {
+    if (activeTab !== "history" || !record || !isRemoteId(record.id) || !supabase) return;
+    setIsLoadingHistory(true);
+    fetchActivityLog(supabase, record.id)
+      .then(setHistoryEntries)
+      .finally(() => setIsLoadingHistory(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, record?.id]);
 
   if (!isOpen || !localRecord) return null;
 
@@ -211,7 +235,9 @@ export function ProposalDetailModal({
     setShowSaveConfirm(false);
     setIsSaving(true);
     try {
+      const changes = record ? buildProposalChangeSummaries(record, localRecord) : [];
       await onUpdate(localRecord);
+      if (isRemoteId(localRecord.id)) await logActivity(supabase, localRecord.id, changes);
       setIsDirty(false);
       setShowSaveSuccess(true);
     } finally {
@@ -238,6 +264,9 @@ export function ProposalDetailModal({
     setIsSaving(true);
     try {
       await onUpdate(updated);
+      if (isRemoteId(updated.id)) {
+        await logActivity(supabase, updated.id, [{ action: "approved", summary: "อนุมัติโครงการ" }]);
+      }
       setIsDirty(false);
       setShowApproveSuccess(true);
     } finally {
@@ -272,6 +301,9 @@ export function ProposalDetailModal({
     setIsSaving(true);
     try {
       await onUpdate(updated);
+      if (isRemoteId(updated.id)) {
+        await logActivity(supabase, updated.id, [{ action: "unapproved", summary: "ยกเลิกการอนุมัติ" }]);
+      }
       setIsDirty(false);
     } finally {
       setIsSaving(false);
@@ -396,6 +428,17 @@ export function ProposalDetailModal({
           >
             <ClipboardCheck className="w-3.5 h-3.5" />
             รายละเอียดการดำเนินงาน
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`py-3 px-3 border-b-2 transition flex items-center gap-1.5 shrink-0 ${
+              activeTab === "history"
+                ? "border-slate-900 text-slate-900 font-semibold"
+                : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            ประวัติ
           </button>
         </div>
 
@@ -757,6 +800,52 @@ export function ProposalDetailModal({
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Section 6: Activity History — Approve/Unapprove, Total Fee, payment
+              amount/status/week changes. Not every field edit, just the ones
+              that move money or status. */}
+          {activeTab === "history" && (
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5 text-slate-600" />
+                <h3 className="text-xs font-bold text-slate-900">ประวัติการแก้ไข</h3>
+              </div>
+              {!isRemoteId(localRecord.id) ? (
+                <div className="p-8 text-center text-xs text-slate-400">
+                  บันทึกเฉพาะในเครื่องนี้ ยังไม่มีประวัติจนกว่าจะซิงค์ขึ้น Supabase
+                </div>
+              ) : isLoadingHistory ? (
+                <div className="p-8 flex justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                </div>
+              ) : historyEntries.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-400">ยังไม่มีประวัติการแก้ไข</div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {historyEntries.map((entry) => (
+                    <div key={entry.id} className="px-4 py-3 flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 mt-0.5">
+                        <History className="w-3.5 h-3.5 text-slate-500" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-slate-800 font-medium">{entry.summary}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[10.5px] text-slate-400 font-mono">
+                          <span>{new Date(entry.created_at).toLocaleString("th-TH")}</span>
+                          {entry.actor && (
+                            <>
+                              <span>•</span>
+                              <UserCircle2 className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{entry.actor}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

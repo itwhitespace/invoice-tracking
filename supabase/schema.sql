@@ -95,12 +95,28 @@ create table if not exists public.department_targets (
 );
 
 -- ----------------------------------------------------------------------------
+-- 6. project_activity_log — key edit history per project: Approve/Unapprove,
+--    Total Fee changes, payment status/amount changes, week reschedules.
+--    Deliberately narrow scope — not every field edit, just the ones that
+--    move money or status.
+-- ----------------------------------------------------------------------------
+create table if not exists public.project_activity_log (
+  id           uuid primary key default gen_random_uuid(),
+  project_id   uuid not null references public.projects(id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  actor        text,                                  -- email of whoever was logged in when the change was made, if any
+  action       text not null,                          -- machine-readable kind, e.g. 'approved', 'total_fee_changed'
+  summary      text not null                           -- human-readable (Thai) description of what changed
+);
+
+-- ----------------------------------------------------------------------------
 -- Indexes
 -- ----------------------------------------------------------------------------
 create index if not exists idx_design_fee_items_project on public.project_design_fee_items(project_id);
 create index if not exists idx_timeframes_project        on public.project_timeframes(project_id);
 create index if not exists idx_payment_terms_project      on public.project_payment_terms(project_id);
 create index if not exists idx_projects_created_at        on public.projects(created_at desc);
+create index if not exists idx_activity_log_project        on public.project_activity_log(project_id, created_at desc);
 
 -- ----------------------------------------------------------------------------
 -- updated_at auto-touch trigger on projects
@@ -132,6 +148,7 @@ alter table public.project_design_fee_items  enable row level security;
 alter table public.project_timeframes        enable row level security;
 alter table public.project_payment_terms     enable row level security;
 alter table public.department_targets        enable row level security;
+alter table public.project_activity_log       enable row level security;
 
 drop policy if exists "Allow all access" on public.projects;
 create policy "Allow all access" on public.projects
@@ -151,6 +168,10 @@ create policy "Allow all access" on public.project_payment_terms
 
 drop policy if exists "Allow all access" on public.department_targets;
 create policy "Allow all access" on public.department_targets
+  for all using (true) with check (true);
+
+drop policy if exists "Allow all access" on public.project_activity_log;
+create policy "Allow all access" on public.project_activity_log
   for all using (true) with check (true);
 
 -- ----------------------------------------------------------------------------
@@ -208,6 +229,20 @@ create policy "Allow all access" on public.department_targets
   for all using (true) with check (true);
 
 alter table public.projects add column if not exists roadmap_hidden boolean not null default false;
+
+create table if not exists public.project_activity_log (
+  id           uuid primary key default gen_random_uuid(),
+  project_id   uuid not null references public.projects(id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  actor        text,
+  action       text not null,
+  summary      text not null
+);
+create index if not exists idx_activity_log_project on public.project_activity_log(project_id, created_at desc);
+alter table public.project_activity_log enable row level security;
+drop policy if exists "Allow all access" on public.project_activity_log;
+create policy "Allow all access" on public.project_activity_log
+  for all using (true) with check (true);
 
 -- ============================================================================
 -- Done. In the app's Settings page, set:
