@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, ReactNode } from "react";
+import { useEffect, useMemo, useState, ReactNode, Suspense } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import {
   LayoutDashboard,
@@ -32,6 +32,7 @@ const PUBLIC_PATHS = ["/settings"];
 interface NavChild {
   label: string;
   href: string;
+  companyValue: string;
 }
 
 interface NavItemDef {
@@ -47,6 +48,7 @@ const companySubmenu = (basePath: string): NavChild[] =>
   COMPANY_OPTIONS.map((c) => ({
     label: c.label,
     href: `${basePath}?company=${encodeURIComponent(c.value)}`,
+    companyValue: c.value,
   }));
 
 const NAV_ITEMS: NavItemDef[] = [
@@ -215,67 +217,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
 
-        <nav className="flex-1 py-3 px-2 space-y-1">
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
-            const Icon = item.icon;
-            const isExpanded = expandedItems.has(item.href);
-            // Sub-nav items are unreachable in collapsed (icon-only) mode, so
-            // there the parent still navigates directly like a normal link.
-            const hasSubmenu = !!item.children && !collapsed;
-
-            return (
-              <div key={item.href}>
-                {hasSubmenu ? (
-                  <button
-                    type="button"
-                    onClick={() => toggleExpanded(item.href)}
-                    aria-expanded={isExpanded}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-semibold transition ${
-                      isActive
-                        ? "bg-slate-900 text-white shadow-xs"
-                        : "text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span className="truncate flex-1 text-left">{item.label}</span>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                ) : (
-                  <Link
-                    href={item.href}
-                    title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-semibold transition ${
-                      isActive
-                        ? "bg-slate-900 text-white shadow-xs"
-                        : "text-slate-600 hover:bg-slate-100"
-                    } ${collapsed ? "justify-center" : ""}`}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
-                  </Link>
-                )}
-
-                {/* Company submenu — Project Roadmap / Proposal Preview only */}
-                {hasSubmenu && isExpanded && (
-                  <div className="mt-1 ml-[1.15rem] pl-3 border-l border-slate-200 space-y-0.5">
-                    {item.children!.map((child) => (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        className="block px-2.5 py-1.5 rounded-md text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition truncate"
-                      >
-                        {child.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
+        <Suspense fallback={null}>
+          <SidebarNav
+            pathname={pathname}
+            collapsed={collapsed}
+            expandedItems={expandedItems}
+            toggleExpanded={toggleExpanded}
+          />
+        </Suspense>
 
         {/* Logged-in user + Logout */}
         {session && (
@@ -304,5 +253,96 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Main Content */}
       <main className="flex-1 h-full overflow-hidden">{children}</main>
     </div>
+  );
+}
+
+// Split out because it reads the company query param via useSearchParams(),
+// which Next.js requires to sit inside a Suspense boundary.
+function SidebarNav({
+  pathname,
+  collapsed,
+  expandedItems,
+  toggleExpanded,
+}: {
+  pathname: string | null;
+  collapsed: boolean;
+  expandedItems: Set<string>;
+  toggleExpanded: (href: string) => void;
+}) {
+  const searchParams = useSearchParams();
+  const currentCompany = searchParams.get("company") || "";
+
+  return (
+    <nav className="flex-1 py-3 px-2 space-y-1">
+      {NAV_ITEMS.map((item) => {
+        const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
+        const Icon = item.icon;
+        const isExpanded = expandedItems.has(item.href);
+        // Sub-nav items are unreachable in collapsed (icon-only) mode, so
+        // there the parent still navigates directly like a normal link.
+        const hasSubmenu = !!item.children && !collapsed;
+
+        return (
+          <div key={item.href}>
+            {hasSubmenu ? (
+              <button
+                type="button"
+                onClick={() => toggleExpanded(item.href)}
+                aria-expanded={isExpanded}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-semibold transition ${
+                  isActive
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="truncate flex-1 text-left">{item.label}</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                />
+              </button>
+            ) : (
+              <Link
+                href={item.href}
+                title={collapsed ? item.label : undefined}
+                className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-semibold transition ${
+                  isActive
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "text-slate-600 hover:bg-slate-100"
+                } ${collapsed ? "justify-center" : ""}`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                {!collapsed && <span className="truncate">{item.label}</span>}
+              </Link>
+            )}
+
+            {/* Company submenu — Project Roadmap / Proposal Preview only.
+                A child counts as active only on its own page, with its own
+                company selected (not just any submenu item sharing that
+                company value). */}
+            {hasSubmenu && isExpanded && (
+              <div className="mt-1 ml-[1.15rem] pl-3 border-l border-slate-200 space-y-0.5">
+                {item.children!.map((child) => {
+                  const isChildActive = isActive && currentCompany === child.companyValue;
+                  return (
+                    <Link
+                      key={child.href}
+                      href={child.href}
+                      className={`block px-2.5 py-1.5 rounded-md text-[11px] font-medium transition truncate ${
+                        isChildActive
+                          ? "bg-indigo-50 text-indigo-700 font-semibold"
+                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      {child.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </nav>
   );
 }

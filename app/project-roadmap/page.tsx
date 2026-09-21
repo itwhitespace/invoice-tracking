@@ -140,6 +140,14 @@ function ProjectRoadmapContent() {
   const [records, setRecords] = useState<SavedRecord[]>([]);
   const [departmentFilter, setDepartmentFilter] = useState<string>("");
 
+  // The department dropdown's own options are scoped to whichever company is
+  // selected — switching company (from the sidebar submenu) must clear a
+  // stale department choice that doesn't apply there, or the list silently
+  // renders empty instead of falling back to "every department".
+  useEffect(() => {
+    setDepartmentFilter("");
+  }, [companyFilter]);
+
   const [activePaymentTooltip, setActivePaymentTooltip] = useState<{
     projectName: string;
     milestone: string;
