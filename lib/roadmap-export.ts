@@ -41,6 +41,12 @@ const SUMMARY_DEPT_FONT_WSCN = "FF6D28D9"; // violet-700
 // header row, cycling through this palette — purely a visual grouping aid.
 const MONTH_BAND_PALETTE = ["FFD9D9D9", "FFFFF2CC", "FFDDEBF7", "FFFCE4D6", "FFE2EFDA"];
 
+// A thin, light-gray separator between every week column on the department
+// sheets — Excel's own default gridlines tend to get visually swallowed by
+// a same-colored fill spanning several adjacent cells (e.g. a Stage-All
+// bar), so weeks need an explicit line to stay tellable apart.
+const WEEK_COL_BORDER: Partial<ExcelJSType.Border> = { style: "thin", color: { argb: "FFCBD5E1" } };
+
 function solidFill(argb: string): ExcelJSType.Fill {
   return { type: "pattern", pattern: "solid", fgColor: { argb } };
 }
@@ -129,13 +135,17 @@ function addRoadmapSheet(
   monthHeaders.forEach((m, mIdx) => {
     const startC = colCursor;
     const endC = colCursor + m.weeksCount - 1;
+    // Same quarterly banding as the Summary sheet's month header — kept to
+    // just this one row, not carried down into the project rows below
+    // (tried that, it made Stage-All bars hard to tell apart from the band).
+    const band = MONTH_BAND_PALETTE[Math.floor(mIdx / 3) % MONTH_BAND_PALETTE.length];
 
     if (endC > startC) sheet.mergeCells(1, startC, 1, endC);
     const monthCell = monthRow.getCell(startC);
     monthCell.value = m.name;
     monthCell.font = { bold: true, size: 10 };
     monthCell.alignment = { horizontal: "center", vertical: "middle" };
-    for (let c = startC; c <= endC; c++) monthRow.getCell(c).fill = solidFill(HEADER_FILL);
+    for (let c = startC; c <= endC; c++) monthRow.getCell(c).fill = solidFill(band);
 
     for (let w = 0; w < m.weeksCount; w++) {
       const wc = weekRow.getCell(startC + w);
@@ -143,6 +153,7 @@ function addRoadmapSheet(
       wc.font = { size: 8, color: { argb: "FF334155" } };
       wc.alignment = { horizontal: "center" };
       wc.fill = solidFill(WEEK_ROW_FILL);
+      wc.border = { left: WEEK_COL_BORDER, right: WEEK_COL_BORDER };
     }
 
     colCursor = endC + 1;
@@ -177,6 +188,12 @@ function addRoadmapSheet(
       rr.height = 40;
       r += 1;
       continue;
+    }
+
+    // Thin week separators across the whole row first, so they stay visible
+    // even through a same-colored Stage-All span drawn over them next.
+    for (let c = 2; c <= totalCols; c++) {
+      rr.getCell(c).border = { left: WEEK_COL_BORDER, right: WEEK_COL_BORDER };
     }
 
     const startC = row.startCol + 2; // +1 to skip the name column, +1 for 1-based indexing
