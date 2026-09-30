@@ -460,7 +460,15 @@ export function ProposalDetailModal({
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[11px]">ชื่อโครงการ</span>
-                    <span className="font-semibold text-slate-800">{localRecord.projectName || "-"}</span>
+                    <input
+                      type="text"
+                      value={localRecord.projectName}
+                      onChange={(e) => {
+                        setLocalRecord({ ...localRecord, projectName: e.target.value });
+                        setIsDirty(true);
+                      }}
+                      className="w-full -ml-1.5 px-1.5 py-0.5 font-semibold text-slate-800 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none transition"
+                    />
                   </div>
                 </div>
               </div>
