@@ -9,6 +9,7 @@ import {
   FileSearch,
   UploadCloud,
   Settings,
+  Info,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
@@ -55,6 +56,7 @@ const NAV_ITEMS: NavItemDef[] = [
   },
   { href: "/upload-proposal", label: "Upload Proposal", icon: UploadCloud },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/info", label: "Info", icon: Info },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
