@@ -517,9 +517,19 @@ function ProjectRoadmapContent() {
 
   // Rows actually rendered in the Gantt — hidden projects are left out of
   // the visible table, but monthlyTotals above (computed from the full
-  // timelineRows) still counts their amounts.
+  // timelineRows) still counts their amounts. Sorted A-Z by Project Name
+  // (case-insensitive, numeric-aware) rather than left in fetch order —
+  // each row's own Gantt position is independent of this list order.
   const visibleTimelineRows = useMemo(
-    () => timelineRows.filter((row) => !row.project.roadmapHidden),
+    () =>
+      timelineRows
+        .filter((row) => !row.project.roadmapHidden)
+        .sort((a, b) =>
+          a.project.projectName.localeCompare(b.project.projectName, undefined, {
+            sensitivity: "base",
+            numeric: true,
+          })
+        ),
     [timelineRows]
   );
 
