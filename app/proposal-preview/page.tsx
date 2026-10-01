@@ -88,7 +88,11 @@ function ProposalPreviewContent() {
       : companyScopedRecords;
     const q = searchQuery.trim().toLowerCase();
     if (q) list = list.filter((r) => r.projectName.toLowerCase().includes(q));
-    return list;
+    // A-Z by Project Name — case-insensitive, and numeric-aware so e.g.
+    // "CT North Pole [L6]" sorts after "[G-L5]" instead of before it.
+    return [...list].sort((a, b) =>
+      a.projectName.localeCompare(b.projectName, undefined, { sensitivity: "base", numeric: true })
+    );
   }, [companyScopedRecords, departmentFilter, searchQuery]);
 
   useEffect(() => {
