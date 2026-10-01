@@ -27,9 +27,17 @@ import { useSearchParams } from "next/navigation";
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-amber-100 text-amber-800 border-amber-300",
   draft: "bg-slate-100 text-slate-700 border-slate-300",
-  verified: "bg-sky-100 text-sky-800 border-sky-300",
+  verified: "bg-orange-100 text-orange-800 border-orange-300",
   approved: "bg-emerald-100 text-emerald-800 border-emerald-300",
 };
+
+const STATUS_TABS = [
+  { label: "ทั้งหมด", value: "" },
+  { label: "Pending", value: "pending" },
+  { label: "Draft", value: "draft" },
+  { label: "Verified", value: "verified" },
+  { label: "Approved", value: "approved" },
+];
 
 export default function ProposalPreviewPage() {
   return (
@@ -50,6 +58,7 @@ function ProposalPreviewContent() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   // Narrowed by company only — the base set the department tabs and their
   // counts are derived from, so switching department never hides the other
@@ -86,14 +95,17 @@ function ProposalPreviewContent() {
     let list = departmentFilter
       ? companyScopedRecords.filter((r) => r.department === departmentFilter)
       : companyScopedRecords;
+    if (statusFilter) list = list.filter((r) => r.status === statusFilter);
     const q = searchQuery.trim().toLowerCase();
     if (q) list = list.filter((r) => r.projectName.toLowerCase().includes(q));
     // A-Z by Project Name — case-insensitive, and numeric-aware so e.g.
-    // "CT North Pole [L6]" sorts after "[G-L5]" instead of before it.
+    // "CT North Pole [L6]" sorts after "[G-L5]" instead of before it. Status
+    // sorts alphabetically too now, so a filter is the quickest way back to
+    // e.g. every "Verified" row instead of scrolling the whole A-Z list.
     return [...list].sort((a, b) =>
       a.projectName.localeCompare(b.projectName, undefined, { sensitivity: "base", numeric: true })
     );
-  }, [companyScopedRecords, departmentFilter, searchQuery]);
+  }, [companyScopedRecords, departmentFilter, statusFilter, searchQuery]);
 
   useEffect(() => {
     const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
@@ -244,13 +256,16 @@ function ProposalPreviewContent() {
           </div>
         ) : (
           <>
-          {availableDepartments.length > 0 && (
-            <div className="mb-4 flex justify-start">
+          <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
+            {availableDepartments.length > 0 ? (
               <AnimatedTabs tabs={departmentTabs} value={departmentFilter} onChange={setDepartmentFilter} />
-            </div>
-          )}
+            ) : (
+              <div />
+            )}
+            <AnimatedTabs tabs={STATUS_TABS} value={statusFilter} onChange={setStatusFilter} />
+          </div>
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
-            <div className="p-3.5 border-b border-slate-200 flex items-center justify-start">
+            <div className="p-3.5 border-b border-slate-200 flex items-center justify-between gap-3">
               <div className="relative w-full max-w-xs">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                 <input
@@ -261,6 +276,7 @@ function ProposalPreviewContent() {
                   className="w-full pl-8 pr-3 py-1.5 text-xs font-medium text-slate-800 bg-slate-50/70 border border-slate-300 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                 />
               </div>
+              <span className="text-xs text-slate-500 font-mono shrink-0">{filteredRecords.length} รายการ</span>
             </div>
             {filteredRecords.length === 0 ? (
               <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
@@ -268,12 +284,13 @@ function ProposalPreviewContent() {
                 <p className="text-xs font-medium">
                   {searchQuery
                     ? <>ไม่พบโครงการที่ตรงกับ &quot;{searchQuery}&quot;</>
-                    : <>ไม่มีโครงการในแผนก &quot;{formatDepartmentLabel(departmentFilter)}&quot;</>}
+                    : <>ไม่พบโครงการที่ตรงกับตัวกรองที่เลือก</>}
                 </p>
                 <button
                   onClick={() => {
                     setSearchQuery("");
                     setDepartmentFilter("");
+                    setStatusFilter("");
                   }}
                   className="text-[11px] text-indigo-600 hover:text-indigo-700 font-semibold underline"
                 >
