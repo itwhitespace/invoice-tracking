@@ -18,6 +18,7 @@ import { useSettings } from "@/lib/settings-context";
 import { useSearchParams } from "next/navigation";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
 import { PdfPreviewModal } from "@/components/pdf-preview-modal";
+import { AnimatedTabs } from "@/components/animated-tabs";
 import {
   CalendarRange,
   Building2,
@@ -242,6 +243,14 @@ function ProjectRoadmapContent() {
     }
     return DEPARTMENT_OPTIONS.filter((d) => set.has(d));
   }, [allProjects]);
+
+  const departmentTabs = useMemo(
+    () => [
+      { label: "ทั้งหมด", value: "" },
+      ...availableDepartments.map((d) => ({ label: formatDepartmentLabel(d), value: d })),
+    ],
+    [availableDepartments]
+  );
 
   // The timeline auto-fits to the actual data: span from the earliest
   // visible project's Start Date through the latest project's end (working
@@ -726,25 +735,6 @@ function ProjectRoadmapContent() {
         </div>
 
         <div className="flex items-center gap-3">
-        {/* Department Filter */}
-        {allProjects.length > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-1.5 font-medium shadow-2xs">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="font-bold text-slate-900 bg-transparent focus:outline-none cursor-pointer"
-            >
-              <option value="">ทุกแผนก (All Departments)</option>
-              {availableDepartments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {formatDepartmentLabel(dept)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
         {/* Auto-Fit Range Display — computed from the data, not a filter */}
         {monthHeaders.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-1.5 font-medium shadow-2xs">
@@ -786,25 +776,32 @@ function ProjectRoadmapContent() {
           </div>
         ) : (
         <>
-        {/* Color Legend */}
+        {/* Department filter tabs (left) + Color Legend (right), one row */}
         <div className="shrink-0 bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
           <div className="flex items-center justify-between flex-wrap gap-3 text-xs">
-            <div className="flex items-center gap-1.5 font-bold text-slate-800">
-              <Layers className="w-4 h-4 text-slate-600" />
-              <span>คำอธิบายสี:</span>
-            </div>
+            {availableDepartments.length > 0 ? (
+              <AnimatedTabs tabs={departmentTabs} value={departmentFilter} onChange={setDepartmentFilter} />
+            ) : (
+              <div />
+            )}
 
-            <div className="flex items-center flex-wrap gap-4">
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
-                <span className={`w-3.5 h-3.5 rounded-sm ${STAGE_ALL_STYLE.bg} border border-black/5 shadow-2xs`} />
-                <span>{STAGE_ALL_STYLE.label}</span>
+            <div className="flex items-center flex-wrap gap-3">
+              <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                <Layers className="w-4 h-4 text-slate-600" />
+                <span>คำอธิบายสี:</span>
               </div>
-              {Object.entries(PAYMENT_MARKER_STYLES).map(([key, style]) => (
-                <div key={key} className="flex items-center gap-1.5 text-[11px] text-slate-700">
-                  <span className={`w-3.5 h-3.5 rounded-sm ${style.bg} border border-black/5 shadow-2xs`} />
-                  <span>{style.label}</span>
+              <div className="flex items-center flex-wrap gap-3">
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                  <span className={`w-3.5 h-3.5 rounded-sm ${STAGE_ALL_STYLE.bg} border border-black/5 shadow-2xs`} />
+                  <span>{STAGE_ALL_STYLE.label}</span>
                 </div>
-              ))}
+                {Object.entries(PAYMENT_MARKER_STYLES).map(([key, style]) => (
+                  <div key={key} className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                    <span className={`w-3.5 h-3.5 rounded-sm ${style.bg} border border-black/5 shadow-2xs`} />
+                    <span>{style.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
