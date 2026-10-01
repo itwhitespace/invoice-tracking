@@ -31,14 +31,6 @@ const STATUS_STYLES: Record<string, string> = {
   approved: "bg-emerald-100 text-emerald-800 border-emerald-300",
 };
 
-const STATUS_TABS = [
-  { label: "ทั้งหมด", value: "" },
-  { label: "Pending", value: "pending" },
-  { label: "Draft", value: "draft" },
-  { label: "Verified", value: "verified" },
-  { label: "Approved", value: "approved" },
-];
-
 export default function ProposalPreviewPage() {
   return (
     <Suspense fallback={null}>
@@ -91,11 +83,33 @@ function ProposalPreviewContent() {
     setDepartmentFilter("");
   }, [companyFilter]);
 
+  // Scoped by company + department, but not yet by status/search — the base
+  // set the "Verified" toggle's own visibility is decided from, so it never
+  // hides records just because the Verified filter itself is also active.
+  const departmentScopedRecords = useMemo(
+    () =>
+      departmentFilter
+        ? companyScopedRecords.filter((r) => r.department === departmentFilter)
+        : companyScopedRecords,
+    [companyScopedRecords, departmentFilter]
+  );
+
+  const hasVerifiedRecords = useMemo(
+    () => departmentScopedRecords.some((r) => r.status === "verified"),
+    [departmentScopedRecords]
+  );
+
+  // The Verified toggle only exists while there's something for it to show —
+  // if switching company/department makes it disappear, clear it too so the
+  // filter never stays silently active with no visible way to turn it off.
+  useEffect(() => {
+    if (!hasVerifiedRecords) setStatusFilter("");
+  }, [hasVerifiedRecords]);
+
   const filteredRecords = useMemo(() => {
-    let list = departmentFilter
-      ? companyScopedRecords.filter((r) => r.department === departmentFilter)
-      : companyScopedRecords;
-    if (statusFilter) list = list.filter((r) => r.status === statusFilter);
+    let list = statusFilter
+      ? departmentScopedRecords.filter((r) => r.status === statusFilter)
+      : departmentScopedRecords;
     const q = searchQuery.trim().toLowerCase();
     if (q) list = list.filter((r) => r.projectName.toLowerCase().includes(q));
     // A-Z by Project Name — case-insensitive, and numeric-aware so e.g.
@@ -105,7 +119,7 @@ function ProposalPreviewContent() {
     return [...list].sort((a, b) =>
       a.projectName.localeCompare(b.projectName, undefined, { sensitivity: "base", numeric: true })
     );
-  }, [companyScopedRecords, departmentFilter, statusFilter, searchQuery]);
+  }, [departmentScopedRecords, statusFilter, searchQuery]);
 
   useEffect(() => {
     const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
@@ -256,13 +270,23 @@ function ProposalPreviewContent() {
           </div>
         ) : (
           <>
-          <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
-            {availableDepartments.length > 0 ? (
+          <div className="mb-4 flex items-center flex-wrap gap-3">
+            {availableDepartments.length > 0 && (
               <AnimatedTabs tabs={departmentTabs} value={departmentFilter} onChange={setDepartmentFilter} />
-            ) : (
-              <div />
             )}
-            <AnimatedTabs tabs={STATUS_TABS} value={statusFilter} onChange={setStatusFilter} />
+            {hasVerifiedRecords && (
+              <button
+                type="button"
+                onClick={() => setStatusFilter((prev) => (prev === "verified" ? "" : "verified"))}
+                className={`h-10 px-4 rounded-full text-xs font-semibold border transition shrink-0 ${
+                  statusFilter === "verified"
+                    ? "bg-orange-500 border-orange-500 text-white shadow-sm"
+                    : "bg-white border-orange-300 text-orange-700 hover:bg-orange-50"
+                }`}
+              >
+                Verified
+              </button>
+            )}
           </div>
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
             <div className="p-3.5 border-b border-slate-200 flex items-center justify-between gap-3">
