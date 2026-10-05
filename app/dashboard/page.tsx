@@ -133,19 +133,19 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
-      <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      <header className="h-12 md:h-16 px-4 md:px-6 bg-white border-b border-slate-200 flex items-center justify-between gap-3 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
+          <div className="hidden md:flex w-9 h-9 rounded-xl bg-slate-900 text-white items-center justify-center shadow-xs">
             <LayoutDashboard className="w-5 h-5 text-emerald-400" />
           </div>
           <div>
             <h1 className="text-sm font-bold text-slate-900 tracking-tight">Dashboard</h1>
-            <p className="text-[11px] text-slate-500">สรุปยอดรวมรายเดือนตามแผนก แยกตามบริษัท</p>
+            <p className="hidden md:block text-[11px] text-slate-500">สรุปยอดรวมรายเดือนตามแผนก แยกตามบริษัท</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-full pl-1.5 pr-3 py-1.5">
+          <div className="flex items-center gap-1 md:gap-1.5 bg-slate-100 border border-slate-200 rounded-full px-1 md:pl-1.5 md:pr-3 py-1 md:py-1.5">
             <button
               type="button"
               onClick={() => setFiscalYearStart((y) => y - 1)}
@@ -156,7 +156,8 @@ export default function DashboardPage() {
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="text-xs font-bold text-slate-700 font-mono whitespace-nowrap px-1">
-              รอบงบประมาณ {rangeLabel}
+              <span className="hidden md:inline">รอบงบประมาณ </span>
+              {rangeLabel}
             </span>
             <button
               type="button"
@@ -175,7 +176,7 @@ export default function DashboardPage() {
               onClick={handleExportExcel}
               disabled={isExporting}
               title="ครอบคลุมเฉพาะรอบงบประมาณที่แสดงอยู่ตอนนี้ (Gantt, Summary รายเดือน, Annual Billing ทั้งหมด scope เดียวกัน)"
-              className="flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg px-3 py-1.5 shadow-2xs transition-colors"
+              className="hidden md:flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed rounded-lg px-3 py-1.5 shadow-2xs transition-colors"
             >
               {isExporting ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -188,7 +189,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8">
+      <div className="flex-1 overflow-y-auto p-3 md:p-8 space-y-6 md:space-y-8">
         {isLoading ? (
           <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-24">
             <Loader2 className="w-8 h-8 animate-spin" />
@@ -260,9 +261,12 @@ function CompanySummaryTable({
           <thead>
             <tr>
               <th
-                className={`p-3.5 sticky left-0 z-10 ${company.headerBg} ${company.headerText} font-bold whitespace-nowrap min-w-[200px] tracking-wide`}
+                className={`p-3.5 sticky left-0 z-10 ${company.headerBg} ${company.headerText} font-bold whitespace-nowrap md:min-w-[200px] tracking-wide`}
               >
-                {company.shortLabel}
+                {/* Phones only get the code (e.g. "WSPN") so the sticky first
+                    column leaves room for the month columns. */}
+                <span className="md:hidden">{company.shortLabel.split(" — ")[0]}</span>
+                <span className="hidden md:inline">{company.shortLabel}</span>
                 <span className="ml-1.5 font-normal opacity-75">(K THB)</span>
               </th>
               {monthHeaders.map((m, idx) => (
