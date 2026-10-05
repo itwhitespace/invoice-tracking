@@ -63,7 +63,7 @@ export default function SettingsPage() {
                 onChange={(e) => setFormData({ ...formData, preferredModel: e.target.value })}
                 className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs bg-white focus:ring-2 focus:ring-slate-900/10 outline-none"
               >
-                <option value="auto">⚡ Auto (Gemini 3.6 Flash / 3.7 Flash)</option>
+                <option value="auto">⚡ Auto (Gemini 3.6 Flash / 3.7 Flash / Flash-Lite)</option>
                 <option value="gemini-3.6-flash">Gemini 3.6 Flash (แนะนำ ล่าสุดและแม่นยำสูง)</option>
                 <option value="gemini-3.7-flash">Gemini 3.7 Flash (ล่าสุด)</option>
               </select>

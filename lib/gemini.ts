@@ -67,23 +67,36 @@ function buildTextContext(pdfText: string): string {
   return `${normalizedText.slice(0, half)}\n\n[...middle of extracted text omitted; use the attached PDF... ]\n\n${normalizedText.slice(-half)}`;
 }
 
-// Google's 503 "high demand" errors are explicitly documented as usually
-// temporary, so a short automatic retry is worth it before giving up on a
-// model and moving to the next fallback.
+// 503 "high demand" / 429 rate-limit errors are documented by Google as
+// temporary, so they're worth retrying with a growing backoff.
+function isOverloadError(err: any): boolean {
+  const message = String(err?.message || err);
+  return /\b(503|429)\b|overloaded|high demand|RESOURCE_EXHAUSTED|UNAVAILABLE/i.test(message);
+}
+
+// The SDK reports its own timeout as an aborted request.
+function isTimeoutError(err: any): boolean {
+  const message = String(err?.message || err);
+  return err?.name === "AbortError" || /aborted|timed? ?out/i.test(message);
+}
+
 async function generateWithRetry(
   model: ReturnType<GoogleGenerativeAI["getGenerativeModel"]>,
   contentParts: any[],
   modelName: string,
-  maxAttempts = 2
+  maxAttempts = 3
 ) {
+  const backoffMs = [2000, 5000];
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      return await model.generateContent(contentParts, { timeout: 90000 });
+      return await model.generateContent(contentParts, { timeout: 120000 });
     } catch (err: any) {
-      const isServiceUnavailable = String(err?.message || err).includes("503");
-      if (isServiceUnavailable && attempt < maxAttempts) {
-        console.warn(`Model ${modelName} returned 503 (high demand), retrying in 3s...`);
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+      // A timed-out call already burned up to 2 minutes; retrying the same
+      // model again would just double the wait, so let the caller move on.
+      if (isOverloadError(err) && attempt < maxAttempts) {
+        const delay = backoffMs[attempt - 1] ?? 5000;
+        console.warn(`Model ${modelName} is overloaded (attempt ${attempt}), retrying in ${delay / 1000}s...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
       throw err;
@@ -104,7 +117,9 @@ export async function extractWithGemini(
 
   // gemini-2.0-flash and the 1.5 generation have been fully retired by Google
   // (requests now 404) — keep this list to models that are actually live.
-  const fallbackModels = ["gemini-3.6-flash", "gemini-3.7-flash"];
+  // gemini-flash-lite-latest is a last resort: it runs on separate capacity,
+  // so it usually still answers when the full Flash models are overloaded.
+  const fallbackModels = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-flash-lite-latest"];
   const primaryModel =
     preferredModel && preferredModel !== "auto" ? preferredModel : fallbackModels[0];
   // De-duplicated so a slow/failing model never gets retried twice before
@@ -142,6 +157,7 @@ export async function extractWithGemini(
     - All milestone installments with their exact name, percentage, and amount.`;
 
   const attemptErrors: string[] = [];
+  let allTransient = true;
 
   for (const modelName of candidateModels) {
     try {
@@ -169,7 +185,8 @@ export async function extractWithGemini(
       console.log(`Sending original PDF${pdfText ? ` with ${pdfText.length} chars of supporting text` : ""} to Gemini ${modelName}...`);
       // Without an explicit timeout the SDK never aborts a stuck/slow call, so
       // a bad attempt could hang indefinitely before the loop below ever gets
-      // to try the next fallback model. 90s gives large PDFs enough headroom.
+      // to try the next fallback model. 120s gives large PDFs enough headroom
+      // even when Gemini is under load.
       const result = await generateWithRetry(model, contentParts, modelName);
       const responseText = result.response.text();
 
@@ -187,14 +204,17 @@ export async function extractWithGemini(
       const message = err?.message || String(err);
       console.warn(`Model ${modelName} encountered error:`, message);
       attemptErrors.push(`${modelName}: ${message}`);
+      if (!isOverloadError(err) && !isTimeoutError(err)) allTransient = false;
     }
   }
 
   // Include every attempt's failure reason (not just the last one) so the
   // real cause isn't hidden behind whichever model happened to fail last.
-  throw new Error(
-    attemptErrors.length > 0
-      ? `All Gemini models failed:\n${attemptErrors.join("\n")}`
-      : "Could not extract data with Gemini AI. Please verify your API Key."
-  );
+  if (attemptErrors.length === 0) {
+    throw new Error("Could not extract data with Gemini AI. Please verify your API Key.");
+  }
+  const header = allTransient
+    ? "Gemini มีผู้ใช้งานหนาแน่นชั่วคราว (ไม่ใช่ปัญหาจากไฟล์หรือ API Key) กรุณารอ 1-2 นาทีแล้วกด AI Extract อีกครั้ง"
+    : "All Gemini models failed:";
+  throw new Error(`${header}\n${attemptErrors.join("\n")}`);
 }
