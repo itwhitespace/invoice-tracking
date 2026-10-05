@@ -35,6 +35,7 @@ const TOC = [
   { href: "#pages", label: "ทัวร์แต่ละหน้า" },
   { href: "#export", label: "Export Excel" },
   { href: "#history", label: "ประวัติการแก้ไข" },
+  { href: "#mobile", label: "การใช้งานบนมือถือ" },
   { href: "#notes", label: "ข้อควรรู้เพิ่มเติม" },
 ];
 
@@ -72,14 +73,14 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
 export default function InfoPage() {
   return (
     <div className="h-full flex flex-col bg-slate-100 overflow-hidden">
-      <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center gap-2 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      <header className="h-12 md:h-16 px-4 md:px-6 bg-white border-b border-slate-200 flex items-center gap-2 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <InfoIcon className="w-4 h-4 text-slate-700" />
         <h1 className="text-sm font-bold text-slate-900 tracking-tight">คู่มือการใช้งานโปรแกรม</h1>
-        <span className="text-[11px] text-slate-400 ml-2">สถานะ สูตรคำนวณ และกติกาการใช้งาน</span>
+        <span className="hidden md:inline text-[11px] text-slate-400 ml-2">สถานะ สูตรคำนวณ และกติกาการใช้งาน</span>
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto p-6 md:p-8 flex gap-8 items-start">
+        <div className="max-w-6xl mx-auto p-4 md:p-8 flex gap-8 items-start">
           {/* In-page quick nav */}
           <nav className="hidden lg:block w-48 shrink-0 sticky top-8 space-y-0.5">
             {TOC.map((t) => (
@@ -193,25 +194,39 @@ export default function InfoPage() {
               <div className="space-y-3">
                 <Formula label="แปลงข้อความระยะเวลา → จำนวนสัปดาห์ (ต่อ 1 Phase)">
                   &quot;3 Weeks&quot; → <span className="text-emerald-400">3</span>
+                  &nbsp;&nbsp;·&nbsp;&nbsp;&quot;4&quot; (ตัวเลขเปล่า) → <span className="text-emerald-400">4</span> (นับเป็นสัปดาห์)
                   &nbsp;&nbsp;·&nbsp;&nbsp;&quot;1 Month&quot; → <span className="text-emerald-400">4</span> (1 เดือน = 4 สัปดาห์)
                   &nbsp;&nbsp;·&nbsp;&nbsp;&quot;10 Days&quot; → <span className="text-emerald-400">round(10 ÷ 7)</span> = 1
-                  <br />ขั้นต่ำเสมอ 1 สัปดาห์ ถ้าอ่านตัวเลขจากข้อความไม่ได้เลย ถือเป็น 0
+                  <br />&quot;2-3 Weeks&quot; → ใช้ตัวเลขที่ติดกับหน่วย = <span className="text-emerald-400">3</span>
+                  &nbsp;&nbsp;·&nbsp;&nbsp;&quot;0&quot; หรือช่องว่าง → <span className="text-emerald-400">0</span>
+                  &nbsp;&nbsp;·&nbsp;&nbsp;ค่าที่มากกว่า 0 แต่ปัดแล้วได้ 0 (เช่น 2 Days) → ขั้นต่ำ 1 สัปดาห์
                 </Formula>
                 <Formula label="ระยะเวลารวมของโครงการ (ที่แสดงทุกจุดในระบบ)">
                   รวมจำนวนสัปดาห์ของ <span className="text-emerald-400">ทุก Phase</span> ในตาราง Project Timeframes บวกกัน
                   <br />ถ้าตาราง Timeframes ว่างเปล่า (ไม่มี Phase เลย) ถึงจะย้อนกลับไปใช้ข้อความเดิมที่เคยบันทึกไว้ตอนสร้าง — ถ้าไม่มีเลยแสดง <span className="text-emerald-400">&quot;-&quot;</span>
                 </Formula>
+                <Formula label="Total Design Duration ในหน้า Upload Proposal">
+                  ไม่ต้องกรอกเอง — คำนวณ <span className="text-emerald-400">อัตโนมัติ</span> จากผลรวมคอลัมน์ Duration (Week) ของตาราง Time Frame
+                  <br />ตอนกด Save to Database จะบันทึกค่านี้เป็นข้อความ เช่น <span className="text-emerald-400">&quot;8 Weeks&quot;</span>
+                </Formula>
               </div>
             </section>
 
             <section id="calc-payment" className="scroll-mt-6">
-              <SectionHeading num="05" title="สูตรคำนวณ — % กับจำนวนเงินงวด" desc="ช่อง % และจำนวนเงิน (THB) ผูกกันสองทาง แก้ช่องไหนอีกช่องคำนวณตามให้อัตโนมัติ" />
+              <SectionHeading num="05" title="สูตรคำนวณ — % กับจำนวนเงินงวด" desc="ช่อง % และจำนวนเงิน (THB) ผูกกันสองทาง แก้ช่องไหนอีกช่องคำนวณตามให้อัตโนมัติ — ใช้เหมือนกันทั้งหน้า Upload Proposal, เพิ่ม Proposal และหน้าต่างรายละเอียด" />
               <div className="grid md:grid-cols-2 gap-3">
                 <Formula label="แก้ % → คำนวณจำนวนเงิน">
                   จำนวนเงิน = <span className="text-emerald-400">round( Total Fee × % ÷ 100 )</span>
                 </Formula>
                 <Formula label="แก้จำนวนเงิน → คำนวณ %">
                   % = <span className="text-emerald-400">( จำนวนเงิน ÷ Total Fee ) × 100</span>
+                </Formula>
+              </div>
+              <div className="mt-3">
+                <Formula label="หลัง AI Extract (หน้า Upload Proposal)">
+                  จำนวนเงินทุกงวด = <span className="text-emerald-400">round( Total Fee × % ÷ 100 )</span> — คำนวณใหม่เสมอ ไม่ใช้ยอดเงินจาก PDF ตรงๆ
+                  <br />เพราะตาราง Payment ใน PDF มักเป็นยอด<b>รวม VAT 7%</b> แล้ว (เช่น 107,000) แต่ Total Fee คือยอด<b>ก่อน VAT</b>
+                  <br />ถ้า PDF ไม่มี % เลย: % = สัดส่วนยอดเงินงวดนั้น ÷ ผลรวมยอดทุกงวดใน PDF × 100 แล้วค่อยคำนวณจำนวนเงินจาก Total Fee
                 </Formula>
               </div>
               <div className="mt-3 p-3.5 bg-red-50 border border-red-200 rounded-lg text-[11.5px] text-slate-700 leading-relaxed">
@@ -308,9 +323,9 @@ export default function InfoPage() {
               <div className="grid md:grid-cols-2 gap-3">
                 {[
                   { name: "Dashboard", path: "/dashboard", items: ["ตาราง Summary รายเดือน + ตาราง Annual Billing แยกตามบริษัท", "แก้ไข Target รายแผนกได้ (ไอคอนดินสอ)", "ปุ่ม Export รายงานรอบงบประมาณเป็น Excel"] },
-                  { name: "Project Roadmap", path: "/project-roadmap", items: ["Gantt รายสัปดาห์ ของโครงการ Approved เท่านั้น", "ลากกล่องสีย้ายสัปดาห์เก็บเงินได้ คลิกเพื่อเปลี่ยนสถานะจ่ายเงิน", "Tab กรองแผนก + ค้นหาด้วยชื่อโครงการ", "เรียงรายชื่อโครงการตามตัวอักษร A-Z เสมอ"] },
+                  { name: "Project Roadmap", path: "/project-roadmap", items: ["Gantt รายสัปดาห์ ของโครงการ Approved เท่านั้น", "ลากกล่องสีย้ายสัปดาห์เก็บเงินได้ คลิกเพื่อเปลี่ยนสถานะจ่ายเงิน", "Tab กรองแผนก + ค้นหาด้วยชื่อโครงการ", "เรียงรายชื่อโครงการตามตัวอักษร A-Z เสมอ", "ปุ่ม Present Mode: แสดงตารางเต็มจอสำหรับประชุม (ซ่อนเมนูและหัวหน้า เหลือแถบ Filter บรรทัดเดียว) ย่อ/ขยายตารางได้ 50–150% ระบบจำค่าไว้ต่อเครื่อง กด Esc เพื่อออก"] },
                   { name: "Proposal Preview", path: "/proposal-preview", items: ["ตารางโครงการทั้งหมด เรียง A-Z ตามชื่อโครงการ", "Tab กรองแผนก + ปุ่ม Verified (โชว์เฉพาะตอนมีโครงการสถานะนี้จริง)", "ค้นหาด้วยชื่อโครงการ ลบ/ดู PDF/เปิดดูรายละเอียดได้จากตารางเดียว"] },
-                  { name: "Upload Proposal", path: "/upload-proposal", items: ["อัปโหลดไฟล์ PDF ให้ AI ดึงชื่อโครงการ ระยะเวลา และเงื่อนไขจ่ายเงินให้อัตโนมัติ", "ตรวจทานก่อนบันทึกได้ก่อนเข้าสู่สถานะ Verified"] },
+                  { name: "Upload Proposal", path: "/upload-proposal", items: ["อัปโหลดไฟล์ PDF ให้ AI ดึงชื่อโครงการ ระยะเวลา และเงื่อนไขจ่ายเงินให้อัตโนมัติ", "ตรวจทานก่อนบันทึกได้ก่อนเข้าสู่สถานะ Verified", "ตาราง Time Frame กรอกเฉพาะตัวเลขในคอลัมน์ Duration (Week) — Total Design Duration รวมให้อัตโนมัติ", "ต้องเลือก \"เก็บเงินสัปดาห์ที่\" ให้ครบทุกงวดก่อน Save (ตัวเลือกมีตาม Week รวมของ Time Frame)", "AI ใช้ Gemini 3.6 Flash → 3.7 Flash → Flash-Lite ตามลำดับ ถ้าตัวแรกไม่ว่างจะลองซ้ำ/สลับให้เอง ถ้าทุกตัวไม่ว่างจะขึ้นข้อความให้รอ 1-2 นาทีแล้วลองใหม่"] },
                 ].map((p) => (
                   <Card key={p.name}>
                     <div className="flex items-center gap-2">
@@ -385,8 +400,37 @@ export default function InfoPage() {
               </p>
             </section>
 
+            <section id="mobile" className="scroll-mt-6">
+              <SectionHeading
+                num="13"
+                title="การใช้งานบนมือถือ"
+                desc="บนจอที่แคบกว่า 768px (โทรศัพท์) ระบบเปลี่ยนเป็นโหมดดูข้อมูลอย่างเดียว — การแก้ไขทุกอย่างต้องทำบนคอมพิวเตอร์"
+              />
+              <Card className="!p-0 overflow-hidden">
+                <table className="w-full text-xs">
+                  <tbody>
+                    {[
+                      ["เมนู", "ซ่อน Sidebar — กดปุ่ม ☰ มุมซ้ายบนเพื่อเปิดเมนู"],
+                      ["Dashboard", "ดูตาราง Summary / Annual Billing ได้ เลื่อนปีงบประมาณได้ ไม่มีปุ่ม Export Excel"],
+                      ["Proposal Preview", "แสดงเป็นการ์ดทีละโครงการ แตะเพื่อดูรายละเอียดเต็มจอ (อ่านอย่างเดียว) และเปิดไฟล์ PDF ได้ — ไม่มีปุ่มเพิ่ม/ลบ/แก้ไข"],
+                      ["Project Roadmap", "แสดงเป็นรายการตามโครงการแทน Gantt: ทุกงวดบอก Week, วันที่, %, ยอดเงิน และป้ายสถานะ — เปลี่ยนสถานะหรือลากย้ายสัปดาห์ไม่ได้"],
+                      ["Upload Proposal / Settings", "ใช้งานไม่ได้ ขึ้นข้อความ \"กรุณาใช้งานบนคอมพิวเตอร์\""],
+                    ].map(([name, desc], i) => (
+                      <tr key={name} className={i !== 0 ? "border-t border-slate-100" : ""}>
+                        <td className="font-mono font-semibold text-slate-800 px-5 py-3 w-44 align-top">{name}</td>
+                        <td className="text-slate-600 px-5 py-3 align-top leading-relaxed">{desc}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+              <p className="text-[11.5px] text-slate-500 mt-3 leading-relaxed max-w-2xl">
+                วันที่ของแต่ละงวดบนมือถือ: ใช้วันที่ของสถานะปัจจุบัน (วันนัดเก็บเงิน / วันวางบิล / วันเก็บเงินได้) ถ้ายังไม่มี จะแสดงวันที่ตามแผน = Start Date + (Week − 1) × 7 วัน
+              </p>
+            </section>
+
             <section id="notes" className="scroll-mt-6">
-              <SectionHeading num="13" title="ข้อควรรู้เพิ่มเติม" />
+              <SectionHeading num="14" title="ข้อควรรู้เพิ่มเติม" />
               <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-[11.5px] text-slate-700 leading-relaxed">
                 <b className="text-amber-700">ไม่มีระบบ Login แล้ว:</b> ทุกคนที่มีลิงก์เข้าเว็บแอปได้ทุกหน้าทันที และคอลัมน์ &quot;ผู้แก้ไข&quot; ในประวัติการแก้ไข
                 จะว่างเปล่าเสมอ เพราะไม่มีการระบุตัวตนผู้ใช้งานในระบบอีกต่อไป
