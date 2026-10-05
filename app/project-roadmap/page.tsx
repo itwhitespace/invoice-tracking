@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import { SavedRecord, PaymentStatus, PaymentTermItem } from "@/lib/types";
 import {
   getSupabaseClient,
@@ -30,6 +30,10 @@ import {
   Filter,
   StickyNote,
   HelpCircle,
+  Maximize2,
+  Minimize2,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 
 interface MonthConfig {
@@ -121,7 +125,12 @@ const PROJECT_NAME_COL_PX = 256; // matches the w-64 name column
 const WEEK_COLUMN_MIN_PX = 46;
 const CHART_MIN_PX = 850; // floor for short ranges
 
-const formatCompactAmount = (amount: number): string => {
+// Present Mode zoom steps for the Gantt table — lets a TV running Windows
+// at 150–200% scaling fit more project rows on screen.
+const PRESENT_ZOOM_LEVELS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5];
+const PRESENT_ZOOM_STORAGE_KEY = "roadmap-present-zoom";
+
+const formatCompactAmount =(amount: number): string => {
   return `${(amount / 1000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}K`;
 };
 
@@ -202,6 +211,95 @@ function ProjectRoadmapContent() {
   } | null>(null);
   const [pendingStatus, setPendingStatus] = useState<PaymentStatus>("wait");
   const [isSavingStatus, setIsSavingStatus] = useState(false);
+
+  // Present Mode — the page root goes browser-fullscreen (which also hides
+  // the app sidebar, since it lives outside this element) and the page
+  // header is dropped so the Gantt table gets as much height as possible.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isPresenting, setIsPresenting] = useState(false);
+  const [presentZoom, setPresentZoom] = useState(1);
+
+  useEffect(() => {
+    try {
+      const saved = parseFloat(localStorage.getItem(PRESENT_ZOOM_STORAGE_KEY) || "");
+      if (PRESENT_ZOOM_LEVELS.includes(saved)) setPresentZoom(saved);
+    } catch {}
+  }, []);
+
+  const changePresentZoom = (direction: 1 | -1) => {
+    const idx = PRESENT_ZOOM_LEVELS.indexOf(presentZoom);
+    const next = PRESENT_ZOOM_LEVELS[Math.min(PRESENT_ZOOM_LEVELS.length - 1, Math.max(0, idx + direction))];
+    setPresentZoom(next);
+    try {
+      localStorage.setItem(PRESENT_ZOOM_STORAGE_KEY, String(next));
+    } catch {}
+  };
+
+  const enterPresentMode = () => {
+    setIsPresenting(true);
+    // Fullscreen can be unavailable (e.g. inside an iframe) — the fixed
+    // overlay styling on the root still covers the sidebar in that case.
+    rootRef.current?.requestFullscreen?.().catch(() => {});
+  };
+
+  const exitPresentMode = () => {
+    setIsPresenting(false);
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  };
+
+  // Leaving browser fullscreen with Esc should also leave Present Mode.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) setIsPresenting(false);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  // When browser fullscreen wasn't available, Esc never fires
+  // fullscreenchange — handle it directly so it still exits.
+  useEffect(() => {
+    if (!isPresenting) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.fullscreenElement) setIsPresenting(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isPresenting]);
+
+  const presentControls = (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <div className="flex items-center bg-white border border-slate-300 rounded-lg overflow-hidden shadow-2xs">
+        <button
+          onClick={() => changePresentZoom(-1)}
+          disabled={presentZoom === PRESENT_ZOOM_LEVELS[0]}
+          title="ย่อตาราง"
+          className="p-1.5 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <span className="w-12 text-center text-[11px] font-mono font-bold text-slate-800 border-x border-slate-200">
+          {Math.round(presentZoom * 100)}%
+        </span>
+        <button
+          onClick={() => changePresentZoom(1)}
+          disabled={presentZoom === PRESENT_ZOOM_LEVELS[PRESENT_ZOOM_LEVELS.length - 1]}
+          title="ขยายตาราง"
+          className="p-1.5 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+      </div>
+      <button
+        onClick={exitPresentMode}
+        title="ออกจาก Present Mode (Esc)"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-slate-900 hover:bg-slate-700 rounded-lg shadow-2xs transition"
+      >
+        <Minimize2 className="w-3.5 h-3.5" />
+        ออก (Esc)
+      </button>
+    </div>
+  );
 
   // Full Proposal detail — opened by clicking a project's name
   const [detailRecord, setDetailRecord] = useState<SavedRecord | null>(null);
@@ -709,8 +807,14 @@ function ProjectRoadmapContent() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-100 text-slate-800 overflow-hidden font-sans">
-      {/* Top Header */}
+    <div
+      ref={rootRef}
+      className={`flex flex-col bg-slate-100 text-slate-800 overflow-hidden font-sans ${
+        isPresenting ? "fixed inset-0 z-[45]" : "h-full"
+      }`}
+    >
+      {/* Top Header (hidden in Present Mode) */}
+      {!isPresenting && (
       <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
@@ -746,11 +850,30 @@ function ProjectRoadmapContent() {
           </div>
         )}
 
+        {filteredProjects.length > 0 && (
+          <button
+            onClick={enterPresentMode}
+            title="แสดงตารางเต็มจอสำหรับ Present ในที่ประชุม"
+            className="flex items-center gap-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-700 rounded-lg px-3 py-1.5 shadow-2xs transition"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+            Present Mode
+          </button>
+        )}
         </div>
       </header>
+      )}
 
       {/* Main Workspace Area */}
-      <div className="flex-1 min-h-0 flex flex-col p-5 md:p-6 space-y-4 overflow-hidden">
+      <div
+        className={`relative flex-1 min-h-0 flex flex-col overflow-hidden ${
+          isPresenting ? "p-2 space-y-2" : "p-5 md:p-6 space-y-4"
+        }`}
+      >
+        {/* Present Mode always needs a way out, even on an empty state */}
+        {isPresenting && filteredProjects.length === 0 && (
+          <div className="absolute top-2 right-2 z-10">{presentControls}</div>
+        )}
         {allProjects.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 py-24">
             <CalendarRange className="w-10 h-10" />
@@ -777,7 +900,11 @@ function ProjectRoadmapContent() {
         ) : (
         <>
         {/* Department filter tabs (left) + Color Legend (right), one row */}
-        <div className="shrink-0 bg-white border border-slate-200 rounded-xl p-4 shadow-2xs">
+        <div
+          className={`shrink-0 bg-white border border-slate-200 shadow-2xs ${
+            isPresenting ? "rounded-lg px-3 py-1.5" : "rounded-xl p-4"
+          }`}
+        >
           <div className="flex items-center justify-between flex-wrap gap-3 text-xs">
             {availableDepartments.length > 0 ? (
               <AnimatedTabs tabs={departmentTabs} value={departmentFilter} onChange={setDepartmentFilter} />
@@ -802,6 +929,7 @@ function ProjectRoadmapContent() {
                   </div>
                 ))}
               </div>
+              {isPresenting && presentControls}
             </div>
           </div>
         </div>
@@ -812,7 +940,12 @@ function ProjectRoadmapContent() {
             project rows scroll underneath them. */}
         <div className="flex-1 min-h-0 bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
           <div className="h-full overflow-auto">
-            <div style={{ minWidth: PROJECT_NAME_COL_PX + Math.max(CHART_MIN_PX, totalGridColumns * WEEK_COLUMN_MIN_PX) }}>
+            <div
+              style={{
+                minWidth: PROJECT_NAME_COL_PX + Math.max(CHART_MIN_PX, totalGridColumns * WEEK_COLUMN_MIN_PX),
+                zoom: isPresenting ? presentZoom : undefined,
+              }}
+            >
               {/* Header Rows 1-3, pinned together to the top of the scroll
                   box above — a solid background is needed here since the
                   individual rows below use translucent fills that would
