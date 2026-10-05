@@ -6,7 +6,7 @@ import {
   TimeFrameItem,
   PaymentTermItem,
 } from "@/lib/types";
-import { getTotalWeeks } from "@/lib/timeframe-utils";
+import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import { formatThousands, parseThousands } from "@/lib/format-utils";
 import {
   Plus,
@@ -242,7 +242,7 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
               <tr>
                 <th className="p-2.5 w-44">Phase Title</th>
                 <th className="p-2.5">Deliverables / Description</th>
-                <th className="p-2.5 w-32 text-right">Duration</th>
+                <th className="p-2.5 w-32 text-right">Duration (Week)</th>
                 <th className="p-2.5 w-10 text-center"></th>
               </tr>
             </thead>
@@ -275,11 +275,16 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
                       />
                     </td>
                     <td className="p-2 text-right">
+                      {/* Only the week count is edited here; it's stored as
+                          "N Weeks" so the rest of the app reads it the same way. */}
                       <input
-                        type="text"
-                        value={item.duration}
-                        onChange={(e) => handleUpdateTimeFrame(idx, "duration", e.target.value)}
-                        placeholder="4 Weeks"
+                        type="number"
+                        min={0}
+                        value={item.duration?.trim() ? parseWeeksFromDuration(item.duration) : ""}
+                        onChange={(e) =>
+                          handleUpdateTimeFrame(idx, "duration", e.target.value ? `${e.target.value} Weeks` : "")
+                        }
+                        placeholder="0"
                         className="w-full px-2 py-1.5 text-xs text-right font-mono font-semibold text-black bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none"
                       />
                     </td>

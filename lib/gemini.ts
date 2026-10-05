@@ -67,6 +67,31 @@ function buildTextContext(pdfText: string): string {
   return `${normalizedText.slice(0, half)}\n\n[...middle of extracted text omitted; use the attached PDF... ]\n\n${normalizedText.slice(-half)}`;
 }
 
+// Payment schedules in proposals often list amounts *including* VAT (e.g.
+// 107,000 on a 200,000 fee at 50%), while totalFee is before VAT. Total Fee
+// is the baseline the rest of the app works from, so re-derive every Amount
+// from its percentage. If the document gave no percentages, derive them
+// from each amount's share of the schedule total first.
+function normalizePaymentAmounts(data: ExtractedProjectData): ExtractedProjectData {
+  const fee = Number(data.totalFee) || 0;
+  const terms = data.paymentTerms || [];
+  if (fee <= 0 || terms.length === 0) return data;
+
+  const pctSum = terms.reduce((sum, t) => sum + (Number(t.paymentPercentage) || 0), 0);
+  const amountSum = terms.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+  const paymentTerms = terms.map((t) => {
+    const pct =
+      pctSum > 0
+        ? Number(t.paymentPercentage) || 0
+        : amountSum > 0
+          ? ((Number(t.amount) || 0) / amountSum) * 100
+          : 0;
+    return { ...t, paymentPercentage: pct, amount: Math.round((fee * pct) / 100) };
+  });
+  return { ...data, paymentTerms };
+}
+
 // 503 "high demand" / 429 rate-limit errors are documented by Google as
 // temporary, so they're worth retrying with a growing backoff.
 function isOverloadError(err: any): boolean {
@@ -196,7 +221,7 @@ export async function extractWithGemini(
           .replace(/^```\s*/i, "")
           .replace(/\s*```$/i, "")
           .trim();
-        const parsed = JSON.parse(cleanedJson) as ExtractedProjectData;
+        const parsed = normalizePaymentAmounts(JSON.parse(cleanedJson) as ExtractedProjectData);
         console.log("Successfully extracted real data with", modelName, parsed.projectName);
         return parsed;
       }
