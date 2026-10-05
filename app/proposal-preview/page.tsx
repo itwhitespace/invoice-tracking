@@ -232,7 +232,6 @@ function ProposalPreviewContent() {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500 font-mono">{filteredRecords.length} รายการ</span>
           <button
             onClick={() => setIsAddOpen(true)}
             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
@@ -300,7 +299,7 @@ function ProposalPreviewContent() {
                   className="w-full pl-8 pr-3 py-1.5 text-xs font-medium text-slate-800 bg-slate-50/70 border border-slate-300 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
                 />
               </div>
-              <span className="text-xs text-slate-500 font-mono shrink-0">{filteredRecords.length} รายการ</span>
+              <span className="text-sm text-slate-900 font-bold font-mono shrink-0">{filteredRecords.length} รายการ</span>
             </div>
             {filteredRecords.length === 0 ? (
               <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-400">

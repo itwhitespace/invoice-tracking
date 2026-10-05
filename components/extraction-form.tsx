@@ -210,9 +210,10 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
         <div className="space-y-1.5 max-w-xs">
           <label className="text-xs font-bold text-black">Total Fee (THB) *</label>
           <input
-            type="number"
-            value={data.totalFee || ""}
-            onChange={(e) => handleTotalFeeChange(e.target.value)}
+            type="text"
+            inputMode="numeric"
+            value={formatThousands(data.totalFee)}
+            onChange={(e) => handleTotalFeeChange(String(parseThousands(e.target.value)))}
             placeholder="0"
             className="w-full px-3 py-2 text-sm font-mono font-bold text-black bg-slate-50/70 border border-slate-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 transition"
           />
