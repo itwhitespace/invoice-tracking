@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSettings } from "@/lib/settings-context";
 import { AppSettings } from "@/lib/types";
 import { isValidSupabaseUrl } from "@/lib/supabase";
+import { DesktopOnlyNotice } from "@/components/desktop-only-notice";
 import { Key, Database, Sliders, CheckCircle2, ShieldAlert } from "lucide-react";
 
 export default function SettingsPage() {
@@ -26,7 +27,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-100 overflow-hidden">
+    <div className="relative h-full flex flex-col bg-slate-100 overflow-hidden">
+      <DesktopOnlyNotice pageName="Settings" />
       <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center gap-2 shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <Sliders className="w-4 h-4 text-slate-700" />
         <h1 className="text-sm font-bold text-slate-900 tracking-tight">

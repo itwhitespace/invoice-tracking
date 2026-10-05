@@ -14,6 +14,7 @@ import {
 } from "@/lib/types";
 import { EMPTY_PROJECT_DATA } from "@/lib/sample-data";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
+import { DesktopOnlyNotice } from "@/components/desktop-only-notice";
 import {
   getSupabaseClient,
   getSavedRecords,
@@ -285,7 +286,8 @@ export default function UploadProposalPage() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-100 overflow-hidden">
+    <div className="relative h-full flex flex-col bg-slate-100 overflow-hidden">
+      <DesktopOnlyNotice pageName="Upload Proposal" />
       {/* Top Application Header */}
       <HeaderBar
         onFileUpload={handleFileUpload}
