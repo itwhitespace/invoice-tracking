@@ -20,6 +20,7 @@ import { PdfPreviewModal } from "@/components/pdf-preview-modal";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
 import { AddProposalModal } from "@/components/add-proposal-modal";
 import { AnimatedTabs } from "@/components/animated-tabs";
+import { MobileProposalSheet, ProposalStatusBadge } from "@/components/mobile-proposal-sheet";
 import { FileSearch, Eye, Trash2, FileText, ExternalLink, FilePlus, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -48,6 +49,7 @@ function ProposalPreviewContent() {
   const [previewPdfRecord, setPreviewPdfRecord] = useState<SavedRecord | null>(null);
   const [detailRecord, setDetailRecord] = useState<SavedRecord | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [mobileDetailRecord, setMobileDetailRecord] = useState<SavedRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -221,7 +223,7 @@ function ProposalPreviewContent() {
 
   return (
     <div className="h-full flex flex-col bg-slate-100 overflow-hidden">
-      <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      <header className="h-12 md:h-16 px-4 md:px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-2">
           <FileSearch className="w-4 h-4 text-slate-700" />
           <h1 className="text-sm font-bold text-slate-900 tracking-tight">Proposal Preview</h1>
@@ -231,7 +233,8 @@ function ProposalPreviewContent() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        {/* Mobile is view-only, so the add/upload actions are desktop-only */}
+        <div className="hidden md:flex items-center gap-3">
           <button
             onClick={() => setIsAddOpen(true)}
             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
@@ -249,7 +252,7 @@ function ProposalPreviewContent() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 md:p-8">
+      <div className="flex-1 overflow-y-auto p-3 md:p-8">
         {isLoading ? (
           <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400">
             <FileSearch className="w-10 h-10 animate-pulse" />
@@ -269,9 +272,11 @@ function ProposalPreviewContent() {
           </div>
         ) : (
           <>
-          <div className="mb-4 flex items-center flex-wrap gap-3">
+          <div className="mb-3 md:mb-4 flex items-center flex-wrap gap-2 md:gap-3">
             {availableDepartments.length > 0 && (
-              <AnimatedTabs tabs={departmentTabs} value={departmentFilter} onChange={setDepartmentFilter} />
+              <div className="max-w-full overflow-x-auto">
+                <AnimatedTabs tabs={departmentTabs} value={departmentFilter} onChange={setDepartmentFilter} />
+              </div>
             )}
             {hasVerifiedRecords && (
               <button
@@ -321,7 +326,38 @@ function ProposalPreviewContent() {
                 </button>
               </div>
             ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile: read-only cards — tap one for the full-screen detail */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {filteredRecords.map((rec) => (
+                <button
+                  key={rec.id}
+                  type="button"
+                  onClick={() => setMobileDetailRecord(rec)}
+                  className="w-full text-left p-3.5 active:bg-slate-50 flex items-start justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 break-words">{rec.projectName}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {[
+                        rec.companyName ? getCompanyLabel(rec.companyName) : "",
+                        rec.department ? formatDepartmentLabel(rec.department) : "",
+                        formatProjectDuration(rec),
+                      ]
+                        .filter((s) => s && s !== "-")
+                        .join(" • ")}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right space-y-1">
+                    <p className="text-xs font-mono font-bold text-slate-900">
+                      ฿{Number(rec.totalFee).toLocaleString("en-US")}
+                    </p>
+                    <ProposalStatusBadge status={rec.status} />
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                   <tr>
@@ -432,6 +468,7 @@ function ProposalPreviewContent() {
                 </tbody>
               </table>
             </div>
+            </>
             )}
           </div>
           </>
@@ -457,6 +494,9 @@ function ProposalPreviewContent() {
         title={previewPdfRecord?.projectName}
         onClose={() => setPreviewPdfRecord(null)}
       />
+
+      {/* Mobile: full-screen read-only detail */}
+      <MobileProposalSheet record={mobileDetailRecord} onClose={() => setMobileDetailRecord(null)} />
 
       {/* Modal เพิ่ม Proposal แบบคีย์ Manual */}
       <AddProposalModal

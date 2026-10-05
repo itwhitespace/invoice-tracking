@@ -13,6 +13,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
+  Menu,
+  X,
 } from "lucide-react";
 import { COMPANY_OPTIONS } from "@/lib/company-utils";
 
@@ -63,6 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -111,10 +114,57 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="h-screen flex bg-slate-100 overflow-hidden font-sans">
+    <div className="h-[100dvh] flex flex-col md:flex-row bg-slate-100 overflow-hidden font-sans">
+      {/* Mobile top bar — the sidebar becomes a slide-in drawer below md */}
+      <div className="md:hidden h-12 px-3 bg-white border-b border-slate-200 flex items-center gap-2.5 shrink-0">
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="เปิดเมนู"
+          className="p-1.5 text-slate-700 rounded-md active:bg-slate-100"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <img src="/icon-WR.png" alt="WR" className="w-7 h-7 rounded-md object-cover" />
+        <span className="text-sm font-bold text-slate-900 tracking-tight truncate">Invoice Tracking Program</span>
+      </div>
+
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-[80]">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setMobileMenuOpen(false)} />
+          <aside
+            className="absolute inset-y-0 left-0 w-64 max-w-[80vw] bg-white shadow-xl flex flex-col"
+            // Close once any menu link is tapped (submenu toggles stay open).
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest("a")) setMobileMenuOpen(false);
+            }}
+          >
+            <div className="h-12 px-3 flex items-center justify-between border-b border-slate-200 shrink-0">
+              <span className="text-sm font-bold text-slate-900">เมนู</span>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="ปิดเมนู"
+                className="p-1.5 text-slate-500 rounded-md active:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <Suspense fallback={null}>
+                <SidebarNav
+                  pathname={pathname}
+                  collapsed={false}
+                  expandedItems={expandedItems}
+                  toggleExpanded={toggleExpanded}
+                />
+              </Suspense>
+            </div>
+          </aside>
+        </div>
+      )}
+
       {/* Sidebar */}
       <aside
-        className={`h-full shrink-0 bg-white border-r border-slate-200 flex flex-col transition-all duration-200 ${
+        className={`hidden md:flex h-full shrink-0 bg-white border-r border-slate-200 flex-col transition-all duration-200 ${
           collapsed ? "w-16" : "w-60"
         }`}
       >
@@ -157,7 +207,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 h-full overflow-hidden">{children}</main>
+      <main className="flex-1 min-h-0 md:h-full overflow-hidden">{children}</main>
     </div>
   );
 }

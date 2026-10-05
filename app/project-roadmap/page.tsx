@@ -12,7 +12,8 @@ import {
 import { getTotalWeeks, formatProjectDuration } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation, getDepartmentBadgeClasses } from "@/lib/department-utils";
 import { getCompanyLabel } from "@/lib/company-utils";
-import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
+import { PAYMENT_STATUS_LABELS, getPaymentStatusInfo } from "@/lib/payment-status-utils";
+import { MobileProposalSheet, MobilePaymentTermRow, formatThaiDate } from "@/components/mobile-proposal-sheet";
 import { logActivity, paymentStatusChangeSummary } from "@/lib/activity-log";
 import { useSettings } from "@/lib/settings-context";
 import { useSearchParams } from "next/navigation";
@@ -70,14 +71,6 @@ const STATUS_PICKER_OPTIONS: { value: PaymentStatus; label: string }[] = (
 // A minimal pointer movement below this (px) is treated as a click (open the
 // status picker) rather than the start of a drag-to-reschedule gesture.
 const CLICK_MOVE_THRESHOLD = 5;
-
-// Resolves the date that belongs to a payment term's current status — the
-// same rule the detail modal's "วันที่ของสถานะ" column uses.
-const getPaymentStatusInfo = (pt: PaymentTermItem): { status: PaymentStatus; date?: string } => {
-  const status = pt.paymentStatus || "wait";
-  const date = status === "paid" ? pt.paidDate : status === "invoice" ? pt.invoiceIssuedDate : pt.invoiceDate;
-  return { status, date };
-};
 
 const formatShortDate = (dateStr: string): string => {
   const date = new Date(`${dateStr}T00:00:00`);
@@ -304,6 +297,7 @@ function ProjectRoadmapContent() {
   // Full Proposal detail — opened by clicking a project's name
   const [detailRecord, setDetailRecord] = useState<SavedRecord | null>(null);
   const [previewPdfRecord, setPreviewPdfRecord] = useState<SavedRecord | null>(null);
+  const [mobileDetailRecord, setMobileDetailRecord] = useState<SavedRecord | null>(null);
 
 
   useEffect(() => {
@@ -815,15 +809,15 @@ function ProjectRoadmapContent() {
     >
       {/* Top Header (hidden in Present Mode) */}
       {!isPresenting && (
-      <header className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      <header className="h-12 md:h-16 px-4 md:px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
+          <div className="hidden md:flex w-9 h-9 rounded-xl bg-slate-900 text-white items-center justify-center shadow-xs">
             <CalendarRange className="w-5 h-5 text-emerald-400" />
           </div>
           <div>
             <h1 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
               Project Roadmap
-              <span className="text-[10px] font-semibold px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-300 rounded-full">
+              <span className="hidden md:inline text-[10px] font-semibold px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-300 rounded-full">
                 Monthly & Weekly Minimalist Gantt
               </span>
               {companyFilter && (
@@ -832,13 +826,14 @@ function ProjectRoadmapContent() {
                 </span>
               )}
             </h1>
-            <p className="text-[11px] text-slate-500">
+            <p className="hidden md:block text-[11px] text-slate-500">
               แผนงานโครงการดึงจากฐานข้อมูล Proposal แสดงเป็นหัวตารางรายเดือนและสัปดาห์
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Range display + Present Mode only make sense for the desktop Gantt */}
+        <div className="hidden md:flex items-center gap-3">
         {/* Auto-Fit Range Display — computed from the data, not a filter */}
         {monthHeaders.length > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-1.5 font-medium shadow-2xs">
@@ -867,7 +862,7 @@ function ProjectRoadmapContent() {
       {/* Main Workspace Area */}
       <div
         className={`relative flex-1 min-h-0 flex flex-col overflow-hidden ${
-          isPresenting ? "p-2 space-y-2" : "p-5 md:p-6 space-y-4"
+          isPresenting ? "p-2 space-y-2" : "p-3 md:p-6 space-y-3 md:space-y-4"
         }`}
       >
         {/* Present Mode always needs a way out, even on an empty state */}
@@ -902,17 +897,22 @@ function ProjectRoadmapContent() {
         {/* Department filter tabs (left) + Color Legend (right), one row */}
         <div
           className={`shrink-0 bg-white border border-slate-200 shadow-2xs ${
-            isPresenting ? "rounded-lg px-3 py-1.5" : "rounded-xl p-4"
+            availableDepartments.length === 0 ? "hidden md:block" : ""
+          } ${
+            isPresenting ? "rounded-lg px-3 py-1.5" : "rounded-xl p-2 md:p-4"
           }`}
         >
           <div className="flex items-center justify-between flex-wrap gap-3 text-xs">
             {availableDepartments.length > 0 ? (
-              <AnimatedTabs tabs={departmentTabs} value={departmentFilter} onChange={setDepartmentFilter} />
+              <div className="max-w-full overflow-x-auto">
+                <AnimatedTabs tabs={departmentTabs} value={departmentFilter} onChange={setDepartmentFilter} />
+              </div>
             ) : (
               <div />
             )}
 
-            <div className="flex items-center flex-wrap gap-3">
+            {/* Color legend is desktop-only — mobile rows label each status in text */}
+            <div className="hidden md:flex items-center flex-wrap gap-3">
               <div className="flex items-center gap-1.5 font-bold text-slate-800">
                 <Layers className="w-4 h-4 text-slate-600" />
                 <span>คำอธิบายสี:</span>
@@ -938,7 +938,48 @@ function ProjectRoadmapContent() {
             the page and scrolls internally (both directions) so the header
             rows below can stay pinned to the top of THIS box while the
             project rows scroll underneath them. */}
-        <div className="flex-1 min-h-0 bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
+        {/* Mobile: read-only list grouped by project instead of the Gantt */}
+        <div className="md:hidden flex-1 min-h-0 overflow-y-auto space-y-3 pb-3">
+          <p className="text-sm font-bold text-slate-900 font-mono px-1">{visibleTimelineRows.length} โครงการ</p>
+          {visibleTimelineRows.map(({ project: proj }) => (
+            <div key={proj.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setMobileDetailRecord(proj)}
+                className="w-full text-left px-3.5 py-3 bg-slate-50/80 border-b border-slate-100 active:bg-slate-100"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-900 break-words">{proj.projectName}</p>
+                  {proj.department && (
+                    <span
+                      className={`shrink-0 px-1.5 py-0.5 rounded border text-[10px] font-bold ${getDepartmentBadgeClasses(proj.department)}`}
+                    >
+                      {getDepartmentAbbreviation(proj.department)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {proj.startDate ? `เริ่ม ${formatThaiDate(proj.startDate)}` : "ยังไม่ระบุ Start Date"}
+                  {` • ${formatProjectDuration(proj)} • ฿${Number(proj.totalFee).toLocaleString("en-US")}`}
+                </p>
+                {proj.roadmapNote && (
+                  <p className="text-[11px] text-indigo-700 mt-1 whitespace-pre-wrap">{proj.roadmapNote}</p>
+                )}
+              </button>
+              <div className="px-3.5 divide-y divide-slate-100">
+                {(proj.paymentTerms || []).length === 0 ? (
+                  <p className="py-2.5 text-[11px] text-slate-400">ยังไม่มีงวดการจ่ายเงิน</p>
+                ) : (
+                  proj.paymentTerms.map((pt, idx) => (
+                    <MobilePaymentTermRow key={pt.id || idx} pt={pt} startDate={proj.startDate} />
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden md:block flex-1 min-h-0 bg-white border border-slate-300 rounded-xl shadow-xs overflow-hidden">
           <div className="h-full overflow-auto">
             <div
               style={{
@@ -1451,6 +1492,9 @@ function ProjectRoadmapContent() {
       )}
 
       {/* Full Proposal Detail — opened by clicking a project's name */}
+      {/* Mobile: full-screen read-only detail */}
+      <MobileProposalSheet record={mobileDetailRecord} onClose={() => setMobileDetailRecord(null)} />
+
       <ProposalDetailModal
         isOpen={!!detailRecord}
         record={detailRecord}
