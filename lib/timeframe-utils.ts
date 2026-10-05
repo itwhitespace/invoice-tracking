@@ -1,15 +1,22 @@
 import { TimeFrameItem, SavedRecord } from "./types";
 
 // Parses a free-text duration like "3 Weeks", "1 Month", "10 Days", or the
-// Thai equivalents into a whole number of weeks. Returns 0 when the text
-// can't be parsed (e.g. still blank).
+// Thai equivalents into a whole number of weeks. A bare number with no unit
+// (e.g. "4", as AI extraction sometimes returns) is read as weeks. Returns 0
+// when the text can't be parsed (e.g. still blank) or the duration is 0.
 export function parseWeeksFromDuration(duration: string): number {
   if (!duration) return 0;
-  const match = duration.match(/(\d+(?:\.\d+)?)\s*(week|month|day|สัปดาห์|เดือน|วัน)/i);
+  const text = String(duration);
+  // Prefer a number that carries a unit (so "2-3 Weeks" reads as 3), then
+  // fall back to the first bare number.
+  const match =
+    text.match(/(\d+(?:\.\d+)?)\s*(week|month|day|wk|สัปดาห์|เดือน|วัน)/i) ||
+    text.match(/(\d+(?:\.\d+)?)/);
   if (!match) return 0;
 
   const num = parseFloat(match[1]);
-  const unit = match[2].toLowerCase();
+  if (!(num > 0)) return 0;
+  const unit = (match[2] || "week").toLowerCase();
   if (unit.startsWith("month") || unit.startsWith("เดือน")) return Math.max(1, Math.round(num * 4));
   if (unit.startsWith("day") || unit.startsWith("วัน")) return Math.max(1, Math.round(num / 7));
   return Math.max(1, Math.round(num));

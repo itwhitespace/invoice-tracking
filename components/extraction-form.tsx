@@ -7,6 +7,7 @@ import {
   PaymentTermItem,
 } from "@/lib/types";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
+import { formatThousands, parseThousands } from "@/lib/format-utils";
 import {
   Plus,
   Trash2,
@@ -106,7 +107,7 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
 
   const handleUpdatePaymentTerm = (
     index: number,
-    field: "milestone" | "paymentPercentage" | "paymentWeek",
+    field: "milestone" | "paymentPercentage" | "amount" | "paymentWeek",
     val: string
   ) => {
     const updated = [...data.paymentTerms];
@@ -116,6 +117,11 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
       const pct = parseFloat(val) || 0;
       current.paymentPercentage = pct;
       current.amount = Math.round((data.totalFee * pct) / 100);
+    } else if (field === "amount") {
+      // Inverse of editing %: the Amount drives this milestone's percentage.
+      const amount = parseThousands(val);
+      current.amount = amount;
+      current.paymentPercentage = data.totalFee > 0 ? (amount / data.totalFee) * 100 : 0;
     } else if (field === "paymentWeek") {
       current.paymentWeek = val ? parseInt(val, 10) : undefined;
     } else {
@@ -304,19 +310,13 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
                 ★ Total Design Duration
               </span>
               <span className="text-[11px] text-amber-900 font-medium">
-                ระยะเวลาดำเนินงานโดยรวมทั้งโครงการ
+                ระยะเวลาดำเนินงานโดยรวมทั้งโครงการ (คำนวณอัตโนมัติจาก Time Frame)
               </span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
-            <input
-              type="text"
-              value={data.totalDesignDuration || ""}
-              onChange={(e) => handleFieldChange("totalDesignDuration", e.target.value)}
-              placeholder="เช่น 16 Weeks"
-              className="w-full sm:w-56 px-3 py-2 text-lg font-black font-mono text-amber-950 bg-white border-2 border-amber-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/30 shadow-inner"
-            />
+          <div className="w-full sm:w-56 px-3 py-2 text-lg font-black font-mono text-amber-950 bg-white/70 border-2 border-amber-300 rounded-lg text-center">
+            {totalWeeks} Weeks
           </div>
         </div>
       </section>
@@ -373,7 +373,7 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
                         <input
                           type="number"
                           step="0.5"
-                          value={item.paymentPercentage}
+                          value={Number((item.paymentPercentage || 0).toFixed(2))}
                           onChange={(e) =>
                             handleUpdatePaymentTerm(idx, "paymentPercentage", e.target.value)
                           }
@@ -405,12 +405,14 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
                       </select>
                     </td>
                     <td className="p-2 text-right">
-                      <span className="block w-full px-2 py-1.5 text-xs text-right font-mono font-bold text-black">
-                        {(item.amount || 0).toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={formatThousands(item.amount)}
+                        onChange={(e) => handleUpdatePaymentTerm(idx, "amount", e.target.value)}
+                        placeholder="0"
+                        className="w-full px-2 py-1.5 text-xs text-right font-mono font-bold text-black bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none"
+                      />
                     </td>
                     <td className="p-2 text-center">
                       <button

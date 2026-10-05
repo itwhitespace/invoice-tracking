@@ -13,6 +13,7 @@ import {
   SavedRecord,
 } from "@/lib/types";
 import { EMPTY_PROJECT_DATA } from "@/lib/sample-data";
+import { getTotalWeeks } from "@/lib/timeframe-utils";
 import {
   getSupabaseClient,
   getSavedRecords,
@@ -150,6 +151,11 @@ export default function UploadProposalPage() {
       return;
     }
 
+    // Total duration is always derived from the Time Frame rows now (the
+    // form no longer has a free-text field for it).
+    const computedWeeks = getTotalWeeks(data.timeFrames);
+    const totalDesignDuration = computedWeeks > 0 ? `${computedWeeks} Weeks` : data.totalDesignDuration || "";
+
     setIsSaving(true);
     let supabaseStorageFailed = false;
     let supabaseStorageErrorMessage = "";
@@ -186,7 +192,7 @@ export default function UploadProposalPage() {
           companyName: data.companyName || "",
           projectName: data.projectName,
           totalFee: data.totalFee,
-          totalDesignDuration: data.totalDesignDuration || "",
+          totalDesignDuration,
           pdfUrl: uploadedPdfUrl,
           pdfFileName: file ? file.name : sampleName,
           status: "verified",
@@ -213,7 +219,7 @@ export default function UploadProposalPage() {
         projectName: data.projectName,
         totalFee: data.totalFee,
         timeFrames: [...data.timeFrames],
-        totalDesignDuration: data.totalDesignDuration || "",
+        totalDesignDuration,
         paymentTerms: [...data.paymentTerms],
         pdfFileName: file ? file.name : sampleName,
         pdfUrl: uploadedPdfUrl,
