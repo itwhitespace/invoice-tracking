@@ -18,8 +18,8 @@ const PAYMENT_STATUS_STYLES: Record<string, { classes: string; desc: string }> =
   wait: { classes: "bg-amber-100 text-amber-800 border-amber-300", desc: "ตั้งวันที่คาดว่าจะวางบิล/เก็บเงินไว้แล้ว แต่ยังไม่ดำเนินการ" },
   invoice: { classes: "bg-sky-100 text-sky-800 border-sky-300", desc: "ออกใบแจ้งหนี้ไปแล้ว รอรับชำระ" },
   paid: { classes: "bg-emerald-100 text-emerald-800 border-emerald-300", desc: "ได้รับชำระเรียบร้อย" },
-  hold: { classes: "bg-violet-100 text-violet-800 border-violet-300", desc: "ระงับชั่วคราว ยังไม่ยกเลิก" },
-  cancelled: { classes: "bg-red-100 text-red-800 border-red-300", desc: "ยกเลิกงวดนี้ถาวร — ไม่นับรวมในยอด Dashboard อีกต่อไป" },
+  hold: { classes: "bg-violet-100 text-violet-800 border-violet-300", desc: "ระงับชั่วคราว ยังไม่ยกเลิก — ไม่นับรวมในยอดรวมทุกจุด จนกว่าจะเปลี่ยนกลับเป็นสถานะอื่น" },
+  cancelled: { classes: "bg-red-100 text-red-800 border-red-300", desc: "ยกเลิกงวดนี้ถาวร — ไม่นับรวมในยอดรวมทุกจุดอีกต่อไป" },
 };
 
 const TOC = [
@@ -257,7 +257,7 @@ export default function InfoPage() {
               <SectionHeading num="07" title="สูตรคำนวณ — หน้า Dashboard" />
               <div className="grid md:grid-cols-2 gap-3">
                 <Formula label="ตาราง Summary รายเดือน">
-                  หน่วย <span className="text-emerald-400">K THB</span> (พันบาท) — รวมเฉพาะโครงการสถานะ Approved นับเฉพาะงวดที่<b> ไม่ได้ถูกยกเลิก</b>
+                  หน่วย <span className="text-emerald-400">K THB</span> (พันบาท) — รวมเฉพาะโครงการสถานะ Approved <b>ไม่นับงวดที่ Hold หรือยกเลิกงาน</b>
                 </Formula>
                 <Formula label="ตาราง Annual Billing">
                   หน่วย <span className="text-emerald-400">M THB</span> (ล้านบาท) — ขอบเขต 1 ปีงบประมาณที่เลือกดูอยู่
@@ -266,7 +266,8 @@ export default function InfoPage() {
               <div className="mt-3">
                 <Formula label="% Complete ต่อแผนก (และแถว Total)">
                   % Complete = <span className="text-emerald-400">Actual ÷ Target × 100</span> (ถ้า Target = 0 แสดง &quot;-&quot;)
-                  <br />Actual = ผลรวมยอดเงินของงวดที่ตกอยู่ในปีงบประมาณนั้น จากโครงการ Approved ทุกตัวในแผนกนั้น (ไม่รวมงวดที่ยกเลิก)
+                  <br />Actual = ผลรวมยอดเงินของงวดที่ตกอยู่ในปีงบประมาณนั้น จากโครงการ Approved ทุกตัวในแผนกนั้น (ไม่รวมงวดที่ Hold หรือยกเลิกงาน)
+                  <br />ใช้กติกาเดียวกันกับแถวยอดรวมรายเดือนบน Project Roadmap และไฟล์ Export Excel
                 </Formula>
               </div>
               <p className="text-[11.5px] text-slate-500 mt-3">ปุ่มเลื่อนรอบงบประมาณ (◀/▶) จะกดต่อไม่ได้เมื่อถึงขอบเขตปีที่มีข้อมูลจริง — กันเลื่อนไปเจอปีว่างเปล่า</p>

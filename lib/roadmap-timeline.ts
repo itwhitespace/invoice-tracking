@@ -1,5 +1,6 @@
 import { SavedRecord, PaymentStatus } from "./types";
 import { getTotalWeeks } from "./timeframe-utils";
+import { isExcludedFromTotals } from "./payment-status-utils";
 
 // Pure re-implementation of the month/week grid + payment-marker placement
 // logic from app/project-roadmap/page.tsx, usable outside a React component
@@ -214,7 +215,7 @@ export function buildTimelineForMonthHeaders(
   const monthlyTotals = new Array(monthHeaders.length).fill(0);
   for (const row of timelineRows) {
     for (const pm of row.paymentMarkers) {
-      if (pm.status === "cancelled") continue;
+      if (isExcludedFromTotals(pm.status)) continue;
       const mIdx = colToMonthIdx[pm.col];
       if (mIdx !== undefined) monthlyTotals[mIdx] += pm.amount;
     }

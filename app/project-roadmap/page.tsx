@@ -12,7 +12,7 @@ import {
 import { getTotalWeeks, formatProjectDuration } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation, getDepartmentBadgeClasses } from "@/lib/department-utils";
 import { getCompanyLabel } from "@/lib/company-utils";
-import { PAYMENT_STATUS_LABELS, getPaymentStatusInfo } from "@/lib/payment-status-utils";
+import { PAYMENT_STATUS_LABELS, getPaymentStatusInfo, isExcludedFromTotals } from "@/lib/payment-status-utils";
 import { MobileProposalSheet, MobilePaymentTermRow, formatThaiDate } from "@/components/mobile-proposal-sheet";
 import { logActivity, paymentStatusChangeSummary } from "@/lib/activity-log";
 import { useSettings } from "@/lib/settings-context";
@@ -608,7 +608,7 @@ function ProjectRoadmapContent() {
     const totals = new Array(monthHeaders.length).fill(0);
     for (const row of timelineRows) {
       for (const pm of row.paymentMarkers) {
-        if (pm.status === "cancelled") continue; // Only cancelled installments are excluded — Hold still counts normally
+        if (isExcludedFromTotals(pm.status)) continue;
         const mIdx = colToMonthIdx[pm.col];
         if (mIdx !== undefined) totals[mIdx] += pm.amount;
       }

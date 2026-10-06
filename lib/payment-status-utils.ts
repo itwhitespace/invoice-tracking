@@ -21,6 +21,11 @@ export const PAYMENT_STATUS_BADGE_CLASSES: Record<PaymentStatus, string> = {
   cancelled: "bg-red-100 border-red-300 text-red-900",
 };
 
+// Hold and Cancelled installments are left out of every money total
+// (Roadmap monthly totals, Dashboard Summary/Annual Billing, Excel export).
+export const isExcludedFromTotals = (status: PaymentStatus): boolean =>
+  status === "hold" || status === "cancelled";
+
 // Resolves the date that belongs to a payment term's current status — the
 // same rule the detail modal's "วันที่ของสถานะ" column uses. A term with no
 // explicit status yet defaults to Wait.
