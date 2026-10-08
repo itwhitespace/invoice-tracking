@@ -22,5 +22,5 @@ export const getCompanyLabel = (value?: string): string => {
 // row, even ones with no approved projects yet.
 export const COMPANY_DEPARTMENTS: Record<string, string[]> = {
   "Whitespace Partners": ["studio-1", "studio-2", "studio-3", "studio-4"],
-  Whitespaceconnect: ["Signage", "Branding", "Digital Mkt", "Merge"],
+  Whitespaceconnect: ["Panda", "Panther", "Penguin", "Merge"],
 };

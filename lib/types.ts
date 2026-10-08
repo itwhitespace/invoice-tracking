@@ -33,7 +33,7 @@ export interface ExtractedProjectData {
   paymentTerms: PaymentTermItem[];
 }
 
-export type Department = 'studio-1' | 'studio-2' | 'studio-3' | 'studio-4' | 'Signage' | 'Branding' | 'Digital Mkt' | 'Merge';
+export type Department = 'studio-1' | 'studio-2' | 'studio-3' | 'studio-4' | 'Panda' | 'Panther' | 'Penguin' | 'Merge';
 
 export interface SavedRecord {
   id: string;

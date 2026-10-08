@@ -1,5 +1,5 @@
 import { Info as InfoIcon } from "lucide-react";
-import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentBadgeClasses } from "@/lib/department-utils";
+import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation, getDepartmentBadgeClasses } from "@/lib/department-utils";
 import { COMPANY_DEPARTMENTS } from "@/lib/company-utils";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 
@@ -283,6 +283,7 @@ export default function InfoPage() {
                       {depts.map((d) => (
                         <span key={d} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold border ${getDepartmentBadgeClasses(d)}`}>
                           {formatDepartmentLabel(d)}
+                          <span className="ml-1.5 font-mono font-normal opacity-70">{getDepartmentAbbreviation(d)}</span>
                         </span>
                       ))}
                     </div>
@@ -291,6 +292,10 @@ export default function InfoPage() {
               </div>
               <p className="text-[11.5px] text-slate-500 mt-3">
                 สีของแต่ละแผนก ({DEPARTMENT_OPTIONS.length} แผนกทั้งหมด) ตรงกับกรอบตัวย่อที่เห็นในหน้า Project Roadmap — ใช้แยกแผนกด้วยตาได้เร็วขึ้นโดยไม่ต้องอ่านตัวหนังสือ
+                ตัวอักษรเล็กหลังชื่อคือตัวย่อที่ใช้บน Roadmap และในไฟล์ Excel
+              </p>
+              <p className="text-[11.5px] text-slate-500 mt-2">
+                แผนกของ WSCN เปลี่ยนชื่อเมื่อ ต.ค. 2569: Signage → Panda, Branding → Panther, Digital Mkt → Penguin — ข้อมูลเดิมที่บันทึกด้วยชื่อเก่าถูกอ่านเป็นชื่อใหม่ให้อัตโนมัติ
               </p>
             </section>
 

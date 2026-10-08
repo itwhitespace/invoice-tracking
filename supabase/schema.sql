@@ -27,7 +27,7 @@ create table if not exists public.projects (
   status                 text not null default 'verified'
                            check (status in ('pending', 'draft', 'verified', 'approved')),
   start_date             date,                                 -- Operations tab: project kickoff date, drives the Roadmap Gantt position
-  department             text,                                 -- Operations tab: studio-1/studio-2/studio-3/studio-4/Signage/Branding
+  department             text,                                 -- Operations tab: studio-1..4 / Panda / Panther / Penguin / Merge
   approved_at            timestamptz,                           -- Set when status is switched to 'approved'
   on_hold                boolean not null default false,       -- deprecated, no longer written by the app
   roadmap_note           text,                                  -- Free-text note editable from the Project Roadmap page

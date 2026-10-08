@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { ExtractedProjectData, SavedRecord, TimeFrameItem, PaymentTermItem } from "./types";
+import { normalizeDepartment } from "./department-utils";
 
 // Create client using environment variables or user provided settings from localStorage
 export function getSupabaseClient(customUrl?: string, customKey?: string) {
@@ -49,7 +50,8 @@ export function getLocalSavedRecords(): SavedRecord[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(LOCAL_HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const records: SavedRecord[] = raw ? JSON.parse(raw) : [];
+    return records.map((r) => ({ ...r, department: normalizeDepartment(r.department) as SavedRecord["department"] }));
   } catch (err) {
     console.error("Error reading local saved records:", err);
     return [];
@@ -121,7 +123,7 @@ function mapProjectRowToRecord(row: any): SavedRecord {
     pdfFileName: row.pdf_file_name || "",
     status: row.status,
     startDate: row.start_date || "",
-    department: row.department || "",
+    department: normalizeDepartment(row.department) as SavedRecord["department"],
     approvedAt: row.approved_at || "",
     roadmapNote: row.roadmap_note || "",
     roadmapHidden: !!row.roadmap_hidden,
@@ -314,7 +316,16 @@ export function getLocalDepartmentTargets(): Record<string, number> {
   if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(LOCAL_TARGETS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const stored: Record<string, number> = raw ? JSON.parse(raw) : {};
+    // Re-key anything saved under a pre-rename department name; a value
+    // already saved under the new name wins.
+    const targets: Record<string, number> = {};
+    for (const [key, amount] of Object.entries(stored)) {
+      const [company, dept, year] = key.split("::");
+      const newKey = `${company}::${normalizeDepartment(dept)}::${year}`;
+      if (newKey === key || !(newKey in stored)) targets[newKey] = amount;
+    }
+    return targets;
   } catch (err) {
     console.error("Error reading local department targets:", err);
     return {};
@@ -344,9 +355,14 @@ export async function getDepartmentTargets(supabase: SupabaseClient | null): Pro
     return local;
   }
 
+  // Rows still under a pre-rename department name are read as the new name;
+  // a row already saved under the new name wins over its legacy twin.
   const remote: Record<string, number> = {};
-  for (const row of data) {
-    remote[departmentTargetKey(row.company_name, row.department, row.fiscal_year_start)] = Number(row.target_amount) || 0;
+  const sorted = [...data].sort(
+    (a, b) => Number(normalizeDepartment(a.department) === a.department) - Number(normalizeDepartment(b.department) === b.department)
+  );
+  for (const row of sorted) {
+    remote[departmentTargetKey(row.company_name, normalizeDepartment(row.department), row.fiscal_year_start)] = Number(row.target_amount) || 0;
   }
   return { ...local, ...remote };
 }
