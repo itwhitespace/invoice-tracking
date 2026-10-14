@@ -2,7 +2,7 @@
 
 import { useEffect, useState, ReactNode, Suspense } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarRange,
@@ -15,8 +15,16 @@ import {
   ChevronDown,
   Menu,
   X,
+  Users,
+  LogOut,
+  Loader2,
+  ShieldAlert,
+  KeyRound,
 } from "lucide-react";
-import { COMPANY_OPTIONS } from "@/lib/company-utils";
+import { SetPasswordForm } from "@/components/set-password-form";
+import { CompanyOption } from "@/lib/company-utils";
+import { useAuth } from "@/lib/auth-context";
+import { describeUserLevel, PermissionKey } from "@/lib/permissions";
 
 const SIDEBAR_COLLAPSED_KEY = "invoice_tracking_sidebar_collapsed";
 
@@ -30,38 +38,114 @@ interface NavItemDef {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
-  children?: NavChild[];
+  hasCompanySubmenu?: boolean;
+  requires?: PermissionKey | "admin";
 }
 
+const NAV_ITEMS: NavItemDef[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/project-roadmap", label: "Project Roadmap", icon: CalendarRange, hasCompanySubmenu: true },
+  { href: "/proposal-preview", label: "Proposal Preview", icon: FileSearch, hasCompanySubmenu: true },
+  { href: "/upload-proposal", label: "Upload Proposal", icon: UploadCloud, requires: "create_proposal" },
+  { href: "/users", label: "ผู้ใช้งาน", icon: Users, requires: "admin" },
+  { href: "/settings", label: "Settings", icon: Settings, requires: "admin" },
+  { href: "/info", label: "Info", icon: Info },
+];
+
 // Project Roadmap and Proposal Preview each split into a submenu per
-// company — data on each page is filtered by "Project by" (companyName).
-const companySubmenu = (basePath: string): NavChild[] =>
-  COMPANY_OPTIONS.map((c) => ({
+// company the signed-in user can see.
+const companySubmenu = (basePath: string, companies: CompanyOption[]): NavChild[] =>
+  companies.map((c) => ({
     label: c.label,
     href: `${basePath}?company=${encodeURIComponent(c.value)}`,
     companyValue: c.value,
   }));
 
-const NAV_ITEMS: NavItemDef[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  {
-    href: "/project-roadmap",
-    label: "Project Roadmap",
-    icon: CalendarRange,
-    children: companySubmenu("/project-roadmap"),
-  },
-  {
-    href: "/proposal-preview",
-    label: "Proposal Preview",
-    icon: FileSearch,
-    children: companySubmenu("/proposal-preview"),
-  },
-  { href: "/upload-proposal", label: "Upload Proposal", icon: UploadCloud },
-  { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/info", label: "Info", icon: Info },
-];
+const PUBLIC_PATHS = ["/login"];
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { isLoading, session, appUser } = useAuth();
+  const isPublicPath = PUBLIC_PATHS.includes(pathname || "");
+
+  useEffect(() => {
+    if (!isLoading && !session && !isPublicPath) router.replace("/login");
+  }, [isLoading, session, isPublicPath, router]);
+
+  if (isPublicPath) return <>{children}</>;
+
+  if (isLoading || !session) {
+    return (
+      <div className="h-[100dvh] flex items-center justify-center bg-slate-100">
+        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (!appUser || (!appUser.is_admin && appUser.companies.length === 0)) {
+    return <NoAccessScreen email={session.user.email || ""} isListed={!!appUser} />;
+  }
+
+  if (!session.user.user_metadata?.password_set) {
+    return <FirstPasswordScreen />;
+  }
+
+  return <SignedInShell>{children}</SignedInShell>;
+}
+
+function NoAccessScreen({ email, isListed }: { email: string; isListed: boolean }) {
+  const { signOut } = useAuth();
+  return (
+    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-100 p-4 font-sans">
+      <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl shadow-sm p-6 text-center space-y-4">
+        <div className="w-12 h-12 mx-auto rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center">
+          <ShieldAlert className="w-6 h-6 text-amber-600" />
+        </div>
+        <div>
+          <h1 className="text-sm font-bold text-slate-900">ยังไม่มีสิทธิ์เข้าดูข้อมูล</h1>
+          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+            {isListed
+              ? "บัญชีนี้ยังไม่ได้รับสิทธิ์ให้เห็นข้อมูลของบริษัทใด"
+              : "อีเมลนี้ไม่อยู่ในรายชื่อผู้ใช้งาน"}{" "}
+            กรุณาติดต่อผู้ดูแลระบบ
+          </p>
+          <p className="text-[11px] text-slate-400 font-mono mt-2">{email}</p>
+        </div>
+        <button
+          onClick={signOut}
+          className="w-full py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+        >
+          ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Someone who signed in with an email code but never set a password.
+function FirstPasswordScreen() {
+  const { session, signOut } = useAuth();
+  return (
+    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-100 p-4 font-sans">
+      <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-4">
+        <div>
+          <h1 className="text-sm font-bold text-slate-900">ตั้งรหัสผ่านก่อนใช้งาน</h1>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            ครั้งต่อไปเข้าสู่ระบบด้วยอีเมลและรหัสผ่านนี้ ไม่ต้องรอรหัสทางอีเมล
+          </p>
+          <p className="text-[11px] text-slate-400 font-mono mt-1.5">{session?.user.email}</p>
+        </div>
+        <SetPasswordForm submitLabel="บันทึกรหัสผ่าน" onDone={() => {}} />
+        <button onClick={signOut} className="w-full text-[11px] text-slate-500 hover:text-slate-900">
+          ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SignedInShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -81,7 +165,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // open — without forcing other manually-opened items closed.
   useEffect(() => {
     const activeParent = NAV_ITEMS.find(
-      (i) => i.children && (pathname === i.href || pathname?.startsWith(i.href + "/"))
+      (i) => i.hasCompanySubmenu && (pathname === i.href || pathname?.startsWith(i.href + "/"))
     );
     if (!activeParent) return;
     setExpandedItems((prev) => {
@@ -158,6 +242,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 />
               </Suspense>
             </div>
+            <UserFooter collapsed={false} />
           </aside>
         </div>
       )}
@@ -204,6 +289,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             toggleExpanded={toggleExpanded}
           />
         </Suspense>
+        <UserFooter collapsed={collapsed} />
       </aside>
 
       {/* Main Content */}
@@ -227,16 +313,22 @@ function SidebarNav({
 }) {
   const searchParams = useSearchParams();
   const currentCompany = searchParams.get("company") || "";
+  const { can, isAdmin, visibleCompanies } = useAuth();
+
+  const items = NAV_ITEMS.filter(
+    (item) => !item.requires || (item.requires === "admin" ? isAdmin : can(item.requires))
+  );
 
   return (
-    <nav className="flex-1 py-3 px-2 space-y-1">
-      {NAV_ITEMS.map((item) => {
+    <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+      {items.map((item) => {
         const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
         const Icon = item.icon;
         const isExpanded = expandedItems.has(item.href);
+        const children = item.hasCompanySubmenu ? companySubmenu(item.href, visibleCompanies) : [];
         // Sub-nav items are unreachable in collapsed (icon-only) mode, so
         // there the parent still navigates directly like a normal link.
-        const hasSubmenu = !!item.children && !collapsed;
+        const hasSubmenu = children.length > 0 && !collapsed;
 
         return (
           <div key={item.href}>
@@ -278,7 +370,7 @@ function SidebarNav({
                 company value). */}
             {hasSubmenu && isExpanded && (
               <div className="mt-1 ml-[1.15rem] pl-3 border-l border-slate-200 space-y-0.5">
-                {item.children!.map((child) => {
+                {children.map((child) => {
                   const isChildActive = isActive && currentCompany === child.companyValue;
                   return (
                     <Link
@@ -300,5 +392,72 @@ function SidebarNav({
         );
       })}
     </nav>
+  );
+}
+
+function UserFooter({ collapsed }: { collapsed: boolean }) {
+  const { session, appUser, signOut } = useAuth();
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(false);
+  if (!appUser) return null;
+
+  return (
+    <div className={`border-t border-slate-200 p-2 shrink-0 ${collapsed ? "flex justify-center" : ""}`}>
+      {!collapsed && (
+        <div className="px-2 pt-1 pb-2 min-w-0">
+          <p className="text-[11px] font-semibold text-slate-800 truncate" title={session?.user.email}>
+            {appUser.display_name || session?.user.email}
+          </p>
+          <p className="text-[10.5px] text-slate-500 truncate">{describeUserLevel(appUser)}</p>
+        </div>
+      )}
+      <button
+        onClick={signOut}
+        title="ออกจากระบบ"
+        className={`flex items-center gap-2 px-2.5 py-2 rounded-md text-xs font-semibold text-slate-600 hover:bg-slate-100 transition ${
+          collapsed ? "" : "w-full"
+        }`}
+      >
+        <LogOut className="w-4 h-4 shrink-0" />
+        {!collapsed && <span>ออกจากระบบ</span>}
+      </button>
+      {!collapsed && (
+        <button
+          onClick={() => {
+            setPasswordChanged(false);
+            setShowChangePassword(true);
+          }}
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition"
+        >
+          <KeyRound className="w-3.5 h-3.5 shrink-0" />
+          <span>เปลี่ยนรหัสผ่าน</span>
+        </button>
+      )}
+
+      {showChangePassword && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 space-y-4">
+            <h2 className="text-sm font-bold text-slate-900">เปลี่ยนรหัสผ่าน</h2>
+            {passwordChanged ? (
+              <>
+                <p className="text-xs text-emerald-700">เปลี่ยนรหัสผ่านเรียบร้อยแล้ว</p>
+                <button
+                  onClick={() => setShowChangePassword(false)}
+                  className="w-full py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg"
+                >
+                  ตกลง
+                </button>
+              </>
+            ) : (
+              <SetPasswordForm
+                submitLabel="บันทึก"
+                onDone={() => setPasswordChanged(true)}
+                onCancel={() => setShowChangePassword(false)}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

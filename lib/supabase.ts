@@ -2,44 +2,38 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { ExtractedProjectData, SavedRecord, TimeFrameItem, PaymentTermItem } from "./types";
 import { normalizeDepartment } from "./department-utils";
 
-// Create client using environment variables or user provided settings from localStorage
-export function getSupabaseClient(customUrl?: string, customKey?: string) {
-  const rawUrl = (customUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
-  const key = (customKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "").trim();
+export const PDF_BUCKET = "pdf-documents";
 
-  if (!rawUrl || !key) {
+// One shared client for the whole app — it holds the login session, so
+// every page and component must use this same instance. Configured only
+// from the deployment's environment variables.
+let sharedClient: SupabaseClient | null | undefined;
+
+export function getSupabaseClient(): SupabaseClient | null {
+  if (sharedClient !== undefined) return sharedClient;
+
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
+  const key = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "").trim();
+  if (!url || !key) {
+    console.warn("NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY are not set");
+    sharedClient = null;
     return null;
   }
 
-  // Tolerate a URL pasted without the protocol (e.g. "xxxx.supabase.co").
-  const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
-
-  try {
-    new URL(url);
-  } catch {
-    console.warn("Invalid Supabase URL, skipping Supabase sync:", rawUrl);
-    return null;
-  }
-
-  try {
-    return createClient(url, key);
-  } catch (error) {
-    // Expected/handled failure path (bad user input) — warn, don't error,
-    // so it doesn't trigger Next's intrusive dev error overlay.
-    console.warn("Failed to initialize Supabase client:", error);
-    return null;
-  }
+  sharedClient = createClient(url, key);
+  return sharedClient;
 }
 
-export function isValidSupabaseUrl(rawUrl: string): boolean {
-  const trimmed = rawUrl.trim();
-  if (!trimmed) return true; // empty is allowed (Supabase sync just stays off)
-  const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+// Cached project data from this browser — cleared when someone signs out
+// or a different person signs in, so a shared computer never shows the
+// previous user's companies.
+export function clearLocalDataCaches() {
+  if (typeof window === "undefined") return;
   try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
+    localStorage.removeItem(LOCAL_HISTORY_KEY);
+    localStorage.removeItem(LOCAL_TARGETS_KEY);
+  } catch (err) {
+    console.error("Error clearing local caches:", err);
   }
 }
 

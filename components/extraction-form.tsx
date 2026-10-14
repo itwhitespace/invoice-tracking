@@ -8,6 +8,7 @@ import {
 } from "@/lib/types";
 import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import { formatThousands, parseThousands } from "@/lib/format-utils";
+import { useAuth } from "@/lib/auth-context";
 import {
   Plus,
   Trash2,
@@ -30,6 +31,7 @@ interface ExtractionFormProps {
 }
 
 export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }: ExtractionFormProps) {
+  const { visibleCompanies } = useAuth();
   const totalPercentage = useMemo(() => {
     return data.paymentTerms.reduce(
       (sum, item) => sum + (Number(item.paymentPercentage) || 0),
@@ -176,8 +178,9 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
           className="flex-1 max-w-xs px-2.5 py-1.5 text-xs font-semibold text-indigo-950 bg-white border border-indigo-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
         >
           <option value="">— ยังไม่ระบุ —</option>
-          <option value="Whitespace Partners">Whitespace Partners</option>
-          <option value="Whitespaceconnect">Whitespaceconnect</option>
+          {visibleCompanies.map((c) => (
+            <option key={c.value} value={c.value}>{c.value}</option>
+          ))}
         </select>
       </div>
 

@@ -10,7 +10,6 @@ import {
   upsertDepartmentTargetRemote,
   departmentTargetKey,
 } from "@/lib/supabase";
-import { useSettings } from "@/lib/settings-context";
 import { formatDepartmentLabel } from "@/lib/department-utils";
 import { COMPANY_DEPARTMENTS } from "@/lib/company-utils";
 import {
@@ -22,6 +21,7 @@ import {
 } from "@/lib/roadmap-timeline";
 import { LayoutDashboard, Loader2, ChevronLeft, ChevronRight, BarChart3, Pencil, Download } from "lucide-react";
 import { TargetEditModal } from "@/components/target-edit-modal";
+import { useAuth } from "@/lib/auth-context";
 
 interface CompanyStyle {
   name: string;
@@ -62,7 +62,9 @@ const formatMillions = (amount: number): string =>
   amount > 0 ? (amount / 1_000_000).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "-";
 
 export default function DashboardPage() {
-  const { settings } = useSettings();
+  const { can, canSeeCompany } = useAuth();
+  const canEditTarget = can("edit_target");
+  const visibleCompanyStyles = COMPANIES.filter((c) => canSeeCompany(c.name));
   const [records, setRecords] = useState<SavedRecord[]>([]);
   const [targets, setTargets] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -70,21 +72,21 @@ export default function DashboardPage() {
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const supabase = getSupabaseClient();
     Promise.all([getSavedRecords(supabase), getDepartmentTargets(supabase)])
       .then(([recs, tgts]) => {
-        setRecords(recs);
+        setRecords(recs.filter((r) => canSeeCompany(r.companyName)));
         setTargets(tgts);
       })
       .finally(() => setIsLoading(false));
-  }, [settings.supabaseUrl, settings.supabaseAnonKey]);
+  }, []);
 
   const handleTargetChange = async (companyName: string, department: string, targetAmount: number) => {
     const key = departmentTargetKey(companyName, department, fiscalYearStart);
     setTargets((prev) => ({ ...prev, [key]: targetAmount }));
     saveDepartmentTargetLocally(key, targetAmount);
 
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const supabase = getSupabaseClient();
     if (supabase) {
       const { error } = await upsertDepartmentTargetRemote(supabase, {
         companyName,
@@ -170,7 +172,7 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {approvedProjects.length > 0 && (
+          {approvedProjects.length > 0 && can("export_excel") && (
             <button
               type="button"
               onClick={handleExportExcel}
@@ -198,7 +200,7 @@ export default function DashboardPage() {
         ) : (
           <>
             <div className="space-y-6">
-              {COMPANIES.map((company) => (
+              {visibleCompanyStyles.map((company) => (
                 <CompanySummaryTable
                   key={company.name}
                   company={company}
@@ -209,7 +211,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-6">
-              {COMPANIES.map((company) => (
+              {visibleCompanyStyles.map((company) => (
                 <AnnualBillingSection
                   key={company.name}
                   company={company}
@@ -218,6 +220,7 @@ export default function DashboardPage() {
                   fiscalYearStart={fiscalYearStart}
                   targets={targets}
                   onTargetChange={handleTargetChange}
+                  canEditTarget={canEditTarget}
                 />
               ))}
             </div>
@@ -327,6 +330,7 @@ function AnnualBillingSection({
   fiscalYearStart,
   targets,
   onTargetChange,
+  canEditTarget,
 }: {
   company: CompanyStyle;
   projects: SavedRecord[];
@@ -334,6 +338,7 @@ function AnnualBillingSection({
   fiscalYearStart: number;
   targets: Record<string, number>;
   onTargetChange: (companyName: string, department: string, targetAmount: number) => void;
+  canEditTarget: boolean;
 }) {
   const departments = COMPANY_DEPARTMENTS[company.name] || [];
   const [editingDept, setEditingDept] = useState<string | null>(null);
@@ -383,6 +388,7 @@ function AnnualBillingSection({
                 <tr key={r.dept} className="hover:bg-slate-50/60 transition-colors">
                   <td className={`py-2 pr-3 font-semibold ${company.deptText}`}>{formatDepartmentLabel(r.dept)}</td>
                   <td className="py-2 px-3 text-right">
+                    {canEditTarget ? (
                     <button
                       type="button"
                       onClick={() => setEditingDept(r.dept)}
@@ -392,6 +398,9 @@ function AnnualBillingSection({
                       {formatMillions(r.target)}
                       <Pencil className="w-3 h-3 text-slate-300 group-hover:text-indigo-500 transition-colors" />
                     </button>
+                    ) : (
+                      <span className="font-mono font-semibold text-slate-800">{formatMillions(r.target)}</span>
+                    )}
                   </td>
                   <td className="py-2 px-3 text-right font-mono font-semibold text-slate-800">
                     {formatMillions(r.actual)}

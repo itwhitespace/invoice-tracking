@@ -15,7 +15,10 @@ import {
 import { EMPTY_PROJECT_DATA } from "@/lib/sample-data";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
 import { DesktopOnlyNotice } from "@/components/desktop-only-notice";
+import { RequirePermission } from "@/components/require-permission";
+import { useAuth } from "@/lib/auth-context";
 import {
+  PDF_BUCKET,
   getSupabaseClient,
   getSavedRecords,
   saveRecordLocally,
@@ -24,12 +27,20 @@ import {
   insertProjectRemote,
   isRemoteId,
 } from "@/lib/supabase";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, AlertTriangle, Info } from "lucide-react";
 
 export default function UploadProposalPage() {
+  return (
+    <RequirePermission perm="create_proposal">
+      <UploadProposalContent />
+    </RequirePermission>
+  );
+}
+
+function UploadProposalContent() {
   const { settings } = useSettings();
+  const { can, canSeeCompany, session } = useAuth();
   const router = useRouter();
 
   const [file, setFile] = useState<File | null>(null);
@@ -70,9 +81,9 @@ export default function UploadProposalPage() {
   // Load saved records on mount (Supabase is the shared source of truth,
   // merged with anything still only saved locally on this device)
   useEffect(() => {
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
-    getSavedRecords(supabase).then(setSavedRecords);
-  }, [settings.supabaseUrl, settings.supabaseAnonKey]);
+    const supabase = getSupabaseClient();
+    getSavedRecords(supabase).then((recs) => setSavedRecords(recs.filter((r) => canSeeCompany(r.companyName))));
+  }, []);
 
   // Upload handler
   const handleFileUpload = (uploadedFile: File) => {
@@ -89,9 +100,6 @@ export default function UploadProposalPage() {
     try {
       const formData = new FormData();
       formData.append("file", pdfFile);
-      if (settings.geminiApiKey) {
-        formData.append("apiKey", settings.geminiApiKey);
-      }
       if (settings.preferredModel) {
         formData.append("model", settings.preferredModel);
       }
@@ -101,6 +109,7 @@ export default function UploadProposalPage() {
 
       const res = await fetch("/api/extract-pdf", {
         method: "POST",
+        headers: session ? { Authorization: `Bearer ${session.access_token}` } : undefined,
         body: formData,
       });
 
@@ -167,19 +176,19 @@ export default function UploadProposalPage() {
       let remoteProjectId = "";
 
       // 1. Check if Supabase client is configured
-      const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+      const supabase = getSupabaseClient();
 
       if (supabase && file) {
         // Upload to Supabase Storage so the file can be opened from Preview later
         const fileExt = file.name.split(".").pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
         const { error: storageError } = await supabase.storage
-          .from(settings.supabaseBucket || "pdf-documents")
+          .from(PDF_BUCKET)
           .upload(fileName, file);
 
         if (!storageError) {
           const { data: publicData } = supabase.storage
-            .from(settings.supabaseBucket || "pdf-documents")
+            .from(PDF_BUCKET)
             .getPublicUrl(fileName);
           uploadedPdfUrl = publicData?.publicUrl || "";
         } else {
@@ -276,7 +285,7 @@ export default function UploadProposalPage() {
     setSavedRecords(updated);
     showToast("info", "ลบรายการเรียบร้อย");
 
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const supabase = getSupabaseClient();
     if (supabase && isRemoteId(id)) {
       const { error } = await deleteRecordRemote(supabase, id);
       if (error) {
@@ -306,11 +315,8 @@ export default function UploadProposalPage() {
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
           <span>
             ข้อมูลด้านล่างเป็น <strong>ข้อมูลตัวอย่าง (Demo)</strong> ไม่ใช่ข้อมูลจากไฟล์ PDF ที่อัปโหลดจริง
-            เนื่องจากยังไม่ได้ตั้งค่า Gemini API Key
+            เนื่องจากเซิร์ฟเวอร์ยังไม่ได้ตั้งค่า Gemini API Key — กรุณาแจ้งผู้ดูแลระบบ
           </span>
-          <Link href="/settings" className="underline font-semibold shrink-0 hover:text-amber-950">
-            ไปตั้งค่า API Key
-          </Link>
         </div>
       )}
 
@@ -375,7 +381,7 @@ export default function UploadProposalPage() {
         onClose={() => setIsHistoryOpen(false)}
         records={savedRecords}
         onSelectRecord={handleSelectRecord}
-        onDeleteRecord={handleDeleteRecord}
+        onDeleteRecord={can("delete_project") ? handleDeleteRecord : undefined}
       />
 
       {/* Center Screen Save Success Modal */}

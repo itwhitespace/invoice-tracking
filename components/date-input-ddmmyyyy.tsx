@@ -7,6 +7,7 @@ interface DateInputDDMMYYYYProps {
   value: string; // ISO yyyy-mm-dd, or ""
   onChange: (isoValue: string) => void;
   className?: string;
+  disabled?: boolean;
 }
 
 function isoToDisplay(iso: string): string {
@@ -40,7 +41,7 @@ function displayToIso(digits: string): string | null {
 // <input type="date"> silently follows the machine's locale (mm/dd/yyyy on
 // a US-locale machine), which is easy to misread when typing by hand. A
 // small calendar-icon button still opens a native picker for point-and-click.
-export function DateInputDDMMYYYY({ value, onChange, className }: DateInputDDMMYYYYProps) {
+export function DateInputDDMMYYYY({ value, onChange, className, disabled }: DateInputDDMMYYYYProps) {
   const [text, setText] = useState(isoToDisplay(value));
   const hiddenRef = useRef<HTMLInputElement>(null);
 
@@ -72,8 +73,10 @@ export function DateInputDDMMYYYY({ value, onChange, className }: DateInputDDMMY
         value={text}
         onChange={(e) => handleTextChange(e.target.value)}
         placeholder="DD/MM/YYYY"
+        disabled={disabled}
         className={className}
       />
+      {!disabled && (
       <button
         type="button"
         onClick={openNativePicker}
@@ -82,6 +85,7 @@ export function DateInputDDMMYYYY({ value, onChange, className }: DateInputDDMMY
       >
         <Calendar className="w-3.5 h-3.5" />
       </button>
+      )}
       <input
         ref={hiddenRef}
         type="date"

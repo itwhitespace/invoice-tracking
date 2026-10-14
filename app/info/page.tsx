@@ -2,6 +2,7 @@ import { Info as InfoIcon } from "lucide-react";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel, getDepartmentAbbreviation, getDepartmentBadgeClasses } from "@/lib/department-utils";
 import { COMPANY_DEPARTMENTS } from "@/lib/company-utils";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
+import { PERMISSIONS, PERMISSION_TEMPLATES } from "@/lib/permissions";
 
 // Project-status badge colors — kept in sync with app/proposal-preview/page.tsx's
 // own STATUS_STYLES (not imported since that one is local to a client component).
@@ -36,6 +37,7 @@ const TOC = [
   { href: "#export", label: "Export Excel" },
   { href: "#history", label: "ประวัติการแก้ไข" },
   { href: "#mobile", label: "การใช้งานบนมือถือ" },
+  { href: "#access", label: "การเข้าสู่ระบบและสิทธิ์" },
   { href: "#notes", label: "ข้อควรรู้เพิ่มเติม" },
 ];
 
@@ -110,7 +112,8 @@ export default function InfoPage() {
                       ["Project Roadmap", "มุมมอง Gantt รายสัปดาห์ของโครงการที่ Approved แล้ว ลากปรับกำหนดเก็บเงินได้"],
                       ["Proposal Preview", "รายการโครงการทั้งหมด ดูรายละเอียด แก้ไข อนุมัติ/ยกเลิกอนุมัติ"],
                       ["Upload Proposal", "นำเข้าโครงการใหม่จากไฟล์ PDF ให้ AI ช่วยดึงข้อมูล"],
-                      ["Settings", "ตั้งค่าการเชื่อมต่อ Supabase (ฐานข้อมูล) และ API Key"],
+                      ["ผู้ใช้งาน", "เพิ่มผู้ใช้ กำหนดบริษัทที่เห็นและสิทธิ์รายคน และดูว่าแต่ละคนเข้าใช้ล่าสุดเมื่อไหร่ (เฉพาะผู้ดูแลระบบ)"],
+                      ["Settings", "เลือกรุ่น AI ที่ใช้ดึงข้อมูลจาก PDF (เฉพาะผู้ดูแลระบบ)"],
                     ].map(([name, desc], i) => (
                       <tr key={name} className={i !== 0 ? "border-t border-slate-100" : ""}>
                         <td className="font-mono font-semibold text-slate-800 px-5 py-3 w-44 align-top">{name}</td>
@@ -420,7 +423,7 @@ export default function InfoPage() {
                       ["Dashboard", "ดูตาราง Summary / Annual Billing ได้ เลื่อนปีงบประมาณได้ ไม่มีปุ่ม Export Excel"],
                       ["Proposal Preview", "แสดงเป็นการ์ดทีละโครงการ แตะเพื่อดูรายละเอียดเต็มจอ (อ่านอย่างเดียว) และเปิดไฟล์ PDF ได้ — ไม่มีปุ่มเพิ่ม/ลบ/แก้ไข"],
                       ["Project Roadmap", "แสดงเป็นรายการตามโครงการแทน Gantt: ทุกงวดบอก Week, วันที่, %, ยอดเงิน และป้ายสถานะ — เปลี่ยนสถานะหรือลากย้ายสัปดาห์ไม่ได้"],
-                      ["Upload Proposal / Settings", "ใช้งานไม่ได้ ขึ้นข้อความ \"กรุณาใช้งานบนคอมพิวเตอร์\""],
+                      ["Upload Proposal / Settings / ผู้ใช้งาน", "ใช้งานไม่ได้ ขึ้นข้อความ \"กรุณาใช้งานบนคอมพิวเตอร์\""],
                     ].map(([name, desc], i) => (
                       <tr key={name} className={i !== 0 ? "border-t border-slate-100" : ""}>
                         <td className="font-mono font-semibold text-slate-800 px-5 py-3 w-44 align-top">{name}</td>
@@ -435,15 +438,76 @@ export default function InfoPage() {
               </p>
             </section>
 
-            <section id="notes" className="scroll-mt-6">
-              <SectionHeading num="14" title="ข้อควรรู้เพิ่มเติม" />
-              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-[11.5px] text-slate-700 leading-relaxed">
-                <b className="text-amber-700">ไม่มีระบบ Login แล้ว:</b> ทุกคนที่มีลิงก์เข้าเว็บแอปได้ทุกหน้าทันที และคอลัมน์ &quot;ผู้แก้ไข&quot; ในประวัติการแก้ไข
-                จะว่างเปล่าเสมอ เพราะไม่มีการระบุตัวตนผู้ใช้งานในระบบอีกต่อไป
+            <section id="access" className="scroll-mt-6">
+              <SectionHeading
+                num="14"
+                title="การเข้าสู่ระบบและสิทธิ์"
+                desc="เข้าระบบด้วยอีเมลที่ผู้ดูแลระบบเพิ่มไว้เท่านั้น ครั้งแรก (หรือตอนลืมรหัสผ่าน) ระบบส่งรหัส 6 หลักไปที่อีเมลเพื่อยืนยันตัวตน แล้วให้ตั้งรหัสผ่านเอง (อย่างน้อย 8 ตัว) ครั้งต่อไปเข้าด้วยอีเมล + รหัสผ่าน ระบบจำการเข้าไว้จนกว่าจะกดออกจากระบบ เปลี่ยนรหัสผ่านได้ที่เมนูด้านล่างซ้าย"
+              />
+              <div className="space-y-3">
+                <Card>
+                  <h4 className="text-[12px] font-bold text-slate-900 mb-2">บริษัทที่เห็น</h4>
+                  <p className="text-[11.5px] text-slate-600 leading-relaxed">
+                    ผู้ดูแลระบบติ๊กเลือกบริษัทให้แต่ละคน ผู้ใช้จะเห็นเฉพาะโครงการ ยอดเงิน และ Target ของบริษัทที่ได้รับสิทธิ์ ทุกหน้ารวมถึงไฟล์ Excel
+                    — ฐานข้อมูลเป็นตัวบังคับ ไม่ใช่แค่ซ่อนบนหน้าจอ ผู้ที่ยังไม่ได้รับบริษัทใดจะเข้าระบบได้แต่ไม่เห็นข้อมูล
+                  </p>
+                </Card>
+                <Card className="!p-0 overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] text-slate-500">
+                        <th className="px-5 py-2.5 text-left font-semibold">สิทธิ์ (ติ๊กได้รายคน)</th>
+                        {PERMISSION_TEMPLATES.map((t) => (
+                          <th key={t.key} className="px-3 py-2.5 text-center font-semibold w-20">{t.label.split(" ")[0]}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="px-5 py-2.5 text-slate-700">ดูข้อมูลของบริษัทที่ได้รับสิทธิ์</td>
+                        {PERMISSION_TEMPLATES.map((t) => (
+                          <td key={t.key} className="px-3 py-2.5 text-center text-emerald-600 font-bold">✓</td>
+                        ))}
+                      </tr>
+                      {PERMISSIONS.map((p) => (
+                        <tr key={p.key} className="border-t border-slate-100">
+                          <td className="px-5 py-2.5 text-slate-700">
+                            {p.label}
+                            <span className="block text-[10.5px] text-slate-400">{p.hint}</span>
+                          </td>
+                          {PERMISSION_TEMPLATES.map((t) => (
+                            <td key={t.key} className="px-3 py-2.5 text-center font-bold">
+                              {t.permissions.includes(p.key) ? <span className="text-emerald-600">✓</span> : <span className="text-slate-300">–</span>}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                      <tr className="border-t border-slate-100">
+                        <td className="px-5 py-2.5 text-slate-700">จัดการผู้ใช้และ Settings</td>
+                        {PERMISSION_TEMPLATES.map((t) => (
+                          <td key={t.key} className="px-3 py-2.5 text-center font-bold">
+                            {t.isAdmin ? <span className="text-emerald-600">✓</span> : <span className="text-slate-300">–</span>}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </Card>
               </div>
+              <ul className="mt-3 space-y-1.5 text-[11.5px] text-slate-500 leading-relaxed max-w-2xl">
+                <li>— ตารางด้านบนคือค่าเริ่มต้นของ Template แต่ละแบบ ผู้ดูแลระบบปรับรายข้อให้แต่ละคนได้ ผู้ใช้ที่ถูกปรับจะแสดงว่า &quot;(ปรับเอง)&quot;</li>
+                <li>— แก้ Template ในภายหลังไม่เปลี่ยนสิทธิ์ของผู้ใช้ที่ตั้งไว้แล้ว</li>
+                <li>— สิทธิ์ผู้ดูแลระบบได้ทุกสิทธิ์และเห็นทุกบริษัท ถอดสิทธิ์ของตัวเองไม่ได้ และต้องมีผู้ดูแลอย่างน้อยหนึ่งคนเสมอ</li>
+                <li>— Export Excel คุมได้แค่การซ่อนปุ่ม ผู้ที่ดูข้อมูลได้ยังคัดลอกข้อมูลบนจอเองได้</li>
+                <li>— ช่อง &quot;ผู้แก้ไข&quot; ในแท็บประวัติบันทึกอีเมลของผู้ที่เข้าระบบอยู่ตอนแก้ไข</li>
+              </ul>
+            </section>
+
+            <section id="notes" className="scroll-mt-6">
+              <SectionHeading num="15" title="ข้อควรรู้เพิ่มเติม" />
               <p className="text-[11.5px] text-slate-500 mt-3 leading-relaxed max-w-2xl">
                 ข้อมูลทุกครั้งที่บันทึกจะถูกเก็บไว้ใน Local Storage ของเบราว์เซอร์ก่อนเสมอ แล้วค่อยพยายามส่งขึ้นฐานข้อมูลกลาง (Supabase) — ถ้าส่งไม่สำเร็จจะมีข้อความแจ้งเตือนสีแดงขึ้นมาให้เห็นชัดเจน
-                ข้อมูลจะไม่หายไปไหน แค่ยังไม่ซิงก์ขึ้นส่วนกลาง
+                ข้อมูลจะไม่หายไปไหน แค่ยังไม่ซิงก์ขึ้นส่วนกลาง สำเนาในเบราว์เซอร์จะถูกล้างเมื่อกดออกจากระบบ หรือเมื่อมีคนอื่นเข้าระบบด้วยเครื่องเดียวกัน ถ้ามีรายการที่ยังไม่ได้ส่งขึ้นฐานข้อมูล ระบบจะเตือนก่อนออกจากระบบ
               </p>
             </section>
 

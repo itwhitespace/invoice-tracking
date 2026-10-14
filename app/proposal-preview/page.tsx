@@ -12,7 +12,6 @@ import {
   insertProjectRemote,
   isRemoteId,
 } from "@/lib/supabase";
-import { useSettings } from "@/lib/settings-context";
 import { getCompanyLabel } from "@/lib/company-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-utils";
 import { formatProjectDuration } from "@/lib/timeframe-utils";
@@ -21,6 +20,7 @@ import { ProposalDetailModal } from "@/components/proposal-detail-modal";
 import { AddProposalModal } from "@/components/add-proposal-modal";
 import { AnimatedTabs } from "@/components/animated-tabs";
 import { MobileProposalSheet, ProposalStatusBadge } from "@/components/mobile-proposal-sheet";
+import { useAuth } from "@/lib/auth-context";
 import { FileSearch, Eye, Trash2, FileText, ExternalLink, FilePlus, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -41,7 +41,10 @@ export default function ProposalPreviewPage() {
 }
 
 function ProposalPreviewContent() {
-  const { settings } = useSettings();
+  const { can, canSeeCompany } = useAuth();
+  const canCreate = can("create_proposal");
+  const canEditProject = can("edit_project");
+  const canDelete = can("delete_project");
   const searchParams = useSearchParams();
   const companyFilter = searchParams.get("company") || "";
   const [records, setRecords] = useState<SavedRecord[]>([]);
@@ -124,11 +127,11 @@ function ProposalPreviewContent() {
   }, [departmentScopedRecords, statusFilter, searchQuery]);
 
   useEffect(() => {
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const supabase = getSupabaseClient();
     getSavedRecords(supabase)
-      .then(setRecords)
+      .then((recs) => setRecords(recs.filter((r) => canSeeCompany(r.companyName))))
       .finally(() => setIsLoading(false));
-  }, [settings.supabaseUrl, settings.supabaseAnonKey]);
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?")) return;
@@ -136,7 +139,7 @@ function ProposalPreviewContent() {
     deleteRecordLocally(id);
     setRecords((prev) => prev.filter((r) => r.id !== id));
 
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const supabase = getSupabaseClient();
     if (supabase && isRemoteId(id)) {
       const { error } = await deleteRecordRemote(supabase, id);
       if (error) {
@@ -148,7 +151,7 @@ function ProposalPreviewContent() {
   // Manual "Add Proposal" — same Supabase insert path as the PDF-upload
   // flow (via the shared insertProjectRemote helper), just without a file.
   const handleCreateProposal = async (data: ExtractedProjectData) => {
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const supabase = getSupabaseClient();
     let remoteProjectId = "";
 
     if (supabase) {
@@ -194,7 +197,7 @@ function ProposalPreviewContent() {
     setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     saveRecordLocally(updated);
 
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const supabase = getSupabaseClient();
     if (supabase && isRemoteId(updated.id)) {
       const { error } = await updateRecordRemote(supabase, updated);
       if (error) {
@@ -212,7 +215,7 @@ function ProposalPreviewContent() {
     setDetailRecord((prev) => (prev && prev.id === updated.id ? updated : prev));
     saveRecordLocally(updated);
 
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const supabase = getSupabaseClient();
     if (supabase && isRemoteId(updated.id)) {
       const { error } = await updateRecordRemote(supabase, updated);
       if (error) {
@@ -234,6 +237,7 @@ function ProposalPreviewContent() {
           )}
         </div>
         {/* Mobile is view-only, so the add/upload actions are desktop-only */}
+        {canCreate && (
         <div className="hidden md:flex items-center gap-3">
           <button
             onClick={() => setIsAddOpen(true)}
@@ -250,6 +254,7 @@ function ProposalPreviewContent() {
             ไปหน้า Upload
           </Link>
         </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto p-3 md:p-8">
@@ -372,7 +377,7 @@ function ProposalPreviewContent() {
                     <th className="p-3.5 text-center">Roadmap</th>
                     <th className="p-3.5 text-center">Action (ดูข้อมูล)</th>
                     <th className="p-3.5 w-16 text-center">PDF</th>
-                    <th className="p-3.5 w-16 text-center">ลบ</th>
+                    {canDelete && <th className="p-3.5 w-16 text-center">ลบ</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -412,7 +417,11 @@ function ProposalPreviewContent() {
                         {rec.approvedAt ? new Date(rec.approvedAt).toLocaleString("th-TH") : "-"}
                       </td>
                       <td className="p-3.5 text-center" onClick={(e) => e.stopPropagation()}>
-                        {rec.status === "approved" ? (
+                        {rec.status === "approved" && !canEditProject ? (
+                          <span className={`text-[10.5px] font-semibold ${rec.roadmapHidden ? "text-slate-400" : "text-emerald-700"}`}>
+                            {rec.roadmapHidden ? "ซ่อน" : "แสดง"}
+                          </span>
+                        ) : rec.status === "approved" ? (
                           <button
                             type="button"
                             onClick={() => handleToggleRoadmapHidden(rec)}
@@ -454,6 +463,7 @@ function ProposalPreviewContent() {
                           <Eye className="w-4 h-4" />
                         </button>
                       </td>
+                      {canDelete && (
                       <td className="p-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleDelete(rec.id)}
@@ -463,6 +473,7 @@ function ProposalPreviewContent() {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

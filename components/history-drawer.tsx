@@ -18,7 +18,7 @@ interface HistoryDrawerProps {
   onClose: () => void;
   records: SavedRecord[];
   onSelectRecord: (record: SavedRecord) => void;
-  onDeleteRecord: (id: string) => void;
+  onDeleteRecord?: (id: string) => void;
 }
 
 export function HistoryDrawer({
@@ -133,6 +133,7 @@ export function HistoryDrawer({
                       </button>
                     </div>
 
+                    {onDeleteRecord && (
                     <button
                       onClick={() => onDeleteRecord(rec.id)}
                       title="ลบรายการนี้"
@@ -140,6 +141,7 @@ export function HistoryDrawer({
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
+                    )}
                   </div>
                 </div>
               ))

@@ -59,11 +59,9 @@ export interface SavedRecord {
   roadmapHidden?: boolean;
 }
 
+// Per-browser preferences only — API keys and the database connection come
+// from the deployment's environment variables.
 export interface AppSettings {
-  geminiApiKey: string;
   preferredModel?: string;
-  supabaseUrl: string;
-  supabaseAnonKey: string;
-  supabaseBucket: string;
   useMockExtraction: boolean;
 }

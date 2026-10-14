@@ -15,9 +15,9 @@ import { getCompanyLabel } from "@/lib/company-utils";
 import { PAYMENT_STATUS_LABELS, getPaymentStatusInfo, isExcludedFromTotals } from "@/lib/payment-status-utils";
 import { MobileProposalSheet, MobilePaymentTermRow, formatThaiDate } from "@/components/mobile-proposal-sheet";
 import { logActivity, paymentStatusChangeSummary } from "@/lib/activity-log";
-import { useSettings } from "@/lib/settings-context";
 import { useSearchParams } from "next/navigation";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
+import { useAuth } from "@/lib/auth-context";
 import { PdfPreviewModal } from "@/components/pdf-preview-modal";
 import { AnimatedTabs } from "@/components/animated-tabs";
 import {
@@ -136,7 +136,8 @@ export default function ProjectRoadmapPage() {
 }
 
 function ProjectRoadmapContent() {
-  const { settings } = useSettings();
+  const { can, canSeeCompany } = useAuth();
+  const canEditPayment = can("edit_payment");
   const searchParams = useSearchParams();
   const companyFilter = searchParams.get("company") || "";
   const [records, setRecords] = useState<SavedRecord[]>([]);
@@ -307,9 +308,9 @@ function ProjectRoadmapContent() {
   // Load saved records from Supabase (shared across every device) with the
   // local history as a fallback/merge for anything not yet synced.
   useEffect(() => {
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
-    getSavedRecords(supabase).then(setRecords);
-  }, [settings.supabaseUrl, settings.supabaseAnonKey]);
+    const supabase = getSupabaseClient();
+    getSavedRecords(supabase).then((recs) => setRecords(recs.filter((r) => canSeeCompany(r.companyName))));
+  }, []);
 
   // Only fully Approved proposals belong on the roadmap, narrowed further by
   // the company selected from the sidebar submenu ("Project by"), if any.
@@ -644,6 +645,7 @@ function ProjectRoadmapContent() {
     originalWeek: number,
     rowStartCol: number
   ) => {
+    if (!canEditPayment) return;
     e.preventDefault();
     e.stopPropagation();
     const gridEl = e.currentTarget.parentElement;
@@ -685,7 +687,7 @@ function ProjectRoadmapContent() {
       setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       saveRecordLocally(updated);
 
-      const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+      const supabase = getSupabaseClient();
       if (supabase && isRemoteId(updated.id)) {
         const { error } = await updateRecordRemote(supabase, updated);
         if (error) {
@@ -721,7 +723,7 @@ function ProjectRoadmapContent() {
       setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       saveRecordLocally(updated);
 
-      const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+      const supabase = getSupabaseClient();
       if (supabase && isRemoteId(updated.id)) {
         const { error } = await updateRecordRemote(supabase, updated);
         if (error) {
@@ -762,7 +764,7 @@ function ProjectRoadmapContent() {
       setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       saveRecordLocally(updated);
 
-      const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+      const supabase = getSupabaseClient();
       if (supabase && isRemoteId(updated.id)) {
         const { error } = await updateRecordRemote(supabase, updated);
         if (error) {
@@ -791,7 +793,7 @@ function ProjectRoadmapContent() {
     setRecords((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     saveRecordLocally(updated);
 
-    const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const supabase = getSupabaseClient();
     if (supabase && isRemoteId(updated.id)) {
       const { error } = await updateRecordRemote(supabase, updated);
       if (error) {
@@ -1069,6 +1071,7 @@ function ProjectRoadmapContent() {
                       <div className="w-64 shrink-0 p-3.5 border-r border-slate-300 flex items-start gap-3 bg-white sticky left-0 z-40 group-hover:bg-slate-50">
                         <button
                           type="button"
+                          disabled={!canEditPayment}
                           onClick={() =>
                             setNoteEditor({
                               recordId: proj.id,
@@ -1076,8 +1079,8 @@ function ProjectRoadmapContent() {
                               value: proj.roadmapNote || "",
                             })
                           }
-                          className={`w-8 h-8 rounded-lg border flex items-center justify-center font-bold text-[10px] shrink-0 hover:brightness-95 hover:shadow-sm transition ${getDepartmentBadgeClasses(proj.department)}`}
-                          title={`${proj.department ? formatDepartmentLabel(proj.department) : "ยังไม่ได้ระบุแผนก"} — คลิกเพื่อเพิ่ม/แก้ไขโน้ต`}
+                          className={`w-8 h-8 rounded-lg border flex items-center justify-center font-bold text-[10px] shrink-0 enabled:hover:brightness-95 enabled:hover:shadow-sm transition disabled:cursor-default ${getDepartmentBadgeClasses(proj.department)}`}
+                          title={`${proj.department ? formatDepartmentLabel(proj.department) : "ยังไม่ได้ระบุแผนก"}${canEditPayment ? " — คลิกเพื่อเพิ่ม/แก้ไขโน้ต" : ""}`}
                         >
                           {getDepartmentAbbreviation(proj.department)}
                         </button>
@@ -1099,6 +1102,7 @@ function ProjectRoadmapContent() {
                           </div>
 
                           {/* Roadmap note — click here (or the department badge) to add/edit */}
+                          {(canEditPayment || proj.roadmapNote) && (
                           <button
                             type="button"
                             onClick={() =>
@@ -1108,8 +1112,9 @@ function ProjectRoadmapContent() {
                                 value: proj.roadmapNote || "",
                               })
                             }
-                            className="mt-1.5 flex items-start gap-1 text-left w-full group/note"
-                            title="คลิกเพื่อเพิ่ม/แก้ไขโน้ต"
+                            disabled={!canEditPayment}
+                            className="mt-1.5 flex items-start gap-1 text-left w-full group/note disabled:cursor-default"
+                            title={canEditPayment ? "คลิกเพื่อเพิ่ม/แก้ไขโน้ต" : undefined}
                           >
                             <StickyNote
                               className={`w-2.5 h-2.5 shrink-0 mt-0.5 transition-colors ${
@@ -1132,6 +1137,7 @@ function ProjectRoadmapContent() {
                               )}
                             </p>
                           </button>
+                          )}
                         </div>
                       </div>
 
@@ -1209,8 +1215,8 @@ function ProjectRoadmapContent() {
                                       });
                                     }}
                                     onMouseLeave={() => setActivePaymentTooltip(null)}
-                                    title="คลิกเพื่อเปลี่ยนสถานะ • ลากเพื่อย้ายไปสัปดาห์อื่น"
-                                    className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono flex flex-col items-center justify-center leading-none gap-0.5 cursor-grab active:cursor-grabbing transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5 select-none ${
+                                    title={canEditPayment ? "คลิกเพื่อเปลี่ยนสถานะ • ลากเพื่อย้ายไปสัปดาห์อื่น" : undefined}
+                                    className={`h-9 ${style.bg} ${style.text} rounded-md shadow-2xs font-mono flex flex-col items-center justify-center leading-none gap-0.5 ${canEditPayment ? "cursor-grab active:cursor-grabbing" : "cursor-default"} transition-all duration-150 hover:brightness-95 hover:scale-[1.03] hover:z-20 mx-0.5 border border-black/5 select-none ${
                                       isBeingDragged ? "opacity-40" : ""
                                     }`}
                                   >

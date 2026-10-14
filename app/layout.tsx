@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SettingsProvider } from "@/lib/settings-context";
 import { AppShell } from "@/components/app-shell";
+import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
   title: "Invoice Tracking Program",
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="th">
       <body className="antialiased selection:bg-slate-200">
         <SettingsProvider>
-          <AppShell>{children}</AppShell>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
         </SettingsProvider>
       </body>
     </html>

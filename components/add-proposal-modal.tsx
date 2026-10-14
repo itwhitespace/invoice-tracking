@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ExtractedProjectData, TimeFrameItem, PaymentTermItem } from "@/lib/types";
 import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import { formatThousands, parseThousands } from "@/lib/format-utils";
+import { useAuth } from "@/lib/auth-context";
 import {
   X,
   Plus,
@@ -35,6 +36,7 @@ interface AddProposalModalProps {
 }
 
 export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModalProps) {
+  const { visibleCompanies } = useAuth();
   const [data, setData] = useState<ExtractedProjectData>(EMPTY_DATA);
   const [isSaving, setIsSaving] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
@@ -185,8 +187,9 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
                   }`}
                 >
                   <option value="">— ยังไม่ระบุ —</option>
-                  <option value="Whitespace Partners">Whitespace Partners</option>
-                  <option value="Whitespaceconnect">Whitespaceconnect</option>
+                  {visibleCompanies.map((c) => (
+                    <option key={c.value} value={c.value}>{c.value}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1.5">

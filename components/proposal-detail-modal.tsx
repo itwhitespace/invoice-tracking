@@ -6,7 +6,6 @@ import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-util
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 import { formatThousands, parseThousands } from "@/lib/format-utils";
 import { getSupabaseClient, isRemoteId } from "@/lib/supabase";
-import { useSettings } from "@/lib/settings-context";
 import {
   logActivity,
   fetchActivityLog,
@@ -14,6 +13,7 @@ import {
   ActivityLogEntry,
 } from "@/lib/activity-log";
 import { DateInputDDMMYYYY } from "@/components/date-input-ddmmyyyy";
+import { useAuth } from "@/lib/auth-context";
 import {
   X,
   FileText,
@@ -66,8 +66,11 @@ export function ProposalDetailModal({
   onOpenPdf,
   onUpdate,
 }: ProposalDetailModalProps) {
-  const { settings } = useSettings();
-  const supabase = getSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+  const supabase = getSupabaseClient();
+  const { can } = useAuth();
+  const canEditProject = can("edit_project");
+  const canEditFee = can("edit_total_fee");
+  const canApprove = can("approve");
   const [activeTab, setActiveTab] = useState<"all" | "payments" | "operations" | "history">("all");
   const [localRecord, setLocalRecord] = useState<SavedRecord | null>(record);
   const [isDirty, setIsDirty] = useState(false);
@@ -341,13 +344,13 @@ export function ProposalDetailModal({
               <button
                 type="button"
                 onClick={handleToggleRoadmapHidden}
-                disabled={isSaving}
+                disabled={isSaving || !canEditProject}
                 title={
                   localRecord.roadmapHidden
                     ? "ซ่อนอยู่จากหน้า Project Roadmap — กดเพื่อแสดงอีกครั้ง (ยอดเงินคำนวณอยู่เสมอ)"
                     : "แสดงอยู่บนหน้า Project Roadmap — กดเพื่อซ่อน (ยอดเงินยังคำนวณอยู่เหมือนเดิม)"
                 }
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg shadow-2xs transition disabled:opacity-60 whitespace-nowrap"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg shadow-2xs transition disabled:opacity-60 disabled:cursor-default whitespace-nowrap"
               >
                 {localRecord.roadmapHidden ? (
                   <EyeOff className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -463,6 +466,7 @@ export function ProposalDetailModal({
                     <input
                       type="text"
                       value={localRecord.projectName}
+                      disabled={!canEditProject}
                       onChange={(e) => {
                         setLocalRecord({ ...localRecord, projectName: e.target.value });
                         setIsDirty(true);
@@ -483,6 +487,7 @@ export function ProposalDetailModal({
                   <div className="flex justify-between items-baseline">
                     <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                       Total Fee:
+                      {canEditFee && (
                       <button
                         type="button"
                         onClick={handleOpenTotalFeeEdit}
@@ -491,6 +496,7 @@ export function ProposalDetailModal({
                       >
                         <Pencil className="w-3 h-3" />
                       </button>
+                      )}
                     </span>
                     <span className="text-base font-black font-mono text-indigo-900">
                       ฿{Number(localRecord.totalFee || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
@@ -509,6 +515,7 @@ export function ProposalDetailModal({
                   <Calendar className="w-3.5 h-3.5 text-slate-600" />
                   ขั้นตอนและระยะเวลาดำเนินงาน (Project Timeframes)
                 </h3>
+                {canEditProject && (
                 <button
                   type="button"
                   onClick={handleAddTimeFrame}
@@ -517,6 +524,7 @@ export function ProposalDetailModal({
                   <Plus className="w-3.5 h-3.5" />
                   เพิ่ม Phase
                 </button>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
@@ -544,6 +552,7 @@ export function ProposalDetailModal({
                             <input
                               type="text"
                               value={tf.phase}
+                              disabled={!canEditProject}
                               onChange={(e) => handleUpdateTimeframeField(idx, "phase", e.target.value)}
                               className="w-full px-2 py-1 text-xs font-semibold text-slate-800 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none transition"
                             />
@@ -552,6 +561,7 @@ export function ProposalDetailModal({
                             <input
                               type="text"
                               value={tf.description}
+                              disabled={!canEditProject}
                               onChange={(e) => handleUpdateTimeframeField(idx, "description", e.target.value)}
                               className="w-full px-2 py-1 text-xs text-slate-600 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none transition"
                             />
@@ -562,13 +572,15 @@ export function ProposalDetailModal({
                                 type="number"
                                 min={0}
                                 value={parseWeeksFromDuration(tf.duration)}
+                                disabled={!canEditProject}
                                 onChange={(e) => handleUpdateTimeframeDuration(idx, e.target.value)}
-                                className="w-16 px-2 py-1 text-xs text-center font-mono font-bold text-indigo-700 bg-indigo-50/30 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                                className="w-16 px-2 py-1 text-xs text-center font-mono font-bold text-indigo-700 bg-indigo-50/30 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
                               />
                               <span className="text-slate-500 font-medium text-[11px]">Weeks</span>
                             </div>
                           </td>
                           <td className="px-4 py-2.5 text-center">
+                            {canEditProject && (
                             <button
                               type="button"
                               onClick={() => handleDeleteTimeFrame(idx)}
@@ -577,6 +589,7 @@ export function ProposalDetailModal({
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -606,6 +619,7 @@ export function ProposalDetailModal({
                   <Percent className="w-3.5 h-3.5 text-slate-600" />
                   เงื่อนไขและการแบ่งจ่ายเงิน (Payment Terms)
                 </h3>
+                {canEditProject && (
                 <button
                   type="button"
                   onClick={handleAddPaymentTerm}
@@ -614,6 +628,7 @@ export function ProposalDetailModal({
                   <Plus className="w-3.5 h-3.5" />
                   เพิ่ม Milestone
                 </button>
+                )}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
@@ -643,6 +658,7 @@ export function ProposalDetailModal({
                             <input
                               type="text"
                               value={pt.milestone}
+                              disabled={!canEditProject}
                               onChange={(e) => handleUpdateMilestone(idx, e.target.value)}
                               className="w-full px-2 py-1 text-xs font-semibold text-slate-800 bg-transparent border border-transparent hover:border-slate-200 focus:bg-white focus:border-slate-400 rounded outline-none transition"
                             />
@@ -653,8 +669,9 @@ export function ProposalDetailModal({
                                 type="number"
                                 step="0.5"
                                 value={pt.paymentPercentage}
+                                disabled={!canEditProject}
                                 onChange={(e) => handleUpdatePaymentPercentage(idx, e.target.value)}
-                                className="w-16 px-2 py-1 text-xs text-center font-mono font-bold text-slate-800 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                                className="w-16 px-2 py-1 text-xs text-center font-mono font-bold text-slate-800 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
                               />
                               <span className="text-slate-500 font-mono font-bold text-[11px]">%</span>
                             </div>
@@ -666,8 +683,9 @@ export function ProposalDetailModal({
                                 type="text"
                                 inputMode="numeric"
                                 value={formatThousands(pt.amount)}
+                                disabled={!canEditProject}
                                 onChange={(e) => handleUpdatePaymentAmount(idx, e.target.value)}
-                                className="w-28 px-2 py-1 text-xs text-right font-mono font-bold text-emerald-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                                className="w-28 px-2 py-1 text-xs text-right font-mono font-bold text-emerald-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition disabled:bg-slate-100 disabled:border-slate-200 disabled:cursor-not-allowed"
                               />
                             </div>
                           </td>
@@ -675,7 +693,7 @@ export function ProposalDetailModal({
                             <select
                               value={pt.paymentWeek ?? ""}
                               onChange={(e) => handleUpdatePaymentWeek(idx, e.target.value)}
-                              disabled={totalWeeks === 0}
+                              disabled={totalWeeks === 0 || !canEditProject}
                               title={
                                 totalWeeks === 0
                                   ? "ยังไม่มีข้อมูล Time Frame ให้อ้างอิงจำนวนสัปดาห์ทั้งหมด"
@@ -701,6 +719,7 @@ export function ProposalDetailModal({
                             </span>
                           </td>
                           <td className="px-4 py-2.5 text-center">
+                            {canEditProject && (
                             <button
                               type="button"
                               onClick={() => handleDeletePaymentTerm(idx)}
@@ -709,6 +728,7 @@ export function ProposalDetailModal({
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -758,15 +778,17 @@ export function ProposalDetailModal({
                     <DateInputDDMMYYYY
                       value={localRecord.startDate || ""}
                       onChange={(iso) => handleOperationFieldChange("startDate", iso)}
-                      className="w-full px-3 py-2 pr-8 text-xs font-medium text-slate-800 bg-slate-50/70 border border-slate-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                      disabled={!canEditProject}
+                      className="w-full px-3 py-2 pr-8 text-xs font-medium text-slate-800 bg-slate-50/70 border border-slate-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-bold text-slate-600">Department</label>
                     <select
                       value={localRecord.department || ""}
+                      disabled={!canEditProject}
                       onChange={(e) => handleOperationFieldChange("department", e.target.value)}
-                      className="w-full px-3 py-2 text-xs font-medium text-slate-800 bg-slate-50/70 border border-slate-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                      className="w-full px-3 py-2 text-xs font-medium text-slate-800 bg-slate-50/70 border border-slate-300 rounded-md focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                     >
                       <option value="">— ยังไม่ระบุ —</option>
                       {DEPARTMENT_OPTIONS.map((dept) => (
@@ -789,7 +811,7 @@ export function ProposalDetailModal({
                       <span>เมื่อกด Approve สถานะจะเปลี่ยนเป็น &quot;Approved&quot; และไปแสดงที่ Project Roadmap</span>
                     )}
                   </div>
-                  {localRecord.status === "approved" ? (
+                  {!canApprove ? null : localRecord.status === "approved" ? (
                     <button
                       onClick={() => setShowUnapproveConfirm(true)}
                       className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-1.5 shadow-sm transition shrink-0"
