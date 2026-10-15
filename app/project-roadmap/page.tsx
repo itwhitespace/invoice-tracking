@@ -108,6 +108,8 @@ const getProjectDateRange = (proj: SavedRecord): { start: Date; end: Date } | nu
 };
 
 const TOOLTIP_WIDTH = 288; // px — matches the w-72 class on the floating tooltip card
+// Below this much free space under a marker, the card opens upward instead.
+const TOOLTIP_FLIP_SPACE = 140;
 
 // Each week column keeps at least this width regardless of how many months
 // are in the auto-fit range — long ranges (multi-year) get wider instead of
@@ -158,7 +160,7 @@ function ProjectRoadmapContent() {
     week: number;
     status: PaymentStatus;
     invoiceDate?: string;
-    anchorRect: { left: number; width: number; bottom: number };
+    anchorRect: { left: number; width: number; top: number; bottom: number };
   } | null>(null);
 
   // Drag-to-reschedule a payment marker to a different week. Implemented
@@ -1211,7 +1213,7 @@ function ProjectRoadmapContent() {
                                         week: pm.week,
                                         status: pm.status,
                                         invoiceDate: pm.invoiceDate,
-                                        anchorRect: { left: rect.left, width: rect.width, bottom: rect.bottom },
+                                        anchorRect: { left: rect.left, width: rect.width, top: rect.top, bottom: rect.bottom },
                                       });
                                     }}
                                     onMouseLeave={() => setActivePaymentTooltip(null)}
@@ -1260,13 +1262,17 @@ function ProjectRoadmapContent() {
       </div>
 
       {/* Hover Detail Tooltip Card — Payment Week Marker. Floats directly
-          below the hovered marker (not pinned to the bottom of the page),
-          clamped horizontally so it never runs off the left/right edge. */}
+          below the hovered marker, or above it when there isn't room below
+          (the last rows of the table), clamped horizontally so it never runs
+          off the left/right edge. */}
       {activePaymentTooltip && (
         <div
           className="fixed z-40 w-72 p-3 bg-white border border-slate-300 rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-100 pointer-events-none"
           style={{
-            top: activePaymentTooltip.anchorRect.bottom + 8,
+            ...(typeof window !== "undefined" &&
+            window.innerHeight - activePaymentTooltip.anchorRect.bottom < TOOLTIP_FLIP_SPACE
+              ? { bottom: window.innerHeight - activePaymentTooltip.anchorRect.top + 8 }
+              : { top: activePaymentTooltip.anchorRect.bottom + 8 }),
             left: Math.min(
               Math.max(8, activePaymentTooltip.anchorRect.left + activePaymentTooltip.anchorRect.width / 2 - TOOLTIP_WIDTH / 2),
               (typeof window !== "undefined" ? window.innerWidth : TOOLTIP_WIDTH) - TOOLTIP_WIDTH - 8

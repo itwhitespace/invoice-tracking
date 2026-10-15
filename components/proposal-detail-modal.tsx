@@ -107,6 +107,8 @@ export function ProposalDetailModal({
   const totalWeeks = getTotalWeeks(localRecord.timeFrames || []);
   const paymentSum = (localRecord.paymentTerms || []).reduce((sum, pt) => sum + (Number(pt.amount) || 0), 0);
   const paymentSumExceedsFee = localRecord.totalFee > 0 && paymentSum > localRecord.totalFee;
+  // A new Total Fee may not drop below what the installments already add up to.
+  const pendingFeeBelowPayments = paymentSum > 0 && pendingTotalFee < paymentSum;
 
   const handleExportJSON = () => {
     const dataStr =
@@ -1105,9 +1107,25 @@ export function ProposalDetailModal({
                 value={formatThousands(pendingTotalFee)}
                 onChange={(e) => setPendingTotalFee(parseThousands(e.target.value))}
                 placeholder="0"
-                className="w-full px-3 py-2.5 text-base font-mono font-bold text-slate-900 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                className={`w-full px-3 py-2.5 text-base font-mono font-bold text-slate-900 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition ${
+                  pendingFeeBelowPayments ? "border-red-400" : "border-slate-300"
+                }`}
               />
+              {paymentSum > 0 && (
+                <p className="text-[11px] text-slate-500">
+                  ผลรวมงวดเงินปัจจุบัน: <span className="font-mono font-semibold">฿{formatThousands(paymentSum)}</span>
+                </p>
+              )}
             </div>
+            {pendingFeeBelowPayments && (
+              <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-[11px] text-red-900 leading-relaxed">
+                <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                <p>
+                  Total Fee ต้องไม่น้อยกว่าผลรวมงวดเงิน (฿{formatThousands(paymentSum)}) —
+                  ถ้าต้องการลด Total Fee ให้ปรับจำนวนเงินในตาราง Payment Terms ลงก่อน
+                </p>
+              </div>
+            )}
             <div className="flex items-center gap-2 pt-1">
               <button
                 onClick={() => setShowTotalFeeEdit(false)}
@@ -1120,7 +1138,8 @@ export function ProposalDetailModal({
                   setShowTotalFeeEdit(false);
                   setShowTotalFeeConfirm(true);
                 }}
-                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition shadow-sm"
+                disabled={pendingFeeBelowPayments}
+                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:hover:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed rounded-lg transition shadow-sm"
               >
                 บันทึก
               </button>
