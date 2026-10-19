@@ -8,7 +8,6 @@ export const DEPARTMENT_OPTIONS: Department[] = [
   "Panda",
   "Panther",
   "Penguin",
-  "Merge",
 ];
 
 // Departments renamed in Oct 2026. Data saved under the old names (Supabase
@@ -23,7 +22,7 @@ export const normalizeDepartment = (dept?: string | null): string =>
   dept ? LEGACY_DEPARTMENT_NAMES[dept] || dept : "";
 
 // Capitalizes only the first character — "studio-1" -> "Studio-1". Values
-// that are already capitalized (Panda, Merge) pass through unchanged.
+// that are already capitalized (Panda, Panther) pass through unchanged.
 export const formatDepartmentLabel = (dept: string): string =>
   dept ? dept.charAt(0).toUpperCase() + dept.slice(1) : dept;
 
@@ -54,7 +53,6 @@ const DEPARTMENT_BADGE_COLORS: Record<string, string> = {
   Panda: "bg-emerald-100 border-emerald-300 text-emerald-700",
   Panther: "bg-fuchsia-100 border-fuchsia-300 text-fuchsia-700",
   Penguin: "bg-cyan-100 border-cyan-300 text-cyan-700",
-  Merge: "bg-orange-100 border-orange-300 text-orange-700",
 };
 
 export const getDepartmentBadgeClasses = (dept?: string): string =>
