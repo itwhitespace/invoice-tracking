@@ -20,6 +20,7 @@ import {
   Loader2,
   ShieldAlert,
   KeyRound,
+  Receipt,
 } from "lucide-react";
 import { SetPasswordForm } from "@/components/set-password-form";
 import { CompanyOption } from "@/lib/company-utils";
@@ -47,6 +48,7 @@ const NAV_ITEMS: NavItemDef[] = [
   { href: "/project-roadmap", label: "Project Roadmap", icon: CalendarRange, hasCompanySubmenu: true },
   { href: "/proposal-preview", label: "Proposal Preview", icon: FileSearch, hasCompanySubmenu: true },
   { href: "/upload-proposal", label: "Upload Proposal", icon: UploadCloud, requires: "create_proposal" },
+  { href: "/invoices", label: "ใบแจ้งหนี้", icon: Receipt, requires: "issue_documents" },
   { href: "/users", label: "ผู้ใช้งาน", icon: Users, requires: "admin" },
   { href: "/settings", label: "Settings", icon: Settings, requires: "admin" },
   { href: "/info", label: "Info", icon: Info },

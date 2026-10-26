@@ -9,7 +9,8 @@ export type PermissionKey =
   | "edit_total_fee"
   | "approve"
   | "edit_target"
-  | "delete_project";
+  | "delete_project"
+  | "issue_documents";
 
 export const PERMISSIONS: { key: PermissionKey; label: string; hint: string }[] = [
   { key: "export_excel", label: "Export Excel", hint: "ปุ่ม Export รายงานบนหน้า Dashboard" },
@@ -20,6 +21,7 @@ export const PERMISSIONS: { key: PermissionKey; label: string; hint: string }[] 
   { key: "approve", label: "Approve / Not Approved", hint: "แท็บรายละเอียดการดำเนินงาน" },
   { key: "delete_project", label: "ลบโครงการ", hint: "ปุ่มลบในหน้า Proposal Preview" },
   { key: "edit_target", label: "แก้ Target", hint: "ตาราง Annual Billing บนหน้า Dashboard" },
+  { key: "issue_documents", label: "ออกใบแจ้งหนี้", hint: "เมนูใบแจ้งหนี้ รวมถึงแก้ข้อมูลบริษัทและรายชื่อลูกค้า" },
 ];
 
 export type TemplateKey = "admin" | "editor" | "viewer";
@@ -52,6 +54,7 @@ export interface AppUser {
   permissions: PermissionKey[];
   is_admin: boolean;
   template: TemplateKey | null;
+  signature_path?: string | null;
   created_at?: string;
 }
 

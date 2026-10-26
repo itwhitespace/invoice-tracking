@@ -16,6 +16,7 @@ import {
 } from "@/lib/permissions";
 import { RequirePermission } from "@/components/require-permission";
 import { DesktopOnlyNotice } from "@/components/desktop-only-notice";
+import { SignatureField } from "@/components/signature-field";
 
 export default function UsersPage() {
   return (
@@ -422,6 +423,18 @@ function UserEditor({
               </label>
             </div>
           </div>
+
+          {isNew ? (
+            <p className="text-[10.5px] text-slate-500">อัปโหลดลายเซ็นสำหรับใบแจ้งหนี้ได้หลังจากบันทึกผู้ใช้นี้แล้ว</p>
+          ) : (
+            <SignatureField
+              email={user.email}
+              initialPath={user.signature_path}
+              onChanged={() => {
+                if (isSelf) refreshAppUser();
+              }}
+            />
+          )}
 
           {error && <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-[11px] text-red-800">{error}</div>}
         </div>

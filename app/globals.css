@@ -48,3 +48,40 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Invoice printing — only the print root is printed, one A4 sheet per
+   .invoice-page (original + copy). */
+#invoice-print-root {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  html,
+  body {
+    overflow: visible !important;
+    height: auto !important;
+    background: #ffffff !important;
+  }
+  body > *:not(#invoice-print-root) {
+    display: none !important;
+  }
+  #invoice-print-root {
+    display: block;
+  }
+  #invoice-print-root .invoice-page {
+    break-after: page;
+    page-break-after: always;
+  }
+  #invoice-print-root .invoice-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  #invoice-print-root * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
