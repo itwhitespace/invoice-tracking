@@ -18,6 +18,7 @@ export interface IssuerCompany {
   bank_branch: string;
   notes: string;
   logo_path: string | null;
+  bank_logo_path?: string | null;
   created_at?: string;
 }
 
@@ -56,6 +57,7 @@ export const EMPTY_ISSUER: Omit<IssuerCompany, "company_key"> = {
   bank_branch: "",
   notes: "",
   logo_path: null,
+  bank_logo_path: null,
 };
 
 export interface Customer {

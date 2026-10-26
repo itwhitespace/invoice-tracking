@@ -41,6 +41,9 @@ export interface InvoiceDocumentData {
 
 const MIN_ITEM_ROWS = 10;
 
+// "กสิกรไทย" -> "ธ.กสิกรไทย"; names already written as "ธ..." / "ธนาคาร..." are kept.
+const bankLabel = (name: string) => (!name || /^ธ(\.|นาคาร)/.test(name.trim()) ? name : `ธ.${name.trim()}`);
+
 function Label({ th, en }: { th: string; en: string }) {
   return (
     <div className="leading-none">
@@ -86,11 +89,13 @@ function SummaryRow({ th, en, value, dark }: { th: string; en: string; value: st
 export function InvoiceDocument({
   data,
   logoUrl,
+  bankLogoUrl,
   signatureUrl,
   copyLabel,
 }: {
   data: InvoiceDocumentData;
   logoUrl: string | null;
+  bankLogoUrl?: string | null;
   signatureUrl: string | null;
   copyLabel: string;
 }) {
@@ -275,13 +280,20 @@ export function InvoiceDocument({
               </div>
             </div>
           )}
+          {(c?.bank_name || c?.bank_account_no) && (
+            <div className="flex items-center gap-2.5">
+              {bankLogoUrl && <img src={bankLogoUrl} alt="bank" className="w-9 h-9 object-contain shrink-0" />}
+              <div className="leading-tight">
+                <div className="text-[10.5px]">{bankLabel(c.bank_name)}</div>
+                <div className="text-[12px] font-bold">
+                  {[c.bank_account_type, c.bank_account_no].filter(Boolean).join(" ")}
+                </div>
+                {c.bank_account_name && <div className="text-[10px]">{c.bank_account_name}</div>}
+              </div>
+            </div>
+          )}
           <div className="text-[10px] leading-relaxed">
             <div className="text-[11.5px] font-bold">หมายเหตุและเงื่อนไข (Terms &amp; Conditions)</div>
-            {c?.bank_account_name && <div>ชื่อบัญชี : {c.bank_account_name}</div>}
-            {c?.bank_name && <div>ธนาคาร : {c.bank_name}</div>}
-            {c?.bank_account_no && <div>เลขที่บัญชี : {c.bank_account_no}</div>}
-            {c?.bank_account_type && <div>ประเภท : {c.bank_account_type}</div>}
-            {c?.bank_branch && <div>สาขา : {c.bank_branch}</div>}
             {data.notes && <div className="mt-1 whitespace-pre-line">{data.notes}</div>}
           </div>
         </div>

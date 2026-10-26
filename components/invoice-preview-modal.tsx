@@ -14,6 +14,7 @@ const A4_WIDTH_PX = 794;
 export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
   const supabase = getSupabaseClient();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [bankLogoUrl, setBankLogoUrl] = useState<string | null>(null);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [isLoadingImages, setIsLoadingImages] = useState(true);
   const [withCopy, setWithCopy] = useState(true);
@@ -21,13 +22,15 @@ export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice; on
   useEffect(() => {
     Promise.all([
       signedAssetUrl(supabase, invoice.company?.logo_path),
+      signedAssetUrl(supabase, invoice.company?.bank_logo_path),
       signedAssetUrl(supabase, invoice.signature_path),
-    ]).then(([logo, sig]) => {
+    ]).then(([logo, bankLogo, sig]) => {
       setLogoUrl(logo);
+      setBankLogoUrl(bankLogo);
       setSignatureUrl(sig);
       setIsLoadingImages(false);
     });
-  }, [supabase, invoice.company?.logo_path, invoice.signature_path]);
+  }, [supabase, invoice.company?.logo_path, invoice.company?.bank_logo_path, invoice.signature_path]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -75,11 +78,11 @@ export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice; on
       <div className="flex-1 overflow-y-auto py-6">
         <div style={{ width: A4_WIDTH_PX * scale, height: A4_WIDTH_PX * Math.SQRT2 * scale }} className="mx-auto shadow-2xl overflow-hidden">
           <div style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}>
-            <InvoiceDocument data={invoice} logoUrl={logoUrl} signatureUrl={signatureUrl} copyLabel="ต้นฉบับ / Original" />
+            <InvoiceDocument data={invoice} logoUrl={logoUrl} bankLogoUrl={bankLogoUrl} signatureUrl={signatureUrl} copyLabel="ต้นฉบับ / Original" />
           </div>
         </div>
       </div>
-      <InvoicePrintRoot data={invoice} logoUrl={logoUrl} signatureUrl={signatureUrl} includeCopy={withCopy} />
+      <InvoicePrintRoot data={invoice} logoUrl={logoUrl} bankLogoUrl={bankLogoUrl} signatureUrl={signatureUrl} includeCopy={withCopy} />
     </div>
   );
 }

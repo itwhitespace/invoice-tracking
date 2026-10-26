@@ -34,6 +34,7 @@ create table if not exists public.issuer_companies (
   updated_at         timestamptz not null default now()
 );
 alter table public.issuer_companies add column if not exists created_at timestamptz not null default now();
+alter table public.issuer_companies add column if not exists bank_logo_path text;
 
 
 -- ----------------------------------------------------------------------------

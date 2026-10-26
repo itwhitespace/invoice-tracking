@@ -98,6 +98,7 @@ export default function InvoiceEditorPage() {
   const [companies, setCompanies] = useState<IssuerCompany[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [bankLogoUrl, setBankLogoUrl] = useState<string | null>(null);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState("");
@@ -173,6 +174,9 @@ export default function InvoiceEditorPage() {
   useEffect(() => {
     signedAssetUrl(supabase, companyProfile?.logo_path).then(setLogoUrl);
   }, [supabase, companyProfile?.logo_path]);
+  useEffect(() => {
+    signedAssetUrl(supabase, companyProfile?.bank_logo_path).then(setBankLogoUrl);
+  }, [supabase, companyProfile?.bank_logo_path]);
   useEffect(() => {
     signedAssetUrl(supabase, signaturePath).then(setSignatureUrl);
   }, [supabase, signaturePath]);
@@ -709,7 +713,7 @@ export default function InvoiceEditorPage() {
             className="mx-auto shadow-lg overflow-hidden"
           >
             <div style={{ transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
-              <InvoiceDocument data={docData} logoUrl={logoUrl} signatureUrl={signatureUrl} copyLabel="ต้นฉบับ / Original" />
+              <InvoiceDocument data={docData} logoUrl={logoUrl} bankLogoUrl={bankLogoUrl} signatureUrl={signatureUrl} copyLabel="ต้นฉบับ / Original" />
             </div>
           </div>
         </div>

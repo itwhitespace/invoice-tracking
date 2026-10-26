@@ -21,11 +21,14 @@ const FIELDS: { key: keyof IssuerCompany; label: string; multiline?: boolean; wi
   { key: "branch", label: "สำนักงานใหญ่ / สาขา" },
   { key: "phone", label: "เบอร์โทร" },
   { key: "email", label: "อีเมล" },
-  { key: "bank_account_name", label: "ชื่อบัญชี", wide: true },
-  { key: "bank_name", label: "ธนาคาร" },
+];
+
+const BANK_FIELDS: { key: keyof IssuerCompany; label: string; wide?: boolean; placeholder?: string }[] = [
+  { key: "bank_name", label: "ธนาคาร", placeholder: "เช่น กสิกรไทย" },
+  { key: "bank_account_type", label: "ประเภทบัญชี", placeholder: "เช่น ออมทรัพย์" },
   { key: "bank_account_no", label: "เลขที่บัญชี" },
-  { key: "bank_account_type", label: "ประเภทบัญชี" },
-  { key: "bank_branch", label: "สาขาธนาคาร" },
+  { key: "bank_branch", label: "สาขาธนาคาร (ไม่แสดงบนเอกสาร)" },
+  { key: "bank_account_name", label: "ชื่อบัญชี", wide: true },
 ];
 
 export default function IssuerCompaniesPage() {
@@ -112,17 +115,10 @@ function CompanyCard({ initial, onDeleted }: { initial: IssuerCompany; onDeleted
     }
     onDeleted();
   };
-  const fileRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<IssuerCompany>(initial);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    signedAssetUrl(supabase, draft.logo_path).then(setLogoUrl);
-  }, [supabase, draft.logo_path]);
 
   const update = (key: keyof IssuerCompany, value: string) => {
     setDraft({ ...draft, [key]: key === "tax_id" ? formatTaxId(value) : value });
@@ -150,22 +146,27 @@ function CompanyCard({ initial, onDeleted }: { initial: IssuerCompany; onDeleted
     else if (!patch) setShowSaved(true);
   };
 
-  const uploadLogo = async (file: File) => {
-    if (!supabase) return;
-    if (!/^image\/(png|jpeg|svg\+xml)$/.test(file.type) || file.size > 2 * 1024 * 1024) {
-      setError("โลโก้ต้องเป็น PNG, JPG หรือ SVG ขนาดไม่เกิน 2 MB");
-      return;
-    }
-    setIsUploading(true);
+  // Uploads (or removes, with file = null) the company or bank logo and saves it right away.
+  const setImage = async (field: "logo_path" | "bank_logo_path", file: File | null): Promise<boolean> => {
+    if (!supabase) return false;
     setError("");
-    const { path, error: upErr } = await uploadInvoiceAsset(supabase, "logos", draft.company_key, file);
-    setIsUploading(false);
-    if (upErr || !path) {
-      setError("อัปโหลดโลโก้ไม่สำเร็จ: " + upErr);
-      return;
+    let path: string | null = null;
+    if (file) {
+      if (!/^image\/(png|jpeg|svg\+xml)$/.test(file.type) || file.size > 2 * 1024 * 1024) {
+        setError("รูปต้องเป็น PNG, JPG หรือ SVG ขนาดไม่เกิน 2 MB");
+        return false;
+      }
+      const suffix = field === "bank_logo_path" ? "_bank" : "";
+      const res = await uploadInvoiceAsset(supabase, "logos", draft.company_key + suffix, file);
+      if (res.error || !res.path) {
+        setError("อัปโหลดรูปไม่สำเร็จ: " + res.error);
+        return false;
+      }
+      path = res.path;
     }
-    setDraft((d) => ({ ...d, logo_path: path }));
-    await save({ logo_path: path });
+    setDraft((d) => ({ ...d, [field]: path }));
+    await save({ [field]: path });
+    return true;
   };
 
   const inputClass =
@@ -191,35 +192,12 @@ function CompanyCard({ initial, onDeleted }: { initial: IssuerCompany; onDeleted
         )}
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="w-44 h-16 border border-dashed border-slate-300 rounded-lg flex items-center justify-center overflow-hidden bg-slate-50">
-          {logoUrl ? (
-            <img src={logoUrl} alt="logo" className="max-w-full max-h-full object-contain" />
-          ) : (
-            <span className="text-[10.5px] text-slate-400">ยังไม่มีโลโก้</span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={isUploading}
-          className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md flex items-center gap-1.5 disabled:opacity-60"
-        >
-          {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-          {draft.logo_path ? "เปลี่ยนโลโก้" : "อัปโหลดโลโก้"}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/png,image/jpeg,image/svg+xml"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            e.target.value = "";
-            if (f) uploadLogo(f);
-          }}
-        />
-      </div>
+      <ImageSlot
+        label="โลโก้บริษัท"
+        path={draft.logo_path}
+        boxClass="w-44 h-16"
+        onPick={(f) => setImage("logo_path", f)}
+      />
 
       <div className="grid grid-cols-2 gap-3">
         {FIELDS.map((f) => (
@@ -246,6 +224,30 @@ function CompanyCard({ initial, onDeleted }: { initial: IssuerCompany; onDeleted
             )}
           </div>
         ))}
+      </div>
+
+      <div className="pt-1 border-t border-slate-100 space-y-3">
+        <div className="text-xs font-bold text-slate-900 pt-2">บัญชีรับเงิน</div>
+        <ImageSlot
+          label="โลโก้ธนาคาร (ไม่บังคับ — ถ้าไม่มีจะไม่แสดงรูปบนเอกสาร)"
+          path={draft.bank_logo_path || null}
+          boxClass="w-16 h-16"
+          onPick={(f) => setImage("bank_logo_path", f)}
+          onRemove={() => setImage("bank_logo_path", null)}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          {BANK_FIELDS.map((f) => (
+            <div key={f.key} className={`space-y-1 ${f.wide ? "col-span-2" : ""}`}>
+              <label className="text-[11px] font-semibold text-slate-600">{f.label}</label>
+              <input
+                value={(draft[f.key] as string) || ""}
+                placeholder={f.placeholder}
+                onChange={(e) => update(f.key, e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       {error && <p className="text-[11px] text-red-600">{error}</p>}
@@ -280,6 +282,81 @@ function CompanyCard({ initial, onDeleted }: { initial: IssuerCompany; onDeleted
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ImageSlot({
+  label,
+  path,
+  boxClass,
+  onPick,
+  onRemove,
+}: {
+  label: string;
+  path: string | null;
+  boxClass: string;
+  onPick: (file: File) => Promise<boolean>;
+  onRemove?: () => Promise<boolean>;
+}) {
+  const supabase = getSupabaseClient();
+  const ref = useRef<HTMLInputElement>(null);
+  const [url, setUrl] = useState<string | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
+
+  useEffect(() => {
+    signedAssetUrl(supabase, path).then(setUrl);
+  }, [supabase, path]);
+
+  const run = async (fn: () => Promise<boolean>) => {
+    setIsBusy(true);
+    await fn();
+    setIsBusy(false);
+  };
+
+  return (
+    <div className="space-y-1">
+      <label className="text-[11px] font-semibold text-slate-600">{label}</label>
+      <div className="flex items-center gap-3">
+        <div className={`${boxClass} border border-dashed border-slate-300 rounded-lg flex items-center justify-center overflow-hidden bg-slate-50`}>
+          {url ? (
+            <img src={url} alt="" className="max-w-full max-h-full object-contain" />
+          ) : (
+            <span className="text-[10.5px] text-slate-400">ไม่มีรูป</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => ref.current?.click()}
+          disabled={isBusy}
+          className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md flex items-center gap-1.5 disabled:opacity-60"
+        >
+          {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+          {path ? "เปลี่ยนรูป" : "อัปโหลดรูป"}
+        </button>
+        {path && onRemove && (
+          <button
+            type="button"
+            onClick={() => run(onRemove)}
+            disabled={isBusy}
+            className="px-2.5 py-1.5 text-[11px] font-semibold text-red-600 hover:bg-red-50 rounded-md flex items-center gap-1.5"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            เอาออก
+          </button>
+        )}
+        <input
+          ref={ref}
+          type="file"
+          accept="image/png,image/jpeg,image/svg+xml"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) run(() => onPick(f));
+          }}
+        />
+      </div>
     </div>
   );
 }
