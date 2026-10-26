@@ -9,6 +9,7 @@ import { DesktopOnlyNotice } from "@/components/desktop-only-notice";
 
 const TABS = [
   { href: "/invoices", label: "ใบแจ้งหนี้" },
+  { href: "/invoices/receipts", label: "ใบเสร็จรับเงิน" },
   { href: "/invoices/companies", label: "ข้อมูลบริษัท" },
   { href: "/invoices/customers", label: "รายชื่อลูกค้า" },
 ];

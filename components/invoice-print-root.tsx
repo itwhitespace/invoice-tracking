@@ -9,13 +9,11 @@ import { InvoiceDocument, InvoiceDocumentData } from "@/components/invoice-docum
 export function InvoicePrintRoot({
   data,
   logoUrl,
-  bankLogoUrl,
   signatureUrl,
   includeCopy,
 }: {
   data: InvoiceDocumentData;
   logoUrl: string | null;
-  bankLogoUrl: string | null;
   signatureUrl: string | null;
   includeCopy: boolean;
 }) {
@@ -25,9 +23,9 @@ export function InvoicePrintRoot({
 
   return createPortal(
     <div id="invoice-print-root">
-      <InvoiceDocument data={data} logoUrl={logoUrl} bankLogoUrl={bankLogoUrl} signatureUrl={signatureUrl} copyLabel="ต้นฉบับ / Original" />
+      <InvoiceDocument data={data} logoUrl={logoUrl} signatureUrl={signatureUrl} copyLabel="ต้นฉบับ / Original" />
       {includeCopy && (
-        <InvoiceDocument data={data} logoUrl={logoUrl} bankLogoUrl={bankLogoUrl} signatureUrl={signatureUrl} copyLabel="สำเนา / Copy" />
+        <InvoiceDocument data={data} logoUrl={logoUrl} signatureUrl={signatureUrl} copyLabel="สำเนา / Copy" />
       )}
     </div>,
     document.body

@@ -146,8 +146,8 @@ function CompanyCard({ initial, onDeleted }: { initial: IssuerCompany; onDeleted
     else if (!patch) setShowSaved(true);
   };
 
-  // Uploads (or removes, with file = null) the company or bank logo and saves it right away.
-  const setImage = async (field: "logo_path" | "bank_logo_path", file: File | null): Promise<boolean> => {
+  // Uploads (or removes, with file = null) the company logo and saves it right away.
+  const setImage = async (field: "logo_path", file: File | null): Promise<boolean> => {
     if (!supabase) return false;
     setError("");
     let path: string | null = null;
@@ -156,8 +156,7 @@ function CompanyCard({ initial, onDeleted }: { initial: IssuerCompany; onDeleted
         setError("รูปต้องเป็น PNG, JPG หรือ SVG ขนาดไม่เกิน 2 MB");
         return false;
       }
-      const suffix = field === "bank_logo_path" ? "_bank" : "";
-      const res = await uploadInvoiceAsset(supabase, "logos", draft.company_key + suffix, file);
+      const res = await uploadInvoiceAsset(supabase, "logos", draft.company_key, file);
       if (res.error || !res.path) {
         setError("อัปโหลดรูปไม่สำเร็จ: " + res.error);
         return false;
@@ -228,13 +227,6 @@ function CompanyCard({ initial, onDeleted }: { initial: IssuerCompany; onDeleted
 
       <div className="pt-1 border-t border-slate-100 space-y-3">
         <div className="text-xs font-bold text-slate-900 pt-2">บัญชีรับเงิน</div>
-        <ImageSlot
-          label="โลโก้ธนาคาร (ไม่บังคับ — ถ้าไม่มีจะไม่แสดงรูปบนเอกสาร)"
-          path={draft.bank_logo_path || null}
-          boxClass="w-16 h-16"
-          onPick={(f) => setImage("bank_logo_path", f)}
-          onRemove={() => setImage("bank_logo_path", null)}
-        />
         <div className="grid grid-cols-2 gap-3">
           {BANK_FIELDS.map((f) => (
             <div key={f.key} className={`space-y-1 ${f.wide ? "col-span-2" : ""}`}>

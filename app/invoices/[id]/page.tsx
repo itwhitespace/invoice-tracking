@@ -10,7 +10,6 @@ import {
   FileCheck2,
   Loader2,
   Plus,
-  Printer,
   Save,
   Trash2,
   UserPlus,
@@ -23,7 +22,10 @@ import {
   CustomerSnapshot,
   EMPTY_CUSTOMER,
   EMPTY_ITEM,
-  INVOICE_STATUS_LABELS,
+  INVOICE_DISPLAY_STATUS,
+  invoiceDisplayStatus,
+  todayIso,
+  formatThaiDate,
   Invoice,
   InvoiceItem,
   IssuerCompany,
@@ -38,16 +40,13 @@ import { DateInputDDMMYYYY } from "@/components/date-input-ddmmyyyy";
 import { CustomerFields } from "@/components/customer-fields";
 import { InvoiceDocument, InvoiceDocumentData } from "@/components/invoice-document";
 import { InvoicePreviewModal } from "@/components/invoice-preview-modal";
+import { DownloadPdfButton, PrintDocumentButton } from "@/components/document-actions";
+import { ActiveReceipt, InvoicePaymentActions } from "@/components/invoice-payment-actions";
 
 const WHT_OPTIONS = [0, 1, 2, 3, 5];
 const A4_WIDTH_PX = 794; // 210mm at 96dpi
 
 type Draft = Omit<Invoice, "id" | "created_at"> & { id?: string };
-
-function todayIso() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function emptyDraft(companyKey: string, salesman: string): Draft {
   return {
@@ -98,7 +97,6 @@ export default function InvoiceEditorPage() {
   const [companies, setCompanies] = useState<IssuerCompany[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [bankLogoUrl, setBankLogoUrl] = useState<string | null>(null);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState("");
@@ -107,6 +105,7 @@ export default function InvoiceEditorPage() {
   const [confirm, setConfirm] = useState<null | "issue" | "void" | "delete">(null);
   const [voidReason, setVoidReason] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [activeReceipt, setActiveReceipt] = useState<ActiveReceipt>(null);
   const [previewScale, setPreviewScale] = useState(0.7);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -147,6 +146,13 @@ export default function InvoiceEditorPage() {
       return;
     }
     setDraft(data as Draft);
+    const { data: rec } = await supabase
+      .from("receipts")
+      .select("id, doc_no")
+      .eq("invoice_id", params.id)
+      .eq("status", "issued")
+      .maybeSingle();
+    setActiveReceipt((rec as ActiveReceipt) || null);
     setIsDirty(false);
     // Arriving straight from "ออกใบแจ้งหนี้" on a brand-new invoice.
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "1") {
@@ -174,9 +180,6 @@ export default function InvoiceEditorPage() {
   useEffect(() => {
     signedAssetUrl(supabase, companyProfile?.logo_path).then(setLogoUrl);
   }, [supabase, companyProfile?.logo_path]);
-  useEffect(() => {
-    signedAssetUrl(supabase, companyProfile?.bank_logo_path).then(setBankLogoUrl);
-  }, [supabase, companyProfile?.bank_logo_path]);
   useEffect(() => {
     signedAssetUrl(supabase, signaturePath).then(setSignatureUrl);
   }, [supabase, signaturePath]);
@@ -363,7 +366,7 @@ export default function InvoiceEditorPage() {
     );
   }
 
-  const status = INVOICE_STATUS_LABELS[draft.status];
+  const status = INVOICE_DISPLAY_STATUS[invoiceDisplayStatus(draft)];
   const inputClass =
     "w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:bg-slate-50 disabled:text-slate-600";
   const sectionTitle = "text-xs font-bold text-slate-900 mb-2.5";
@@ -408,23 +411,26 @@ export default function InvoiceEditorPage() {
             </>
           ) : (
             <>
-              <button
-                onClick={() => setShowPreview(true)}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg flex items-center gap-1.5"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                ดูเอกสาร / พิมพ์
-              </button>
               <button onClick={duplicate} disabled={isBusy} className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5">
                 <Copy className="w-3.5 h-3.5" />
                 คัดลอกเป็นใบใหม่
               </button>
-              {draft.status === "issued" && (
+              {draft.status === "issued" && !activeReceipt && (
                 <button onClick={() => setConfirm("void")} className="px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1.5">
                   <Ban className="w-3.5 h-3.5" />
                   ยกเลิกเอกสาร
                 </button>
               )}
+              {draft.id && (
+                <InvoicePaymentActions
+                  invoice={{ ...draft, id: draft.id }}
+                  receipt={activeReceipt}
+                  canUndo
+                  onChanged={load}
+                />
+              )}
+              <DownloadPdfButton data={docData} signaturePath={draft.signature_path} />
+              <PrintDocumentButton data={docData} signaturePath={draft.signature_path} />
             </>
           )}
         </div>
@@ -434,6 +440,16 @@ export default function InvoiceEditorPage() {
       {draft.status === "void" && (
         <div className="px-6 py-2 bg-red-50 border-b border-red-200 text-[11.5px] text-red-800">
           เอกสารนี้ถูกยกเลิกแล้ว{draft.void_reason ? ` — เหตุผล: ${draft.void_reason}` : ""}
+        </div>
+      )}
+      {draft.status === "issued" && draft.payment_status === "paid" && (
+        <div className="px-6 py-2 bg-emerald-50 border-b border-emerald-200 text-[11.5px] text-emerald-900">
+          ชำระเงินแล้วเมื่อ {formatThaiDate(draft.paid_at)}
+          {draft.payment_method ? ` • ${draft.payment_method}` : ""}
+          {draft.paid_amount != null ? ` • ฿${formatMoney2(draft.paid_amount)}` : ""}
+          {draft.payment_note ? ` • ${draft.payment_note}` : ""}
+          {draft.paid_by_name ? ` — บันทึกโดย ${draft.paid_by_name}` : ""}
+          {activeReceipt ? ` • ใบเสร็จ ${activeReceipt.doc_no}` : " • ยังไม่ได้ออกใบเสร็จ"}
         </div>
       )}
 
@@ -709,7 +725,7 @@ export default function InvoiceEditorPage() {
             className="mx-auto shadow-lg overflow-hidden"
           >
             <div style={{ transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
-              <InvoiceDocument data={docData} logoUrl={logoUrl} bankLogoUrl={bankLogoUrl} signatureUrl={signatureUrl} copyLabel="ต้นฉบับ / Original" />
+              <InvoiceDocument data={docData} logoUrl={logoUrl} signatureUrl={signatureUrl} copyLabel="ต้นฉบับ / Original" />
             </div>
           </div>
         </div>

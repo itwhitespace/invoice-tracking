@@ -1,16 +1,45 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FilePlus, Loader2, Search, FileText, Printer } from "lucide-react";
 import { getSupabaseClient } from "@/lib/supabase";
-import { Invoice, INVOICE_STATUS_LABELS, IssuerCompany, formatMoney2, formatThaiDate, issuerDisplayName } from "@/lib/invoices";
+import {
+  Invoice,
+  INVOICE_DISPLAY_STATUS,
+  IssuerCompany,
+  formatMoney2,
+  formatThaiDate,
+  invoiceDisplayStatus,
+  issuerDisplayName,
+} from "@/lib/invoices";
 import { InvoicePreviewModal } from "@/components/invoice-preview-modal";
+import { ActiveReceipt, InvoicePaymentActions } from "@/components/invoice-payment-actions";
 
 type InvoiceRow = Pick<
   Invoice,
-  "id" | "doc_no" | "status" | "company_key" | "issue_date" | "customer" | "project_name" | "net_total" | "issued_by_name" | "created_at"
+  | "id"
+  | "doc_no"
+  | "status"
+  | "company_key"
+  | "issue_date"
+  | "due_date"
+  | "customer"
+  | "project_name"
+  | "net_total"
+  | "issued_by_name"
+  | "created_at"
+  | "payment_status"
+  | "company"
+  | "subtotal"
+  | "discount"
+  | "after_discount"
+  | "vat_rate"
+  | "vat_amount"
+  | "total"
+  | "wht_rate"
+  | "wht_amount"
 >;
 
 export default function InvoiceListPage() {
@@ -24,6 +53,7 @@ export default function InvoiceListPage() {
   const [query, setQuery] = useState("");
   const [previewing, setPreviewing] = useState<Invoice | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [receipts, setReceipts] = useState<Record<string, ActiveReceipt>>({});
 
   const openPreview = async (id: string) => {
     if (!supabase) return;
@@ -34,23 +64,28 @@ export default function InvoiceListPage() {
     else setPreviewing(data as Invoice);
   };
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!supabase) return;
-    supabase
-      .from("issuer_companies")
-      .select("*")
-      .order("created_at")
-      .then(({ data }) => setCompanies((data as IssuerCompany[]) || []));
-    supabase
-      .from("invoices")
-      .select("id, doc_no, status, company_key, issue_date, customer, project_name, net_total, issued_by_name, created_at")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) setLoadError(error.message);
-        else setRows((data as InvoiceRow[]) || []);
-        setIsLoading(false);
-      });
+    const [comp, inv, rec] = await Promise.all([
+      supabase.from("issuer_companies").select("*").order("created_at"),
+      supabase
+        .from("invoices")
+        .select("id, doc_no, status, company_key, issue_date, due_date, customer, project_name, net_total, issued_by_name, created_at, payment_status, company, subtotal, discount, after_discount, vat_rate, vat_amount, total, wht_rate, wht_amount")
+        .order("created_at", { ascending: false }),
+      supabase.from("receipts").select("id, invoice_id, doc_no").eq("status", "issued"),
+    ]);
+    setCompanies((comp.data as IssuerCompany[]) || []);
+    if (inv.error) setLoadError(inv.error.message);
+    else setRows((inv.data as InvoiceRow[]) || []);
+    const map: Record<string, ActiveReceipt> = {};
+    for (const r of (rec.data as { id: string; invoice_id: string; doc_no: string }[]) || []) map[r.invoice_id] = r;
+    setReceipts(map);
+    setIsLoading(false);
   }, [supabase]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -131,6 +166,7 @@ export default function InvoiceListPage() {
                   <th className="px-3 py-3">สถานะ</th>
                   <th className="px-3 py-3">ผู้ออก</th>
                   <th className="px-3 py-3 w-20 text-center">ดู / พิมพ์</th>
+                  <th className="px-3 py-3">การชำระเงิน</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -143,8 +179,8 @@ export default function InvoiceListPage() {
                     <td className="px-3 py-3 text-slate-600 max-w-[280px] truncate" title={r.project_name}>{r.project_name || "-"}</td>
                     <td className="px-3 py-3 text-right font-mono font-bold text-slate-800">{formatMoney2(r.net_total)}</td>
                     <td className="px-3 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${INVOICE_STATUS_LABELS[r.status].classes}`}>
-                        {INVOICE_STATUS_LABELS[r.status].label}
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${INVOICE_DISPLAY_STATUS[invoiceDisplayStatus(r)].classes}`}>
+                        {INVOICE_DISPLAY_STATUS[invoiceDisplayStatus(r)].label}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-slate-500">{r.issued_by_name || "-"}</td>
@@ -152,7 +188,7 @@ export default function InvoiceListPage() {
                       {r.status !== "draft" ? (
                         <button
                           onClick={() => openPreview(r.id)}
-                          title="ดูเอกสารและพิมพ์"
+                          title="ดูใบแจ้งหนี้และพิมพ์"
                           className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-md"
                         >
                           {openingId === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
@@ -160,6 +196,9 @@ export default function InvoiceListPage() {
                       ) : (
                         <span className="text-slate-300">-</span>
                       )}
+                    </td>
+                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                      <InvoicePaymentActions invoice={r} receipt={receipts[r.id] || null} compact onChanged={load} />
                     </td>
                   </tr>
                 ))}

@@ -18,7 +18,6 @@ export interface IssuerCompany {
   bank_branch: string;
   notes: string;
   logo_path: string | null;
-  bank_logo_path?: string | null;
   created_at?: string;
 }
 
@@ -57,7 +56,6 @@ export const EMPTY_ISSUER: Omit<IssuerCompany, "company_key"> = {
   bank_branch: "",
   notes: "",
   logo_path: null,
-  bank_logo_path: null,
 };
 
 export interface Customer {
@@ -123,7 +121,84 @@ export interface Invoice {
   voided_by: string | null;
   void_reason: string | null;
   created_at: string;
+  payment_status?: "unpaid" | "paid";
+  paid_at?: string | null;
+  payment_method?: string | null;
+  paid_amount?: number | null;
+  payment_note?: string | null;
+  paid_by_name?: string | null;
 }
+
+export interface Receipt {
+  id: string;
+  invoice_id: string;
+  company_key: string;
+  doc_no: string;
+  status: "issued" | "void";
+  issue_date: string;
+  invoice_doc_no: string;
+  paid_at: string | null;
+  payment_method: string | null;
+  paid_amount: number | null;
+  payment_note: string | null;
+  // Copy of the invoice's document content at the time the receipt was issued.
+  data: Pick<
+    Invoice,
+    | "customer"
+    | "company"
+    | "items"
+    | "salesman"
+    | "project_name"
+    | "quotation_no"
+    | "ref_document"
+    | "credit_term_days"
+    | "due_date"
+    | "discount"
+    | "vat_rate"
+    | "wht_rate"
+    | "subtotal"
+    | "after_discount"
+    | "vat_amount"
+    | "total"
+    | "wht_amount"
+    | "net_total"
+    | "notes"
+  >;
+  issued_by_name: string | null;
+  signature_path: string | null;
+  issued_at: string;
+  void_reason: string | null;
+  created_at: string;
+}
+
+export const PAYMENT_METHODS = ["โอนเงิน", "เช็ค", "เงินสด"];
+
+export function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// One status for the list and the invoice page, combining the document
+// status with payment: draft / unpaid / overdue / paid / void.
+export type InvoiceDisplayStatus = "draft" | "unpaid" | "overdue" | "paid" | "void";
+
+export function invoiceDisplayStatus(
+  inv: Pick<Invoice, "status" | "due_date"> & { payment_status?: string | null }
+): InvoiceDisplayStatus {
+  if (inv.status === "draft") return "draft";
+  if (inv.status === "void") return "void";
+  if (inv.payment_status === "paid") return "paid";
+  if (inv.due_date && inv.due_date < todayIso()) return "overdue";
+  return "unpaid";
+}
+
+export const INVOICE_DISPLAY_STATUS: Record<InvoiceDisplayStatus, { label: string; classes: string }> = {
+  draft: { label: "ฉบับร่าง", classes: "bg-slate-100 text-slate-700 border-slate-300" },
+  unpaid: { label: "รอชำระเงิน", classes: "bg-amber-100 text-amber-800 border-amber-300" },
+  overdue: { label: "เกินกำหนดชำระ", classes: "bg-red-100 text-red-800 border-red-300" },
+  paid: { label: "ชำระเงินแล้ว", classes: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+  void: { label: "ยกเลิก", classes: "bg-slate-200 text-slate-500 border-slate-300 line-through" },
+};
 
 export const EMPTY_CUSTOMER: CustomerSnapshot = {
   name: "",

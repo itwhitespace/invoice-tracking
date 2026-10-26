@@ -22,7 +22,7 @@ export interface InvoiceDocumentData {
   project_name: string;
   quotation_no: string;
   ref_document: string;
-  ship_to: string;
+  ship_to?: string;
   customer: CustomerSnapshot;
   company: IssuerCompany | null;
   items: InvoiceItem[];
@@ -37,12 +37,15 @@ export interface InvoiceDocumentData {
   net_total: number;
   notes: string;
   issued_at: string | null;
+  // Receipt only
+  kind?: "invoice" | "receipt";
+  invoice_doc_no?: string | null;
+  paid_at?: string | null;
+  payment_method?: string | null;
+  payment_note?: string | null;
 }
 
 const MIN_ITEM_ROWS = 10;
-
-// "กสิกรไทย" -> "ธ.กสิกรไทย"; names already written as "ธ..." / "ธนาคาร..." are kept.
-const bankLabel = (name: string) => (!name || /^ธ(\.|นาคาร)/.test(name.trim()) ? name : `ธ.${name.trim()}`);
 
 function Label({ th, en }: { th: string; en: string }) {
   return (
@@ -89,13 +92,14 @@ function SummaryRow({ th, en, value, dark }: { th: string; en: string; value: st
 export function InvoiceDocument({
   data,
   logoUrl,
-  bankLogoUrl,
   signatureUrl,
   copyLabel,
+  forFile,
 }: {
   data: InvoiceDocumentData;
   logoUrl: string | null;
-  bankLogoUrl?: string | null;
+  // Rendering for a saved PDF: leave out on-screen-only hints.
+  forFile?: boolean;
   signatureUrl: string | null;
   copyLabel: string;
 }) {
@@ -103,6 +107,7 @@ export function InvoiceDocument({
   const cust = data.customer;
   const fillerRows = Math.max(0, MIN_ITEM_ROWS - data.items.length);
   const watermark = data.status === "void" ? "ยกเลิก / VOID" : data.status === "draft" ? "ฉบับร่าง / DRAFT" : null;
+  const isReceipt = data.kind === "receipt";
 
   return (
     <div
@@ -126,7 +131,7 @@ export function InvoiceDocument({
         <div className="h-[60px] max-w-[260px] flex items-center">
           {logoUrl ? (
             <img src={logoUrl} alt="logo" className="max-h-[60px] max-w-[260px] object-contain" />
-          ) : (
+          ) : forFile ? null : (
             <span className="text-[11px] text-slate-400 print:hidden">(ยังไม่มีโลโก้)</span>
           )}
         </div>
@@ -149,13 +154,13 @@ export function InvoiceDocument({
       <div className="flex justify-end mt-3">
         <div className="flex border border-black rounded-tl-[10px] overflow-hidden">
           <div className="w-[260px] bg-black text-white flex flex-col items-center justify-center py-2">
-            <div className="text-[17px] font-bold leading-tight">Invoice</div>
-            <div className="text-[11px] font-semibold leading-tight">ใบแจ้งหนี้</div>
+            <div className="text-[17px] font-bold leading-tight">{isReceipt ? "Receipt" : "Invoice"}</div>
+            <div className="text-[11px] font-semibold leading-tight">{isReceipt ? "ใบเสร็จรับเงิน" : "ใบแจ้งหนี้"}</div>
           </div>
           <div className="w-[170px] flex flex-col">
             <div className="text-[8.5px] text-center border-b border-black py-0.5">{copyLabel}</div>
             <div className="flex-1 flex items-center justify-center text-[14px] font-semibold px-2">
-              {data.doc_no || "IN-XXXXXXXXX"}
+              {data.doc_no || (isReceipt ? "RE-XXXXXXXXX" : "IN-XXXXXXXXX")}
             </div>
           </div>
         </div>
@@ -184,23 +189,36 @@ export function InvoiceDocument({
         <div className="grid grid-cols-2">
           <div className="p-2 space-y-1 border-r border-black">
             <InfoRow th="วันที่" en="Issue Date" value={formatThaiDate(data.issue_date)} labelWidth="w-[58px]" />
-            <InfoRow
-              th="กำหนดชำระ"
-              en="Due Date"
-              value={
-                <>
-                  {formatThaiDate(data.due_date)}
-                  <div className="text-[8.5px] text-slate-600">เครดิต ({data.credit_term_days} วัน)</div>
-                </>
-              }
-              labelWidth="w-[58px]"
-            />
+            {isReceipt ? (
+              <InfoRow th="ใบแจ้งหนี้" en="Invoice No" value={data.invoice_doc_no} labelWidth="w-[58px]" />
+            ) : (
+              <InfoRow
+                th="กำหนดชำระ"
+                en="Due Date"
+                value={
+                  <>
+                    {formatThaiDate(data.due_date)}
+                    <div className="text-[8.5px] text-slate-600">เครดิต ({data.credit_term_days} วัน)</div>
+                  </>
+                }
+                labelWidth="w-[58px]"
+              />
+            )}
             <InfoRow th="ชื่อผู้ติดต่อ" en="Contact Name" value={cust.contact_name} labelWidth="w-[58px]" />
           </div>
           <div className="p-2 space-y-1">
             <InfoRow th="พนักงานขาย" en="Salesman" value={data.salesman} labelWidth="w-[62px]" />
-            <InfoRow th="ใบเสนอราคา" en="Quotation No" value={data.quotation_no} labelWidth="w-[62px]" />
-            <InfoRow th="เอกสารอ้างอิง" en="Ref Document" value={data.ref_document} labelWidth="w-[62px]" />
+            {isReceipt ? (
+              <>
+                <InfoRow th="วันที่ชำระ" en="Payment Date" value={formatThaiDate(data.paid_at)} labelWidth="w-[62px]" />
+                <InfoRow th="ชำระโดย" en="Payment Method" value={data.payment_method} labelWidth="w-[62px]" />
+              </>
+            ) : (
+              <>
+                <InfoRow th="ใบเสนอราคา" en="Quotation No" value={data.quotation_no} labelWidth="w-[62px]" />
+                <InfoRow th="เอกสารอ้างอิง" en="Ref Document" value={data.ref_document} labelWidth="w-[62px]" />
+              </>
+            )}
           </div>
         </div>
         <div className="col-span-2 p-2 border-t border-black">
@@ -269,24 +287,27 @@ export function InvoiceDocument({
             <Label th="จำนวนเงิน" en="Amount" />
             <div className="flex-1 text-center text-[11px] font-semibold">{bahtText(data.total)}</div>
           </div>
-          {(c?.bank_name || c?.bank_account_no) && (
-            <div className="flex items-center gap-2.5">
-              {bankLogoUrl && <img src={bankLogoUrl} alt="bank" className="w-9 h-9 object-contain shrink-0" />}
-              <div className="leading-tight">
-                <div className="text-[10.5px]">
-                  {bankLabel(c.bank_name)}
-                  {c.bank_branch ? ` (${c.bank_branch})` : ""}
-                </div>
-                <div className="text-[12px] font-bold">
-                  {[c.bank_account_type, c.bank_account_no].filter(Boolean).join(" ")}
-                </div>
-                {c.bank_account_name && <div className="text-[10px]">{c.bank_account_name}</div>}
-              </div>
+          {!isReceipt && (c?.bank_name || c?.bank_account_no) && (
+            <div className="text-[10px] leading-relaxed">
+              {[
+                ["ชื่อบัญชี", c.bank_account_name],
+                ["ธนาคาร", c.bank_name],
+                ["เลขที่บัญชี", c.bank_account_no],
+                ["ประเภท", c.bank_account_type],
+                ["สาขา", c.bank_branch],
+              ]
+                .filter(([, v]) => v)
+                .map(([label, v]) => (
+                  <div key={label}>
+                    {label} : {v}
+                  </div>
+                ))}
             </div>
           )}
           <div className="text-[10px] leading-relaxed">
             <div className="text-[11.5px] font-bold">หมายเหตุและเงื่อนไข (Terms &amp; Conditions)</div>
             {data.notes && <div className="mt-1 whitespace-pre-line">{data.notes}</div>}
+            {isReceipt && data.payment_note && <div className="mt-1 whitespace-pre-line">การชำระเงิน: {data.payment_note}</div>}
           </div>
         </div>
         <div className="space-y-1">
@@ -306,7 +327,7 @@ export function InvoiceDocument({
       <div className="mt-5 grid grid-cols-3 border border-black">
         <div className="h-[100px] border-r border-black flex flex-col items-center justify-end pb-2 text-[9.5px]">
           <div className="w-[160px] border-t border-dashed border-black mb-1" />
-          <div className="font-semibold">ผู้รับวางบิล / Receiver Signature</div>
+          <div className="font-semibold">{isReceipt ? "ผู้จ่ายเงิน / Payer" : "ผู้รับวางบิล / Receiver Signature"}</div>
           <div className="mt-1">
             วันที่ / Date <span className="inline-block w-[80px] border-b border-dotted border-black" />
           </div>
@@ -319,7 +340,7 @@ export function InvoiceDocument({
             {signatureUrl && <img src={signatureUrl} alt="signature" className="max-h-[44px] max-w-[150px] object-contain" />}
           </div>
           <div className="w-[160px] border-t border-dashed border-black mb-1" />
-          <div className="font-semibold">ผู้มีอำนาจลงนาม / Authorized Signature</div>
+          <div className="font-semibold">{isReceipt ? "ผู้รับเงิน / Collector" : "ผู้มีอำนาจลงนาม / Authorized Signature"}</div>
           <div className="mt-1">
             วันที่ / Date{" "}
             <span className="inline-block min-w-[80px] border-b border-dotted border-black text-center">
