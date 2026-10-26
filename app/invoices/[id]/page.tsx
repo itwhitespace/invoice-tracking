@@ -495,10 +495,6 @@ export default function InvoiceEditorPage() {
                   <label className="text-[11px] font-semibold text-slate-600">เอกสารอ้างอิง</label>
                   <input value={draft.ref_document} onChange={(e) => patch({ ref_document: e.target.value })} className={inputClass} />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-600">ที่อยู่จัดส่ง</label>
-                  <input value={draft.ship_to} onChange={(e) => patch({ ship_to: e.target.value })} className={inputClass} />
-                </div>
               </div>
               <p className="text-[10.5px] text-slate-500 mt-2">
                 ครบกำหนดชำระ: <span className="font-mono">{docData.due_date ? docData.due_date.split("-").reverse().join("/") : "-"}</span> — เลขที่เอกสารออกให้อัตโนมัติตอนกด &quot;ออกเอกสาร&quot; (IN-ปีเดือน + ลำดับ)

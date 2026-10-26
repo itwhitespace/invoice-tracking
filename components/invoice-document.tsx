@@ -203,10 +203,7 @@ export function InvoiceDocument({
             <InfoRow th="เอกสารอ้างอิง" en="Ref Document" value={data.ref_document} labelWidth="w-[62px]" />
           </div>
         </div>
-        <div className="p-2 border-t border-r border-black">
-          <InfoRow th="ที่อยู่จัดส่ง" en="Ship To." value={data.ship_to} />
-        </div>
-        <div className="p-2 border-t border-black">
+        <div className="col-span-2 p-2 border-t border-black">
           <InfoRow th="ชื่อโปรเจกต์" en="Project Name" value={<span className="font-semibold">{data.project_name}</span>} labelWidth="w-[58px]" />
         </div>
       </div>
@@ -272,14 +269,6 @@ export function InvoiceDocument({
             <Label th="จำนวนเงิน" en="Amount" />
             <div className="flex-1 text-center text-[11px] font-semibold">{bahtText(data.total)}</div>
           </div>
-          {data.wht_rate > 0 && (
-            <div className="flex items-center gap-4 px-1">
-              <Label th="หัก ณ ที่จ่าย" en="Withholding Tax" />
-              <div className="text-[10.5px]">
-                {data.wht_rate}% จำนวน {formatMoney2(data.wht_amount)} บาท
-              </div>
-            </div>
-          )}
           {(c?.bank_name || c?.bank_account_no) && (
             <div className="flex items-center gap-2.5">
               {bankLogoUrl && <img src={bankLogoUrl} alt="bank" className="w-9 h-9 object-contain shrink-0" />}
