@@ -68,7 +68,7 @@ export default function InvoiceListPage() {
 
   return (
     <div className="h-full overflow-y-auto p-6 md:p-8">
-      <div className="max-w-6xl">
+      <div>
         <div className="mb-4 flex items-center gap-3 flex-wrap">
           <div className="relative w-72">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -103,7 +103,7 @@ export default function InvoiceListPage() {
           </Link>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-x-auto">
           {isLoading ? (
             <div className="py-16 flex justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
@@ -119,36 +119,36 @@ export default function InvoiceListPage() {
               <p className="text-xs">{rows.length === 0 ? "ยังไม่มีใบแจ้งหนี้" : "ไม่พบรายการที่ตรงกับตัวกรอง"}</p>
             </div>
           ) : (
-            <table className="w-full text-xs text-left">
+            <table className="w-full text-xs text-left whitespace-nowrap">
               <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="p-3.5">เลขที่</th>
-                  <th className="p-3.5">วันที่</th>
-                  <th className="p-3.5">บริษัทผู้ออก</th>
-                  <th className="p-3.5">ลูกค้า</th>
-                  <th className="p-3.5">โปรเจกต์</th>
-                  <th className="p-3.5 text-right">ยอดชำระ (THB)</th>
-                  <th className="p-3.5">สถานะ</th>
-                  <th className="p-3.5">ผู้ออก</th>
-                  <th className="p-3.5 w-20 text-center">ดู / พิมพ์</th>
+                  <th className="px-3 py-3">เลขที่</th>
+                  <th className="px-3 py-3">วันที่</th>
+                  <th className="px-3 py-3">บริษัทผู้ออก</th>
+                  <th className="px-3 py-3">ลูกค้า</th>
+                  <th className="px-3 py-3">โปรเจกต์</th>
+                  <th className="px-3 py-3 text-right">ยอดชำระ (THB)</th>
+                  <th className="px-3 py-3">สถานะ</th>
+                  <th className="px-3 py-3">ผู้ออก</th>
+                  <th className="px-3 py-3 w-20 text-center">ดู / พิมพ์</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((r) => (
                   <tr key={r.id} onClick={() => router.push(`/invoices/${r.id}`)} className="hover:bg-slate-50/70 cursor-pointer">
-                    <td className="p-3.5 font-mono font-semibold text-slate-900">{r.doc_no || <span className="text-slate-400">— ร่าง —</span>}</td>
-                    <td className="p-3.5 font-mono text-slate-600">{formatThaiDate(r.issue_date)}</td>
-                    <td className="p-3.5 text-slate-600">{companyName(r.company_key)}</td>
-                    <td className="p-3.5 text-slate-800">{r.customer?.name || "-"}</td>
-                    <td className="p-3.5 text-slate-600">{r.project_name || "-"}</td>
-                    <td className="p-3.5 text-right font-mono font-bold text-slate-800">{formatMoney2(r.net_total)}</td>
-                    <td className="p-3.5">
+                    <td className="px-3 py-3 font-mono font-semibold text-slate-900">{r.doc_no || <span className="text-slate-400">— ร่าง —</span>}</td>
+                    <td className="px-3 py-3 font-mono text-slate-600">{formatThaiDate(r.issue_date)}</td>
+                    <td className="px-3 py-3 text-slate-600">{companyName(r.company_key)}</td>
+                    <td className="px-3 py-3 text-slate-800">{r.customer?.name || "-"}</td>
+                    <td className="px-3 py-3 text-slate-600 max-w-[280px] truncate" title={r.project_name}>{r.project_name || "-"}</td>
+                    <td className="px-3 py-3 text-right font-mono font-bold text-slate-800">{formatMoney2(r.net_total)}</td>
+                    <td className="px-3 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${INVOICE_STATUS_LABELS[r.status].classes}`}>
                         {INVOICE_STATUS_LABELS[r.status].label}
                       </span>
                     </td>
-                    <td className="p-3.5 text-slate-500">{r.issued_by_name || "-"}</td>
-                    <td className="p-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-3 py-3 text-slate-500">{r.issued_by_name || "-"}</td>
+                    <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                       {r.status !== "draft" ? (
                         <button
                           onClick={() => openPreview(r.id)}

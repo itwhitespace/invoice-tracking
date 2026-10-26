@@ -273,7 +273,10 @@ export function InvoiceDocument({
             <div className="flex items-center gap-2.5">
               {bankLogoUrl && <img src={bankLogoUrl} alt="bank" className="w-9 h-9 object-contain shrink-0" />}
               <div className="leading-tight">
-                <div className="text-[10.5px]">{bankLabel(c.bank_name)}</div>
+                <div className="text-[10.5px]">
+                  {bankLabel(c.bank_name)}
+                  {c.bank_branch ? ` (${c.bank_branch})` : ""}
+                </div>
                 <div className="text-[12px] font-bold">
                   {[c.bank_account_type, c.bank_account_no].filter(Boolean).join(" ")}
                 </div>

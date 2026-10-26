@@ -27,7 +27,7 @@ const BANK_FIELDS: { key: keyof IssuerCompany; label: string; wide?: boolean; pl
   { key: "bank_name", label: "ธนาคาร", placeholder: "เช่น กสิกรไทย" },
   { key: "bank_account_type", label: "ประเภทบัญชี", placeholder: "เช่น ออมทรัพย์" },
   { key: "bank_account_no", label: "เลขที่บัญชี" },
-  { key: "bank_branch", label: "สาขาธนาคาร (ไม่แสดงบนเอกสาร)" },
+  { key: "bank_branch", label: "สาขาธนาคาร", placeholder: "เช่น วัน แบงค็อก" },
   { key: "bank_account_name", label: "ชื่อบัญชี", wide: true },
 ];
 
