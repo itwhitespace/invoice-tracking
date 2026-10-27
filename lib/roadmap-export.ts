@@ -560,7 +560,7 @@ export async function exportFiscalYearBillingReportToExcel(params: {
 
   const ExcelJS = (await import("exceljs")).default;
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Invoice Tracking Program";
+  workbook.creator = "Program tracking";
   workbook.created = new Date();
 
   const fiscalMonthHeaders = buildFiscalYearMonthHeadersForStartYear(fiscalYearStart);

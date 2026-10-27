@@ -131,7 +131,7 @@ export default function LoginPage() {
         <div className="flex items-center gap-2.5">
           <img src="/icon-WR.png" alt="WR" className="w-9 h-9 rounded-lg object-cover shadow-xs" />
           <div>
-            <h1 className="text-sm font-bold text-slate-900 tracking-tight">Invoice Tracking Program</h1>
+            <h1 className="text-sm font-bold text-slate-900 tracking-tight">Program tracking</h1>
             <p className="text-[11px] text-slate-500">
               {step === "password"
                 ? "เข้าสู่ระบบ"

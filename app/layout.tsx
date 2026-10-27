@@ -5,7 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
-  title: "Invoice Tracking Program",
+  title: "Program tracking",
   description: "AI-Powered PDF Data Extraction, Split-Screen Review, and Supabase Integration",
 };
 

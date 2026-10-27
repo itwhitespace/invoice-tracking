@@ -6,7 +6,7 @@ import { PaymentStatus, PaymentTermItem } from "./types";
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   wait: "รอเก็บเงิน",
   invoice: "วางบิลแล้ว",
-  paid: "เก็บเงินแล้ว",
+  paid: "ได้เงินแล้ว",
   hold: "พักไว้ก่อน (Hold)",
   cancelled: "ยกเลิกงาน",
 };

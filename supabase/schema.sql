@@ -1,5 +1,5 @@
 -- ============================================================================
--- Invoice Tracking Program — Supabase schema
+-- Program tracking — Supabase schema
 -- Run this in the Supabase SQL Editor (Project > SQL Editor > New query).
 -- Safe to re-run: uses IF NOT EXISTS / DROP ... IF EXISTS guards throughout.
 -- ============================================================================

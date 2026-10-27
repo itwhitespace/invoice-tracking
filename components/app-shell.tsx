@@ -211,7 +211,7 @@ function SignedInShell({ children }: { children: ReactNode }) {
           <Menu className="w-5 h-5" />
         </button>
         <img src="/icon-WR.png" alt="WR" className="w-7 h-7 rounded-md object-cover" />
-        <span className="text-sm font-bold text-slate-900 tracking-tight truncate">Invoice Tracking Program</span>
+        <span className="text-sm font-bold text-slate-900 tracking-tight truncate">Program tracking</span>
       </div>
 
       {mobileMenuOpen && (
@@ -264,7 +264,7 @@ function SignedInShell({ children }: { children: ReactNode }) {
                 className="w-8 h-8 rounded-lg shrink-0 shadow-xs object-cover"
               />
               <span className="text-sm font-bold text-slate-900 tracking-tight truncate">
-                Invoice Tracking Program
+                Program tracking
               </span>
             </div>
           )}
