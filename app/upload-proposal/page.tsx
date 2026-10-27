@@ -14,6 +14,7 @@ import {
 } from "@/lib/types";
 import { EMPTY_PROJECT_DATA } from "@/lib/sample-data";
 import { getTotalWeeks } from "@/lib/timeframe-utils";
+import { paymentTermsMatchFee } from "@/lib/fee-utils";
 import { DesktopOnlyNotice } from "@/components/desktop-only-notice";
 import { RequirePermission } from "@/components/require-permission";
 import { useAuth } from "@/lib/auth-context";
@@ -158,6 +159,11 @@ function UploadProposalContent() {
 
     if (data.paymentTerms.length > 0 && data.paymentTerms.some((pt) => !pt.paymentWeek)) {
       showToast("warning", "กรุณาระบุ \"เก็บเงินสัปดาห์ที่\" ให้ครบทุกงวดในตาราง Payment Term ก่อนบันทึก");
+      return;
+    }
+
+    if (!paymentTermsMatchFee(data.totalFee, data.paymentTerms)) {
+      showToast("warning", "ผลรวมจำนวนเงินทุกงวดต้องเท่ากับ Total Fee ก่อนบันทึก");
       return;
     }
 

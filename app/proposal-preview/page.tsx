@@ -15,6 +15,7 @@ import {
 import { getCompanyLabel } from "@/lib/company-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-utils";
 import { formatProjectDuration } from "@/lib/timeframe-utils";
+import { paymentTermsDiff, paymentTermsMatchFee } from "@/lib/fee-utils";
 import { PdfPreviewModal } from "@/components/pdf-preview-modal";
 import { ProposalDetailModal } from "@/components/proposal-detail-modal";
 import { AddProposalModal } from "@/components/add-proposal-modal";
@@ -31,6 +32,15 @@ const STATUS_STYLES: Record<string, string> = {
   verified: "bg-orange-100 text-orange-800 border-orange-300",
   approved: "bg-emerald-100 text-emerald-800 border-emerald-300",
 };
+
+// Shown under the project name when its installments don't add up to Total Fee.
+function FeeMismatchNote({ diff }: { diff: number }) {
+  return (
+    <span className="block mt-0.5 text-[10.5px] font-medium text-red-600 whitespace-nowrap">
+      งวดเงิน{diff > 0 ? "เกิน" : "ขาด"} ฿{Math.abs(diff).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    </span>
+  );
+}
 
 export default function ProposalPreviewPage() {
   return (
@@ -73,12 +83,21 @@ function ProposalPreviewContent() {
     return DEPARTMENT_OPTIONS.filter((d) => set.has(d));
   }, [companyScopedRecords]);
 
+  // Projects whose installments don't add up to Total Fee — highlighted in
+  // the list, and counted on each filter so the groups needing a fix stand out.
+  const mismatchCount = (list: SavedRecord[]) =>
+    list.filter((r) => !paymentTermsMatchFee(r.totalFee, r.paymentTerms)).length;
+
   const departmentTabs = useMemo(
     () => [
-      { label: "ทั้งหมด", value: "" },
-      ...availableDepartments.map((d) => ({ label: formatDepartmentLabel(d), value: d })),
+      { label: "ทั้งหมด", value: "", badge: mismatchCount(companyScopedRecords) },
+      ...availableDepartments.map((d) => ({
+        label: formatDepartmentLabel(d),
+        value: d,
+        badge: mismatchCount(companyScopedRecords.filter((r) => r.department === d)),
+      })),
     ],
-    [availableDepartments]
+    [availableDepartments, companyScopedRecords]
   );
 
   // The department tab set changes when the company filter (a different
@@ -110,6 +129,8 @@ function ProposalPreviewContent() {
   useEffect(() => {
     if (!hasVerifiedRecords) setStatusFilter("");
   }, [hasVerifiedRecords]);
+
+  const verifiedMismatchCount = mismatchCount(departmentScopedRecords.filter((r) => r.status === "verified"));
 
   const filteredRecords = useMemo(() => {
     let list = statusFilter
@@ -294,6 +315,11 @@ function ProposalPreviewContent() {
                 }`}
               >
                 Verified
+                {verifiedMismatchCount > 0 && (
+                  <span className="ml-1.5 min-w-4 h-4 px-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                    {verifiedMismatchCount}
+                  </span>
+                )}
               </button>
             )}
           </div>
@@ -334,15 +360,20 @@ function ProposalPreviewContent() {
             <>
             {/* Mobile: read-only cards — tap one for the full-screen detail */}
             <div className="md:hidden divide-y divide-slate-100">
-              {filteredRecords.map((rec) => (
+              {filteredRecords.map((rec) => {
+                const feeDiff = paymentTermsDiff(rec.totalFee, rec.paymentTerms);
+                return (
                 <button
                   key={rec.id}
                   type="button"
                   onClick={() => setMobileDetailRecord(rec)}
-                  className="w-full text-left p-3.5 active:bg-slate-50 flex items-start justify-between gap-3"
+                  className={`w-full text-left p-3.5 flex items-start justify-between gap-3 ${
+                    feeDiff !== 0 ? "bg-red-50 active:bg-red-100" : "active:bg-slate-50"
+                  }`}
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900 break-words">{rec.projectName}</p>
+                    {feeDiff !== 0 && <FeeMismatchNote diff={feeDiff} />}
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       {[
                         rec.companyName ? getCompanyLabel(rec.companyName) : "",
@@ -360,7 +391,8 @@ function ProposalPreviewContent() {
                     <ProposalStatusBadge status={rec.status} />
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-xs text-left">
@@ -381,14 +413,19 @@ function ProposalPreviewContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredRecords.map((rec) => (
+                  {filteredRecords.map((rec) => {
+                    const feeDiff = paymentTermsDiff(rec.totalFee, rec.paymentTerms);
+                    return (
                     <tr
                       key={rec.id}
-                      className="hover:bg-slate-50/70 transition-colors cursor-pointer group"
+                      className={`transition-colors cursor-pointer group ${
+                        feeDiff !== 0 ? "bg-red-50 hover:bg-red-100/70" : "hover:bg-slate-50/70"
+                      }`}
                       onClick={() => setDetailRecord(rec)}
                     >
                       <td className="p-3.5 font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
                         {rec.projectName}
+                        {feeDiff !== 0 && <FeeMismatchNote diff={feeDiff} />}
                       </td>
                       <td className="p-3.5 text-slate-600">{rec.companyName || "-"}</td>
                       <td className="p-3.5 text-slate-600">
@@ -475,7 +512,8 @@ function ProposalPreviewContent() {
                       </td>
                       )}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -5,6 +5,8 @@ import { useEffect, useRef } from "react";
 export interface AnimatedTab {
   label: string;
   value: string;
+  // Small red count after the label, e.g. projects needing attention.
+  badge?: number;
 }
 
 interface AnimatedTabsProps {
@@ -50,6 +52,11 @@ export function AnimatedTabs({ tabs, value, onChange }: AnimatedTabsProps) {
               className="flex h-full items-center justify-center rounded-full px-4 text-xs font-semibold text-white whitespace-nowrap"
             >
               {tab.label}
+              {!!tab.badge && (
+                <span className="ml-1.5 min-w-4 h-4 px-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  {tab.badge}
+                </span>
+              )}
             </span>
           ))}
         </div>
@@ -68,6 +75,11 @@ export function AnimatedTabs({ tabs, value, onChange }: AnimatedTabsProps) {
               className="flex h-8 items-center rounded-full px-4 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors whitespace-nowrap"
             >
               {tab.label}
+              {!!tab.badge && (
+                <span className="ml-1.5 min-w-4 h-4 px-1 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                  {tab.badge}
+                </span>
+              )}
             </button>
           );
         })}

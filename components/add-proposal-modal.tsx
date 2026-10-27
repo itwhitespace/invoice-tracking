@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ExtractedProjectData, TimeFrameItem, PaymentTermItem } from "@/lib/types";
 import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import { formatThousands, parseThousands } from "@/lib/format-utils";
+import { sumPaymentTerms, paymentTermsDiff } from "@/lib/fee-utils";
 import { useAuth } from "@/lib/auth-context";
 import {
   X,
@@ -35,6 +36,8 @@ interface AddProposalModalProps {
   onCreate: (data: ExtractedProjectData) => Promise<void>;
 }
 
+const formatMoney = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModalProps) {
   const { visibleCompanies } = useAuth();
   const [data, setData] = useState<ExtractedProjectData>(EMPTY_DATA);
@@ -44,8 +47,10 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
   if (!isOpen) return null;
 
   const totalWeeks = getTotalWeeks(data.timeFrames);
-  const paymentSum = data.paymentTerms.reduce((sum, pt) => sum + (Number(pt.amount) || 0), 0);
-  const paymentSumExceedsFee = data.totalFee > 0 && paymentSum > data.totalFee;
+  const paymentSum = sumPaymentTerms(data.paymentTerms);
+  // Total Fee and the installments must add up exactly before saving.
+  const paymentDiff = paymentTermsDiff(data.totalFee, data.paymentTerms);
+  const paymentMismatch = paymentDiff !== 0;
 
   const handleFieldChange = (field: keyof ExtractedProjectData, value: any) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -119,7 +124,7 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
     setData((prev) => ({ ...prev, paymentTerms: prev.paymentTerms.filter((_, i) => i !== index) }));
   };
 
-  const isValid = !!data.companyName && !!data.projectName.trim() && data.totalFee > 0 && !paymentSumExceedsFee;
+  const isValid = !!data.companyName && !!data.projectName.trim() && data.totalFee > 0 && !paymentMismatch;
 
   const handleSubmit = async () => {
     if (!isValid) {
@@ -425,10 +430,10 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
                 </tbody>
                 {data.paymentTerms.length > 0 && (
                   <tfoot>
-                    <tr className={`border-t-2 font-bold ${paymentSumExceedsFee ? "border-red-300 bg-red-50/70" : "border-slate-200 bg-slate-50/70"}`}>
+                    <tr className={`border-t-2 font-bold ${paymentMismatch ? "border-red-300 bg-red-50/70" : "border-slate-200 bg-slate-50/70"}`}>
                       <td className="p-2.5 text-right text-slate-700">รวม</td>
                       <td></td>
-                      <td className={`p-2.5 text-right font-mono ${paymentSumExceedsFee ? "text-red-700" : "text-emerald-700"}`}>
+                      <td className={`p-2.5 text-right font-mono ${paymentMismatch ? "text-red-700" : "text-emerald-700"}`}>
                         {formatThousands(paymentSum)}
                       </td>
                       <td colSpan={2}></td>
@@ -438,18 +443,18 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
               </table>
             </div>
 
-            {paymentSumExceedsFee && (
+            {paymentMismatch && (
               <div className="flex items-start gap-2 p-3 bg-red-50/90 border border-red-300 rounded-lg text-xs text-red-900 font-medium">
                 <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                 <p>
-                  ผลรวมจำนวนเงิน ({formatThousands(paymentSum)}) เกินกว่า Total Fee ({formatThousands(data.totalFee)}) —
-                  ต้องปรับให้ไม่เกินก่อนถึงจะบันทึกได้
+                  ผลรวมจำนวนเงิน ({formatMoney(paymentSum)}) ไม่ตรงกับ Total Fee ({formatMoney(data.totalFee)}) —{" "}
+                  {paymentDiff > 0 ? "เกิน" : "ขาด"}อยู่ {formatMoney(Math.abs(paymentDiff))} ต้องปรับให้ตรงกันก่อนถึงจะบันทึกได้
                 </p>
               </div>
             )}
           </section>
 
-          {showValidation && !isValid && !paymentSumExceedsFee && (
+          {showValidation && !isValid && !paymentMismatch && (
             <div className="flex items-start gap-2 p-3 bg-red-50/90 border border-red-300 rounded-lg text-xs text-red-900 font-medium">
               <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
               <p>กรุณากรอกบริษัทผู้ออกเอกสาร, ชื่อโครงการ และ Total Fee ให้ครบก่อนบันทึก</p>
@@ -468,8 +473,8 @@ export function AddProposalModal({ isOpen, onClose, onCreate }: AddProposalModal
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSaving || paymentSumExceedsFee}
-            title={paymentSumExceedsFee ? "ผลรวมจำนวนเงินเกิน Total Fee — ต้องปรับก่อนบันทึก" : undefined}
+            disabled={isSaving || paymentMismatch}
+            title={paymentMismatch ? "ผลรวมงวดเงินไม่ตรงกับ Total Fee — ต้องปรับก่อนบันทึก" : undefined}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition shadow-xs flex items-center gap-1.5"
           >
             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}

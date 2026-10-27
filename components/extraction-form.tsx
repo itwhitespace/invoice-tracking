@@ -8,6 +8,7 @@ import {
 } from "@/lib/types";
 import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import { formatThousands, parseThousands } from "@/lib/format-utils";
+import { paymentTermsMatchFee } from "@/lib/fee-utils";
 import { useAuth } from "@/lib/auth-context";
 import {
   Plus,
@@ -44,7 +45,7 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
   }, [data.paymentTerms]);
 
   const isPercentageValid = Math.abs(totalPercentage - 100) < 0.01;
-  const isAmountMatching = Math.abs(totalCalculatedAmount - Number(data.totalFee || 0)) < 1;
+  const isAmountMatching = paymentTermsMatchFee(Number(data.totalFee || 0), data.paymentTerms);
 
   const totalWeeks = useMemo(() => getTotalWeeks(data.timeFrames), [data.timeFrames]);
   const hasMissingPaymentWeek = data.paymentTerms.some((pt) => !pt.paymentWeek);
@@ -490,10 +491,10 @@ export function ExtractionForm({ data, onChange, isAiExtracted, isDemoFallback }
                   ผลรวมเปอร์เซ็นต์เท่ากับ <strong>{totalPercentage}%</strong> (ควรเท่ากับ 100%)
                 </p>
               )}
-              {!isAmountMatching && data.totalFee > 0 && (
+              {!isAmountMatching && (
                 <p>
                   ผลรวมยอดเงินงวด (THB {totalCalculatedAmount.toLocaleString()}) ไม่ตรงกับ Total Fee
-                  (THB {data.totalFee.toLocaleString()})
+                  (THB {data.totalFee.toLocaleString()}) — ต้องปรับให้ตรงกันก่อนกด Save to Database
                 </p>
               )}
             </div>

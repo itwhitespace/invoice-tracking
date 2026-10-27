@@ -18,7 +18,7 @@ export const PERMISSIONS: { key: PermissionKey; label: string; hint: string }[] 
   { key: "edit_project", label: "แก้ไขรายละเอียดโครงการ", hint: "ชื่อ, Timeframe, งวดเงิน, Start Date, แผนก, แสดง/ซ่อนใน Roadmap" },
   { key: "edit_payment", label: "เปลี่ยนสถานะจ่ายเงิน / ย้ายสัปดาห์", hint: "บนหน้า Project Roadmap รวมถึงเขียน Note" },
   { key: "edit_total_fee", label: "แก้ Total Fee", hint: "ไอคอนดินสอในหน้าต่างรายละเอียด" },
-  { key: "approve", label: "Approve / Not Approved", hint: "แท็บรายละเอียดการดำเนินงาน" },
+  { key: "approve", label: "Approve / ยกเลิกการอนุมัติ", hint: "แท็บรายละเอียดการดำเนินงาน" },
   { key: "delete_project", label: "ลบโครงการ", hint: "ปุ่มลบในหน้า Proposal Preview" },
   { key: "edit_target", label: "แก้ Target", hint: "ตาราง Annual Billing บนหน้า Dashboard" },
   { key: "issue_documents", label: "ออกใบแจ้งหนี้", hint: "เมนูใบแจ้งหนี้ รวมถึงแก้ข้อมูลบริษัทและรายชื่อลูกค้า" },

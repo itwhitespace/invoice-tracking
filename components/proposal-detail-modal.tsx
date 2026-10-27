@@ -1,10 +1,11 @@
 "use client";
 
-import { SavedRecord, PaymentStatus } from "@/lib/types";
+import { SavedRecord, PaymentStatus, PaymentTermItem } from "@/lib/types";
 import { getTotalWeeks, parseWeeksFromDuration } from "@/lib/timeframe-utils";
 import { DEPARTMENT_OPTIONS, formatDepartmentLabel } from "@/lib/department-utils";
 import { PAYMENT_STATUS_LABELS } from "@/lib/payment-status-utils";
 import { formatThousands, parseThousands } from "@/lib/format-utils";
+import { sumPaymentTerms, paymentTermsDiff } from "@/lib/fee-utils";
 import { getSupabaseClient, isRemoteId } from "@/lib/supabase";
 import {
   logActivity,
@@ -38,6 +39,8 @@ import {
   EyeOff,
   History,
   UserCircle2,
+  Calculator,
+  Wand2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -50,6 +53,8 @@ const PAYMENT_STATUS_BADGE_STYLES: Record<PaymentStatus, string> = {
   hold: "bg-violet-50 border-violet-300 text-violet-900",
   cancelled: "bg-red-50 border-red-300 text-red-900",
 };
+
+const formatMoney = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface ProposalDetailModalProps {
   isOpen: boolean;
@@ -83,7 +88,7 @@ export function ProposalDetailModal({
   const [showUnapproveConfirm, setShowUnapproveConfirm] = useState(false);
   const [showTotalFeeEdit, setShowTotalFeeEdit] = useState(false);
   const [pendingTotalFee, setPendingTotalFee] = useState(0);
-  const [showTotalFeeConfirm, setShowTotalFeeConfirm] = useState(false);
+  const [pendingTerms, setPendingTerms] = useState<PaymentTermItem[]>([]);
   const [historyEntries, setHistoryEntries] = useState<ActivityLogEntry[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
@@ -105,10 +110,12 @@ export function ProposalDetailModal({
   if (!isOpen || !localRecord) return null;
 
   const totalWeeks = getTotalWeeks(localRecord.timeFrames || []);
-  const paymentSum = (localRecord.paymentTerms || []).reduce((sum, pt) => sum + (Number(pt.amount) || 0), 0);
-  const paymentSumExceedsFee = localRecord.totalFee > 0 && paymentSum > localRecord.totalFee;
-  // A new Total Fee may not drop below what the installments already add up to.
-  const pendingFeeBelowPayments = paymentSum > 0 && pendingTotalFee < paymentSum;
+  const paymentSum = sumPaymentTerms(localRecord.paymentTerms);
+  // Total Fee and the installments must add up exactly before saving.
+  const paymentDiff = paymentTermsDiff(localRecord.totalFee, localRecord.paymentTerms);
+  const paymentMismatch = paymentDiff !== 0;
+  const pendingSum = sumPaymentTerms(pendingTerms);
+  const pendingDiff = paymentTermsDiff(pendingTotalFee, pendingTerms);
 
   const handleExportJSON = () => {
     const dataStr =
@@ -216,18 +223,93 @@ export function ProposalDetailModal({
     setIsDirty(true);
   };
 
-  // Total Fee edit flow: pencil -> edit modal -> Save opens a Yes/No
-  // confirm -> Yes applies it to local state (still gated behind the
-  // modal's own Save button below, same as every other field here).
+  // Total Fee edit flow: pencil -> one dialog holding the new fee and a
+  // working copy of the installments. Changing the fee leaves the amounts
+  // alone and just shows the difference; Save is enabled only once they add
+  // up exactly, and then saves straight to the database.
   const handleOpenTotalFeeEdit = () => {
     setPendingTotalFee(localRecord.totalFee || 0);
+    setPendingTerms((localRecord.paymentTerms || []).map((pt) => ({ ...pt })));
     setShowTotalFeeEdit(true);
   };
 
-  const handleConfirmTotalFeeEdit = () => {
-    setLocalRecord({ ...localRecord, totalFee: pendingTotalFee });
-    setIsDirty(true);
-    setShowTotalFeeConfirm(false);
+  const handlePendingPercentage = (idx: number, val: string) => {
+    const pct = parseFloat(val) || 0;
+    setPendingTerms((terms) =>
+      terms.map((pt, i) =>
+        i === idx ? { ...pt, paymentPercentage: pct, amount: Math.round((pendingTotalFee * pct) / 100) } : pt
+      )
+    );
+  };
+
+  const handlePendingAmount = (idx: number, val: string) => {
+    const amount = parseThousands(val);
+    setPendingTerms((terms) =>
+      terms.map((pt, i) =>
+        i === idx
+          ? { ...pt, amount, paymentPercentage: pendingTotalFee > 0 ? (amount / pendingTotalFee) * 100 : 0 }
+          : pt
+      )
+    );
+  };
+
+  // Re-derives every amount from its % against the new fee — except
+  // installments already paid, whose amount is money actually received.
+  const handleRecalcFromPercentages = () => {
+    setPendingTerms((terms) =>
+      terms.map((pt) =>
+        pt.paymentStatus === "paid"
+          ? pt
+          : { ...pt, amount: Math.round((pendingTotalFee * (pt.paymentPercentage || 0)) / 100) }
+      )
+    );
+  };
+
+  // The installment that absorbs a leftover difference: the last one not
+  // already paid or cancelled.
+  let adjustableIdx = -1;
+  for (let i = pendingTerms.length - 1; i >= 0; i--) {
+    const status = pendingTerms[i].paymentStatus || "wait";
+    if (status !== "paid" && status !== "cancelled") {
+      adjustableIdx = i;
+      break;
+    }
+  }
+  const canAdjustLast =
+    pendingDiff !== 0 && adjustableIdx >= 0 && (Number(pendingTerms[adjustableIdx].amount) || 0) - pendingDiff >= 0;
+
+  const handleAdjustLastTerm = () => {
+    if (!canAdjustLast) return;
+    setPendingTerms((terms) =>
+      terms.map((pt, i) => {
+        if (i !== adjustableIdx) return pt;
+        const amount = Math.round(((Number(pt.amount) || 0) - pendingDiff) * 100) / 100;
+        return { ...pt, amount, paymentPercentage: pendingTotalFee > 0 ? (amount / pendingTotalFee) * 100 : 0 };
+      })
+    );
+  };
+
+  const handleSaveTotalFeeEdit = async () => {
+    if (pendingDiff !== 0) return;
+    // % always follows the saved amounts, so the two never disagree.
+    const terms = pendingTerms.map((pt) => ({
+      ...pt,
+      paymentPercentage:
+        pendingTotalFee > 0 ? Math.round(((Number(pt.amount) || 0) / pendingTotalFee) * 10000) / 100 : 0,
+    }));
+    const updated: SavedRecord = { ...localRecord, totalFee: pendingTotalFee, paymentTerms: terms };
+    setLocalRecord(updated);
+    setShowTotalFeeEdit(false);
+    setIsSaving(true);
+    try {
+      const changes = record ? buildProposalChangeSummaries(record, updated) : [];
+      await onUpdate(updated);
+      if (isRemoteId(updated.id)) await logActivity(supabase, updated.id, changes);
+      setIsDirty(false);
+      setShowSaveSuccess(true);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleOperationFieldChange = (field: "startDate" | "department", val: string) => {
@@ -738,11 +820,11 @@ export function ProposalDetailModal({
                   </tbody>
                   {(localRecord.paymentTerms || []).length > 0 && (
                     <tfoot>
-                      <tr className={`border-t-2 font-bold ${paymentSumExceedsFee ? "border-red-300 bg-red-50/70" : "border-slate-200 bg-slate-50/70"}`}>
+                      <tr className={`border-t-2 font-bold ${paymentMismatch ? "border-red-300 bg-red-50/70" : "border-slate-200 bg-slate-50/70"}`}>
                         <td colSpan={3} className="px-4 py-2.5 text-right text-slate-700">
                           รวม
                         </td>
-                        <td className={`px-4 py-2.5 text-right font-mono ${paymentSumExceedsFee ? "text-red-700" : "text-emerald-700"}`}>
+                        <td className={`px-4 py-2.5 text-right font-mono ${paymentMismatch ? "text-red-700" : "text-emerald-700"}`}>
                           ฿{formatThousands(paymentSum)}
                         </td>
                         <td colSpan={3}></td>
@@ -751,12 +833,12 @@ export function ProposalDetailModal({
                   )}
                 </table>
               </div>
-              {paymentSumExceedsFee && (
+              {paymentMismatch && (
                 <div className="px-4 py-2.5 bg-red-50/90 border-t border-red-200 flex items-start gap-2 text-[11px] text-red-900 font-medium">
                   <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
                   <p>
-                    ผลรวมจำนวนเงิน (฿{formatThousands(paymentSum)}) เกินกว่า Total Fee (฿{formatThousands(localRecord.totalFee)}) —
-                    ต้องปรับให้ไม่เกินก่อนถึงจะบันทึกได้
+                    ผลรวมจำนวนเงิน (฿{formatMoney(paymentSum)}) ไม่ตรงกับ Total Fee (฿{formatMoney(localRecord.totalFee || 0)}) —{" "}
+                    {paymentDiff > 0 ? "เกิน" : "ขาด"}อยู่ ฿{formatMoney(Math.abs(paymentDiff))} ต้องปรับให้ตรงกันก่อนถึงจะบันทึกได้
                   </p>
                 </div>
               )}
@@ -816,10 +898,9 @@ export function ProposalDetailModal({
                   {!canApprove ? null : localRecord.status === "approved" ? (
                     <button
                       onClick={() => setShowUnapproveConfirm(true)}
-                      className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-1.5 shadow-sm transition shrink-0"
+                      className="px-2 py-1 text-[11px] font-medium text-slate-500 hover:text-red-700 underline underline-offset-2 decoration-slate-300 hover:decoration-red-300 transition shrink-0"
                     >
-                      <XCircle className="w-3.5 h-3.5" />
-                      Not Approved
+                      ยกเลิกการอนุมัติ
                     </button>
                   ) : (
                     <button
@@ -895,8 +976,8 @@ export function ProposalDetailModal({
           {isDirty ? (
             <button
               onClick={() => setShowSaveConfirm(true)}
-              disabled={isSaving || paymentSumExceedsFee}
-              title={paymentSumExceedsFee ? "ผลรวมจำนวนเงินเกิน Total Fee — ต้องปรับก่อนบันทึก" : undefined}
+              disabled={isSaving || paymentMismatch}
+              title={paymentMismatch ? "ผลรวมงวดเงินไม่ตรงกับ Total Fee — ต้องปรับก่อนบันทึก" : undefined}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition shadow-xs flex items-center gap-1.5"
             >
               {isSaving ? (
@@ -1090,43 +1171,156 @@ export function ProposalDetailModal({
         </div>
       )}
 
-      {/* Total Fee Edit Overlay */}
+      {/* Total Fee Edit Overlay — new fee + its installments in one place */}
       {showTotalFeeEdit && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-2">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-150">
+            <div className="px-6 pt-5 pb-3 flex items-center gap-2 shrink-0">
               <Pencil className="w-4 h-4 text-indigo-600" />
-              <h3 className="text-sm font-bold text-slate-900">แก้ไข Total Fee</h3>
+              <h3 className="text-sm font-bold text-slate-900">แก้ไข Total Fee และงวดเงิน</h3>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Total Fee (THB)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                autoFocus
-                value={formatThousands(pendingTotalFee)}
-                onChange={(e) => setPendingTotalFee(parseThousands(e.target.value))}
-                placeholder="0"
-                className={`w-full px-3 py-2.5 text-base font-mono font-bold text-slate-900 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition ${
-                  pendingFeeBelowPayments ? "border-red-400" : "border-slate-300"
-                }`}
-              />
-              {paymentSum > 0 && (
-                <p className="text-[11px] text-slate-500">
-                  ผลรวมงวดเงินปัจจุบัน: <span className="font-mono font-semibold">฿{formatThousands(paymentSum)}</span>
+
+            <div className="px-6 pb-4 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700">Total Fee ใหม่ (THB)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoFocus
+                    value={formatThousands(pendingTotalFee)}
+                    onChange={(e) => setPendingTotalFee(parseThousands(e.target.value))}
+                    placeholder="0"
+                    className="w-full px-3 py-2.5 text-base font-mono font-bold text-slate-900 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-bold text-slate-700 block">Total Fee เดิม</span>
+                  <div className="px-3 py-2.5 text-base font-mono font-bold text-slate-400 bg-slate-50/60 border border-slate-200 rounded-lg">
+                    ฿{formatMoney(localRecord.totalFee || 0)}
+                  </div>
+                </div>
+              </div>
+
+              {pendingTerms.length === 0 ? (
+                <p className="text-[11px] text-slate-500">โครงการนี้ยังไม่มีงวดเงิน — บันทึก Total Fee ได้ทันที</p>
+              ) : (
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-50 text-slate-500 border-b border-slate-200 text-[11px] font-semibold">
+                        <tr>
+                          <th className="px-3 py-2 w-8 text-center">#</th>
+                          <th className="px-3 py-2">Milestone</th>
+                          <th className="px-3 py-2 text-center w-24">สัดส่วน (%)</th>
+                          <th className="px-3 py-2 text-right w-36">จำนวนเงิน (THB)</th>
+                          <th className="px-3 py-2 text-center w-28">สถานะ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {pendingTerms.map((pt, idx) => {
+                          const status = pt.paymentStatus || "wait";
+                          return (
+                            <tr key={idx} className={status === "cancelled" ? "opacity-50" : ""}>
+                              <td className="px-3 py-2 text-center text-slate-400 font-mono">{idx + 1}</td>
+                              <td className="px-3 py-2 font-semibold text-slate-800">{pt.milestone}</td>
+                              <td className="px-3 py-2 text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    value={Math.round((pt.paymentPercentage || 0) * 100) / 100}
+                                    onChange={(e) => handlePendingPercentage(idx, e.target.value)}
+                                    className="w-20 px-2 py-1 text-xs text-center font-mono font-bold text-slate-800 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                                  />
+                                  <span className="text-slate-500 font-mono font-bold text-[11px]">%</span>
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <span className="text-emerald-700 font-mono font-bold text-[11px]">฿</span>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={formatThousands(pt.amount)}
+                                    onChange={(e) => handlePendingAmount(idx, e.target.value)}
+                                    className="w-28 px-2 py-1 text-xs text-right font-mono font-bold text-emerald-700 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition"
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <span
+                                  className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${PAYMENT_STATUS_BADGE_STYLES[status]}`}
+                                >
+                                  {PAYMENT_STATUS_LABELS[status]}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className={`border-t-2 font-bold ${pendingDiff === 0 ? "border-emerald-200 bg-emerald-50/70" : "border-red-200 bg-red-50/70"}`}>
+                          <td colSpan={3} className="px-3 py-2 text-right text-slate-700">
+                            รวมงวดเงิน
+                          </td>
+                          <td className={`px-3 py-2 text-right font-mono ${pendingDiff === 0 ? "text-emerald-700" : "text-red-700"}`}>
+                            ฿{formatMoney(pendingSum)}
+                          </td>
+                          <td className="px-3 py-2 text-center text-[11px] whitespace-nowrap">
+                            {pendingDiff === 0 ? (
+                              <span className="text-emerald-700 flex items-center justify-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                ตรงกัน
+                              </span>
+                            ) : (
+                              <span className="text-red-700">
+                                {pendingDiff > 0 ? "เกิน" : "ขาด"} ฿{formatMoney(Math.abs(pendingDiff))}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  <div className="px-3 py-2.5 bg-slate-50/60 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleRecalcFromPercentages}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-slate-800 bg-white hover:bg-slate-100 rounded border border-slate-300 transition"
+                    >
+                      <Calculator className="w-3.5 h-3.5" />
+                      คำนวณงวดตามเปอร์เซ็นต์
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAdjustLastTerm}
+                      disabled={!canAdjustLast}
+                      title={
+                        adjustableIdx >= 0
+                          ? `ปรับงวดที่ ${adjustableIdx + 1} ให้ผลรวมเท่ากับ Total Fee`
+                          : "ไม่มีงวดที่ยังไม่ได้เงิน/ยกเลิกให้ปรับ"
+                      }
+                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-slate-800 bg-white hover:bg-slate-100 rounded border border-slate-300 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
+                    >
+                      <Wand2 className="w-3.5 h-3.5" />
+                      ปรับงวดสุดท้ายให้ตรง
+                    </button>
+                    <span className="text-[10.5px] text-slate-400">
+                      นับทุกงวดรวมงวดที่ Hold / ยกเลิกงาน
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {isDirty && (
+                <p className="text-[11px] text-amber-700">
+                  การแก้ไขอื่นในหน้าต่างนี้ที่ยังไม่ได้บันทึก จะถูกบันทึกไปพร้อมกันด้วย
                 </p>
               )}
             </div>
-            {pendingFeeBelowPayments && (
-              <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-[11px] text-red-900 leading-relaxed">
-                <AlertTriangle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
-                <p>
-                  Total Fee ต้องไม่น้อยกว่าผลรวมงวดเงิน (฿{formatThousands(paymentSum)}) —
-                  ถ้าต้องการลด Total Fee ให้ปรับจำนวนเงินในตาราง Payment Terms ลงก่อน
-                </p>
-              </div>
-            )}
-            <div className="flex items-center gap-2 pt-1">
+
+            <div className="px-6 py-4 border-t border-slate-100 flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setShowTotalFeeEdit(false)}
                 className="flex-1 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
@@ -1134,49 +1328,12 @@ export function ProposalDetailModal({
                 ยกเลิก
               </button>
               <button
-                onClick={() => {
-                  setShowTotalFeeEdit(false);
-                  setShowTotalFeeConfirm(true);
-                }}
-                disabled={pendingFeeBelowPayments}
+                onClick={handleSaveTotalFeeEdit}
+                disabled={pendingDiff !== 0 || isSaving}
+                title={pendingDiff !== 0 ? "ผลรวมงวดเงินต้องเท่ากับ Total Fee ก่อนบันทึก" : undefined}
                 className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:hover:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed rounded-lg transition shadow-sm"
               >
                 บันทึก
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Total Fee Confirm Overlay */}
-      {showTotalFeeConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 text-center space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="w-12 h-12 mx-auto rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
-              <HelpCircle className="w-6 h-6 text-emerald-600" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">ยืนยันการแก้ไข Total Fee</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                ต้องการเปลี่ยน Total Fee เป็น{" "}
-                <span className="font-bold text-slate-800">฿{formatThousands(pendingTotalFee)}</span> ใช่หรือไม่?
-              </p>
-            </div>
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                onClick={() => {
-                  setShowTotalFeeConfirm(false);
-                  setShowTotalFeeEdit(true);
-                }}
-                className="flex-1 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-              >
-                ไม่ใช่
-              </button>
-              <button
-                onClick={handleConfirmTotalFeeEdit}
-                className="flex-1 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition shadow-sm"
-              >
-                ใช่, บันทึก
               </button>
             </div>
           </div>
