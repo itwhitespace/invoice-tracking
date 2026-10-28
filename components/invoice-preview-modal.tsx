@@ -15,9 +15,13 @@ const A4_WIDTH_PX = 794;
 export function InvoicePreviewModal({
   invoice,
   onClose,
+  historyLabel,
 }: {
   invoice: InvoiceDocumentData & { signature_path?: string | null };
   onClose: () => void;
+  // Set when showing an earlier version from the edit history — labels it
+  // and hides the print / PDF buttons so the old version isn't sent out.
+  historyLabel?: string;
 }) {
   const supabase = getSupabaseClient();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -51,10 +55,19 @@ export function InvoicePreviewModal({
         {invoice.status === "void" && (
           <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold border bg-red-100 text-red-800 border-red-300">ยกเลิก</span>
         )}
+        {historyLabel && (
+          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold border bg-amber-100 text-amber-900 border-amber-300">
+            {historyLabel}
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-2">
           {isLoadingImages && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
-          <DownloadPdfButton data={invoice} signaturePath={invoice.signature_path} />
-          <PrintDocumentButton data={invoice} signaturePath={invoice.signature_path} />
+          {!historyLabel && (
+            <>
+              <DownloadPdfButton data={invoice} signaturePath={invoice.signature_path} />
+              <PrintDocumentButton data={invoice} signaturePath={invoice.signature_path} />
+            </>
+          )}
           <button onClick={onClose} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg" title="ปิด">
             <X className="w-4 h-4" />
           </button>

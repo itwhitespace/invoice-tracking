@@ -127,6 +127,21 @@ export interface Invoice {
   paid_amount?: number | null;
   payment_note?: string | null;
   paid_by_name?: string | null;
+  // Edits made after issuing (invoices-edit.sql); 0 = never edited.
+  revision?: number;
+  last_edited_at?: string | null;
+  last_edited_by_name?: string | null;
+}
+
+// One saved copy of an issued invoice as it was before an edit.
+export interface InvoiceRevision {
+  id: string;
+  invoice_id: string;
+  revision_no: number;
+  snapshot: Invoice;
+  reason: string | null;
+  edited_by_name: string | null;
+  edited_at: string;
 }
 
 export interface Receipt {

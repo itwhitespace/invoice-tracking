@@ -8,7 +8,9 @@ import {
   Ban,
   Copy,
   FileCheck2,
+  History,
   Loader2,
+  Pencil,
   Plus,
   Save,
   Trash2,
@@ -28,6 +30,7 @@ import {
   formatThaiDate,
   Invoice,
   InvoiceItem,
+  InvoiceRevision,
   IssuerCompany,
   addDaysIso,
   calculateInvoiceTotals,
@@ -102,7 +105,12 @@ export default function InvoiceEditorPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [isDirty, setIsDirty] = useState(false);
-  const [confirm, setConfirm] = useState<null | "issue" | "void" | "delete">(null);
+  const [confirm, setConfirm] = useState<null | "issue" | "void" | "delete" | "edit">(null);
+  // Editing an issued, still-unpaid invoice in place (same doc_no).
+  const [isEditingIssued, setIsEditingIssued] = useState(false);
+  const [editReason, setEditReason] = useState("");
+  const [revisions, setRevisions] = useState<InvoiceRevision[]>([]);
+  const [viewRevision, setViewRevision] = useState<InvoiceRevision | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState<ActiveReceipt>(null);
@@ -153,6 +161,13 @@ export default function InvoiceEditorPage() {
       .eq("status", "issued")
       .maybeSingle();
     setActiveReceipt((rec as ActiveReceipt) || null);
+    const { data: revs } = await supabase
+      .from("invoice_revisions")
+      .select("*")
+      .eq("invoice_id", params.id)
+      .order("revision_no", { ascending: false });
+    setRevisions((revs as InvoiceRevision[]) || []);
+    setIsEditingIssued(false);
     setIsDirty(false);
     // Arriving straight from "ออกใบแจ้งหนี้" on a brand-new invoice.
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview") === "1") {
@@ -166,7 +181,9 @@ export default function InvoiceEditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
-  const isEditable = draft?.status === "draft";
+  const isEditable = draft?.status === "draft" || isEditingIssued;
+  // Issued invoices stay editable until payment is recorded or a receipt exists.
+  const canEditIssued = draft?.status === "issued" && draft.payment_status !== "paid" && !activeReceipt;
   const companyProfile: IssuerCompany | null = useMemo(() => {
     if (!draft) return null;
     if (draft.status !== "draft" && draft.company) return draft.company;
@@ -218,6 +235,12 @@ export default function InvoiceEditorPage() {
     if (draft.customer.tax_id && draft.customer.tax_id.replace(/\D/g, "").length !== 13)
       problems.push("เลขผู้เสียภาษีของลูกค้าต้องครบ 13 หลัก");
     if (!companyProfile?.name_th || !companyProfile?.tax_id) problems.push("ข้อมูลบริษัทผู้ออกยังไม่ครบ (ชื่อ/เลขผู้เสียภาษี) — ไปที่แท็บ \"ข้อมูลบริษัท\"");
+    if (isEditingIssued) {
+      // The running number carries the issue month, so the date can't leave it.
+      if (draft.doc_no && draft.issue_date.slice(0, 7).replace("-", "") !== draft.doc_no.slice(3, 9))
+        problems.push(`วันที่เอกสารต้องอยู่ในเดือนเดียวกับเลขที่ ${draft.doc_no}`);
+      return problems;
+    }
     if (!appUser?.signature_path) problems.push("คุณยังไม่มีลายเซ็นในระบบ — ให้ Admin อัปโหลดในเมนูผู้ใช้งาน (ออกได้แต่ช่องลายเซ็นจะว่าง)");
     return problems;
   };
@@ -289,6 +312,48 @@ export default function InvoiceEditorPage() {
       await load();
       setShowPreview(true);
     }
+  };
+
+  // Saves an edit to an issued invoice; the database keeps the previous
+  // version in invoice_revisions first.
+  const saveIssuedEdit = async () => {
+    if (!supabase || !draft?.id || !totals) return;
+    setConfirm(null);
+    setIsBusy(true);
+    setError("");
+    const { data, error: rpcErr } = await supabase.rpc("update_issued_invoice", {
+      p_invoice_id: draft.id,
+      p_reason: editReason,
+      p_data: {
+        issue_date: draft.issue_date,
+        credit_term_days: Number(draft.credit_term_days) || 0,
+        due_date: dueDate,
+        salesman: draft.salesman,
+        project_name: draft.project_name,
+        quotation_no: draft.quotation_no,
+        ref_document: draft.ref_document,
+        customer_id: draft.customer_id,
+        customer: draft.customer,
+        items: draft.items.filter((it) => it.description.trim() || it.unit_price),
+        discount: Number(draft.discount) || 0,
+        vat_rate: Number(draft.vat_rate) || 0,
+        wht_rate: Number(draft.wht_rate) || 0,
+        notes: draft.notes,
+        ...totals,
+      },
+    });
+    setIsBusy(false);
+    if (rpcErr) {
+      setError(
+        "บันทึกการแก้ไขไม่สำเร็จ: " +
+          rpcErr.message +
+          (rpcErr.code === "PGRST202" ? " — ต้องรันไฟล์ supabase/invoices-edit.sql ก่อน" : "")
+      );
+      return;
+    }
+    setEditReason("");
+    await load();
+    setNotice(`บันทึกการแก้ไขครั้งที่ ${data} แล้ว — อย่าลืมส่งฉบับใหม่ให้ลูกค้า`);
   };
 
   const voidInvoice = async () => {
@@ -380,11 +445,36 @@ export default function InvoiceEditorPage() {
         </Link>
         <span className="text-sm font-bold text-slate-900 font-mono">{draft.doc_no || "ใบแจ้งหนี้ใหม่ (ร่าง)"}</span>
         <span className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${status.classes}`}>{status.label}</span>
+        {!!draft.revision && (
+          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold border bg-amber-50 text-amber-800 border-amber-300">
+            แก้ไขแล้ว {draft.revision} ครั้ง
+          </span>
+        )}
+        {isEditingIssued && <span className="text-[11px] font-semibold text-indigo-700">• กำลังแก้ไขใบที่ออกแล้ว</span>}
         {isDirty && <span className="text-[11px] text-amber-700">• มีการแก้ไขที่ยังไม่ได้บันทึก</span>}
         {notice && <span className="text-[11px] text-emerald-700">• {notice}</span>}
 
         <div className="ml-auto flex items-center gap-2">
-          {isEditable ? (
+          {isEditingIssued ? (
+            <>
+              <button
+                onClick={() => load()}
+                disabled={isBusy}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-60"
+              >
+                ยกเลิกการแก้ไข
+              </button>
+              <button
+                onClick={() => setConfirm("edit")}
+                disabled={isBusy || !isDirty}
+                title={!isDirty ? "ยังไม่มีการเปลี่ยนแปลง" : undefined}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg flex items-center gap-1.5"
+              >
+                {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                บันทึกการแก้ไข
+              </button>
+            </>
+          ) : isEditable ? (
             <>
               {draft.id && (
                 <button onClick={() => setConfirm("delete")} className="px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1.5">
@@ -415,6 +505,18 @@ export default function InvoiceEditorPage() {
                 <Copy className="w-3.5 h-3.5" />
                 คัดลอกเป็นใบใหม่
               </button>
+              {canEditIssued && (
+                <button
+                  onClick={() => {
+                    setIsEditingIssued(true);
+                    setNotice("");
+                  }}
+                  className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-1.5"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  แก้ไข
+                </button>
+              )}
               {draft.status === "issued" && !activeReceipt && (
                 <button onClick={() => setConfirm("void")} className="px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1.5">
                   <Ban className="w-3.5 h-3.5" />
@@ -462,7 +564,13 @@ export default function InvoiceEditorPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-slate-600">บริษัทผู้ออก</label>
-                  <select value={draft.company_key} onChange={(e) => patch({ company_key: e.target.value })} className={inputClass}>
+                  <select
+                    value={draft.company_key}
+                    onChange={(e) => patch({ company_key: e.target.value })}
+                    disabled={isEditingIssued}
+                    title={isEditingIssued ? "เปลี่ยนบริษัทผู้ออกไม่ได้หลังออกเอกสารแล้ว" : undefined}
+                    className={inputClass}
+                  >
                     {!draft.company_key && <option value="">— ยังไม่มีบริษัท —</option>}
                     {companies.map((c) => (
                       <option key={c.company_key} value={c.company_key}>
@@ -710,10 +818,43 @@ export default function InvoiceEditorPage() {
             </section>
           </fieldset>
 
-          {!isEditable && draft.issued_by_name && (
+          {draft.status !== "draft" && draft.issued_by_name && (
             <p className="text-[11px] text-slate-500">
               ออกโดย {draft.issued_by_name} เมื่อ {draft.issued_at ? new Date(draft.issued_at).toLocaleString("th-TH") : "-"}
+              {draft.last_edited_at &&
+                ` • แก้ไขล่าสุดโดย ${draft.last_edited_by_name || "-"} เมื่อ ${new Date(draft.last_edited_at).toLocaleString("th-TH")}`}
             </p>
+          )}
+
+          {revisions.length > 0 && (
+            <section className="bg-white border border-slate-200 rounded-xl p-4">
+              <h3 className={`${sectionTitle} flex items-center gap-1.5`}>
+                <History className="w-3.5 h-3.5 text-slate-500" />
+                ประวัติการแก้ไข
+              </h3>
+              <div className="divide-y divide-slate-100">
+                {revisions.map((r) => (
+                  <div key={r.id} className="py-2 flex items-center gap-3 text-[11.5px]">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-slate-800">
+                        แก้ไขครั้งที่ {r.revision_no} โดย {r.edited_by_name || "-"}
+                        <span className="text-slate-400 font-mono"> • {new Date(r.edited_at).toLocaleString("th-TH")}</span>
+                      </p>
+                      <p className="text-slate-500">
+                        {r.reason ? `เหตุผล: ${r.reason}` : "ไม่ได้ระบุเหตุผล"} • ยอดชำระก่อนแก้ ฿{formatMoney2(r.snapshot.net_total)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setViewRevision(r)}
+                      className="px-2.5 py-1 text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md shrink-0"
+                    >
+                      ดูฉบับก่อนแก้
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
         </div>
 
@@ -734,6 +875,13 @@ export default function InvoiceEditorPage() {
       {showPreview && draft.id && draft.status !== "draft" && (
         <InvoicePreviewModal invoice={draft as Invoice} onClose={() => setShowPreview(false)} />
       )}
+      {viewRevision && (
+        <InvoicePreviewModal
+          invoice={viewRevision.snapshot}
+          historyLabel={`ฉบับก่อนแก้ไขครั้งที่ ${viewRevision.revision_no}`}
+          onClose={() => setViewRevision(null)}
+        />
+      )}
 
       {/* Confirm dialogs */}
       {confirm && (
@@ -743,8 +891,8 @@ export default function InvoiceEditorPage() {
               <>
                 <h3 className="text-sm font-bold text-slate-900">ยืนยันการออกใบแจ้งหนี้</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  ระบบจะบันทึก ให้เลขที่เอกสารจริง และเปิดหน้าเอกสารให้พิมพ์ต่อทันที หลังออกแล้ว<b> แก้ไขไม่ได้</b> ทำได้เพียงยกเลิก
-                  หรือคัดลอกเป็นใบใหม่
+                  ระบบจะบันทึก ให้เลขที่เอกสารจริง และเปิดหน้าเอกสารให้พิมพ์ต่อทันที หลังออกแล้วยังแก้ไขได้
+                  <b> จนกว่าจะรับชำระ</b> (เลขที่เดิม ระบบเก็บฉบับก่อนแก้ไว้ในประวัติทุกครั้ง)
                 </p>
                 {validationProblems().length > 0 && (
                   <ul className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 space-y-1">
@@ -766,6 +914,43 @@ export default function InvoiceEditorPage() {
                     className="flex-1 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg"
                   >
                     ออกใบแจ้งหนี้
+                  </button>
+                </div>
+              </>
+            )}
+            {confirm === "edit" && (
+              <>
+                <h3 className="text-sm font-bold text-slate-900">บันทึกการแก้ไข {draft.doc_no}</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  เลขที่เอกสารยังเป็นเลขเดิม ระบบจะเก็บฉบับก่อนแก้ไว้ในประวัติการแก้ไข
+                  — ถ้าส่งฉบับเดิมให้ลูกค้าไปแล้ว อย่าลืมส่งฉบับใหม่แทน
+                </p>
+                <input
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                  placeholder="เหตุผลที่แก้ไข (ไม่บังคับ) เช่น แก้ที่อยู่ลูกค้า"
+                  className={inputClass}
+                />
+                {validationProblems().length > 0 && (
+                  <ul className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 space-y-1">
+                    {validationProblems().map((p) => (
+                      <li key={p} className="flex gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                        {p}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirm(null)} className="flex-1 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg">
+                    กลับไปแก้ไข
+                  </button>
+                  <button
+                    onClick={saveIssuedEdit}
+                    disabled={validationProblems().length > 0}
+                    className="flex-1 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg"
+                  >
+                    บันทึกการแก้ไข
                   </button>
                 </div>
               </>
