@@ -10,7 +10,8 @@ export type PermissionKey =
   | "approve"
   | "edit_target"
   | "delete_project"
-  | "issue_documents";
+  | "issue_documents"
+  | "project_management";
 
 export const PERMISSIONS: { key: PermissionKey; label: string; hint: string }[] = [
   { key: "export_excel", label: "Export Excel", hint: "ปุ่ม Export รายงานบนหน้า Dashboard" },
@@ -22,6 +23,7 @@ export const PERMISSIONS: { key: PermissionKey; label: string; hint: string }[] 
   { key: "delete_project", label: "ลบโครงการ", hint: "ปุ่มลบในหน้า Proposal Preview" },
   { key: "edit_target", label: "แก้ Target", hint: "ตาราง Annual Billing บนหน้า Dashboard" },
   { key: "issue_documents", label: "ออกใบแจ้งหนี้", hint: "เมนูใบแจ้งหนี้ รวมถึงแก้ข้อมูลบริษัทและรายชื่อลูกค้า" },
+  { key: "project_management", label: "Project Management", hint: "เมนู Project Management (ระบบติดตามงานออกแบบร้าน · ช่วงทดลอง)" },
 ];
 
 export type TemplateKey = "admin" | "editor" | "viewer";

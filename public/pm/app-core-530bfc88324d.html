@@ -1,0 +1,1623 @@
+<!doctype html>
+<html lang="en">
+<meta name="robots" content="noindex,nofollow">
+<meta charset="utf-8">
+<title>AAR Portal Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: app shell — sticky top bar, persona strip, left nav + main; Try-this drawer on the right. Same tokens as the Process & UX/UI spec. */
+:root{
+  --bg:#F2F4F6; --surface:#FFFFFF; --surface-2:#F7F8FA; --ink:#151A20; --muted:#59636E; --line:#D5DBE1; --line-2:#E7EBEF;
+  --accent:#2350C4; --accent-ink:#FFFFFF; --accent-soft:#E6ECFA; --on-strong:#FFFFFF;
+  --ok:#1B7745; --ok-soft:#E2F2E9; --warn:#8F5D06; --warn-soft:#FAEFD8; --crit:#B2352A; --crit-soft:#FAE5E2;
+  --apple:#3A3F47; --apple-soft:#E6E8EC; --shadow:rgba(20,26,32,.14); --overlay:rgba(13,16,20,.45);
+  --nav:#1B1F3B; --nav-2:#2B3166; --nav-ink:#C9CEE6; --nav-line:rgba(255,255,255,.18);
+  --s-na:#7D8795; --s-todo:#B8C0CB; --s-prog:#2F76D6; --s-rev:#8B4FC9; --s-cli:#C96F08; --s-app:#5B6B82; --s-chg:#CF3149; --s-fee:#D13A72; --s-ok:#0E8F55;
+  --h-on:#0E8F55; --h-risk:#C96F08; --h-late:#CF3149; --h-done:#0A6B40;
+  --g1:#6B5BD2; --g2:#2F76D6; --g3:#0C7FB0; --g4:#0B7F75; --g5:#0E8F55; --g6:#55820A; --g7:#A9650A; --g8:#C23A72;
+  --f-display:'Archivo','Helvetica Neue',Arial,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D1014; --surface:#151A20; --surface-2:#11151A; --ink:#E5E8EC; --muted:#9BA5B0; --line:#2E3540; --line-2:#222830;
+  --accent:#86A4FF; --accent-ink:#0D1014; --accent-soft:#1B2643; --on-strong:#0D1014;
+  --ok:#5BC68E; --ok-soft:#14281D; --warn:#E3B25A; --warn-soft:#2D2413; --crit:#F27D71; --crit-soft:#331A19;
+  --apple:#CDD2D9; --apple-soft:#262B33; --shadow:rgba(0,0,0,.5); --overlay:rgba(0,0,0,.6); --nav:#0F1226; --nav-2:#232A55; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0D1014; --surface:#151A20; --surface-2:#11151A; --ink:#E5E8EC; --muted:#9BA5B0; --line:#2E3540; --line-2:#222830;
+  --accent:#86A4FF; --accent-ink:#0D1014; --accent-soft:#1B2643; --on-strong:#0D1014;
+  --ok:#5BC68E; --ok-soft:#14281D; --warn:#E3B25A; --warn-soft:#2D2413; --crit:#F27D71; --crit-soft:#331A19;
+  --apple:#CDD2D9; --apple-soft:#262B33; --shadow:rgba(0,0,0,.5); --overlay:rgba(0,0,0,.6); --nav:#0F1226; --nav-2:#232A55; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--f-body);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--nav)}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.005em}
+h1{font-size:24px;font-weight:700;line-height:1.2}
+h2{font-size:16px;font-weight:600}
+h3{font-size:14px;font-weight:600}
+p{margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.small{font-size:12.5px;color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-mono)}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:25;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;padding-block:10px;max-width:1440px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.mark{display:grid;grid-template-columns:repeat(4,5px);gap:2px;align-items:end;height:18px}
+.mark i{display:block;background:var(--accent);border-radius:1px}
+.mark i:nth-child(1){height:6px}.mark i:nth-child(2){height:10px}.mark i:nth-child(3){height:14px}.mark i:nth-child(4){height:18px;background:var(--line)}
+.bn{font-family:var(--f-display);font-weight:700;font-size:15px;white-space:nowrap}
+.tag{font:600 10px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;padding:4px 6px;border-radius:4px;background:var(--warn-soft);color:var(--warn)}
+.who{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);min-width:0}
+select,input,textarea{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 10px;max-width:100%}
+#persona{font-weight:600;color:var(--ink)}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 12px;font-weight:600;font-size:13px;cursor:pointer;line-height:1.2;text-align:center}
+.btn:hover{border-color:var(--muted)}
+.btn.p{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.crit{background:var(--crit);border-color:var(--crit);color:var(--on-strong)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:4px 9px;font-size:12.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.ib{position:relative;width:36px;height:34px;padding:0}
+.ib svg{width:18px;height:18px}
+.badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:9px;background:var(--crit);color:var(--on-strong);font:600 11px/18px var(--f-mono);text-align:center;padding:0 4px}
+.rs{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:600}
+.pstrip{background:var(--accent-soft);border-bottom:1px solid var(--line)}
+.pstrip .in{max-width:1440px;margin:0 auto;padding-block:8px;display:flex;gap:4px 10px;align-items:baseline;flex-wrap:wrap;font-size:13px}
+.pstrip b{font-weight:600}
+.pstrip .pb{color:var(--muted)}
+.side{font:600 10px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;padding:4px 6px;border-radius:4px;align-self:center}
+.side.int{background:var(--surface);color:var(--accent)}
+.side.ext{background:var(--ink);color:var(--surface)}
+
+/* shell */
+.shell{max-width:1440px;margin:0 auto;display:grid;grid-template-columns:176px minmax(0,1fr);gap:24px;padding-block:20px 72px}
+.nav{display:flex;flex-direction:column;gap:2px;align-self:start}
+.nh{font:600 10px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 10px 6px}
+.nb{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;border:0;background:transparent;text-align:left;cursor:pointer;font-weight:600;color:var(--muted)}
+.nb:hover{color:var(--ink)}
+.nb[aria-current="page"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.cnt{font:600 11px/1 var(--f-mono);background:var(--accent);color:var(--accent-ink);border-radius:9px;padding:3px 6px}
+main{min-width:0;display:flex;flex-direction:column;gap:16px}
+@media (min-width:1180px){ body.try-open .gut.wide{padding-right:396px} }
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr);gap:12px;padding-block:12px 72px}
+  .nav{flex-direction:row;overflow-x:auto;gap:4px}
+  .nh{display:none}
+  .nb{white-space:nowrap}
+  .who > span{display:none}
+  #persona{max-width:calc(100vw - 32px)}
+}
+
+/* screen header */
+.sh{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 24px;flex-wrap:wrap}
+.sh > div{min-width:0}
+.eyebrow{font:500 10.5px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.sub{color:var(--muted);margin-top:6px;max-width:68ch}
+.crumb{font-size:12.5px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.crumb button{border:0;background:none;padding:0;color:var(--accent);cursor:pointer;font-weight:600}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:2px;gap:2px}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+.seg button svg{width:14px;height:14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.bar{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}
+.bar label{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.ph{padding:12px 16px;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.pbd{padding:14px 16px;display:grid;gap:10px}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+.hint-row{font-size:12.5px;color:var(--muted)}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap;background:var(--surface-2);color:var(--muted);border:1px solid var(--line);line-height:1.4}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.chip.plain::before{display:none}
+.st-in_progress,.st-internal_review,.chip.info{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.st-with_client,.st-awaiting_fee,.h-at_risk,.chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.st-with_apple,.chip.apple{background:var(--apple-soft);color:var(--apple);border-color:transparent}
+.st-changes_requested,.h-delayed,.chip.crit{background:var(--crit-soft);color:var(--crit);border-color:transparent}
+.st-signed_off,.h-on_track,.h-completed,.chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+
+/* tables */
+.tw{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+.t th{font:600 10px/1.2 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2)}
+.t td{padding:11px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+.t tr:last-child td{border-bottom:0}
+.t tr.grp td{background:var(--surface-2);font:600 11px/1.2 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 12px}
+.t .tight{white-space:nowrap}
+.lnk{border:0;background:none;padding:0;color:var(--ink);font-weight:600;cursor:pointer;text-align:left}
+.lnk:hover{color:var(--accent);text-decoration:underline}
+.sb{display:inline-grid;grid-template-columns:repeat(6,10px);gap:2px;vertical-align:middle;margin-right:6px}
+.sb i{height:6px;border-radius:2px;background:var(--line)}
+.sb i.d{background:var(--ok)} .sb i.c{background:var(--accent)} .sb i.n{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.upd{max-width:42ch;color:var(--muted);font-size:12.5px}
+
+/* pipeline + kanban */
+table.pipe{min-width:1100px;table-layout:fixed}
+.pipe th.sc,.pipe td.sc{width:210px}
+.pipe th{padding:8px 2px;background:var(--surface-2);text-transform:none;letter-spacing:0;white-space:normal}
+.pipe th.sc{padding:8px 12px;text-align:left;vertical-align:bottom;font:600 10px/1.2 var(--f-mono);text-transform:uppercase;letter-spacing:.07em}
+.chev{display:block;padding:9px 16px 9px 12px;color:#fff;font:600 12px/1.2 var(--f-display);clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pipe td{padding:6px 3px}
+.pc{display:flex;flex-direction:column;gap:3px;border-radius:8px;padding:8px 10px;min-height:58px;font-size:12px;border:1px solid transparent;width:100%;text-align:left;background:none;cursor:pointer;line-height:1.3;color:inherit}
+.pc b{font-weight:600}
+.pc.done{background:var(--s-ok);color:#fff}
+.pc.cur{color:#fff}
+.pc.todo{background:var(--surface-2);color:var(--muted);border:1px dashed var(--line);cursor:default}
+.pc.na{background:repeating-linear-gradient(135deg,var(--surface-2) 0 6px,var(--line-2) 6px 12px);color:var(--muted);cursor:default;justify-content:center}
+.pc .tchip{display:block;background:#fff;color:#1B1F3B;border-radius:4px;padding:3px 6px;font-weight:600;font-size:11.5px;margin-top:2px}
+.kb{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(212px,1fr);gap:12px;overflow-x:auto;padding-bottom:8px}
+.kcol{display:flex;flex-direction:column;min-width:0;gap:8px}
+.kcol > header{display:flex;gap:8px;align-items:center;padding:10px 14px;color:#fff;font:600 14px/1.2 var(--f-display);border-radius:8px}
+.kn{font:600 11px/1 var(--f-mono);opacity:.85}
+.kc{margin-left:auto;font:600 12px/1 var(--f-mono);background:rgba(255,255,255,.25);border-radius:9px;padding:3px 8px}
+.kcards{padding:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;gap:8px;min-height:180px;flex:1}
+.kcard{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--bar,var(--line));border-radius:8px;padding:10px 12px;cursor:pointer;width:100%;box-shadow:0 1px 2px var(--shadow)}
+.kcard:hover{border-color:var(--accent);border-left-color:var(--bar,var(--accent))}
+.kcard b{font-weight:600;line-height:1.3}
+.kcard .small{line-height:1.35}
+.kempty{color:var(--muted);font-size:12px;padding:12px 4px;text-align:center}
+
+/* project page */
+.track{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.tk{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0}
+.tk .tn{font:600 10.5px/1 var(--f-mono);color:var(--muted)}
+.tk .tl{font-weight:600;font-size:12.5px;line-height:1.25;overflow-wrap:anywhere}
+.tk .ts{font-size:11.5px;color:var(--muted);line-height:1.3}
+.tk.d{background:var(--ok-soft);border-color:transparent}
+.tk.d .ts{color:var(--ok)}
+.tk.c{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.tk.n{border-style:dashed;background:transparent;cursor:default}
+@media (max-width:760px){ .track{grid-template-columns:repeat(4,minmax(0,1fr))} }
+.cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){ .cols{grid-template-columns:minmax(0,1fr)} }
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 16px;font-size:13px;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;background:none;padding:8px 12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-color:var(--ink)}
+.drive{display:inline-flex;gap:6px;align-items:center;font:500 12px/1.35 var(--f-mono);color:var(--muted);background:var(--surface-2);border:1px solid var(--line-2);border-radius:6px;padding:4px 8px;overflow-wrap:anywhere;max-width:100%}
+.drive svg{width:13px;height:13px;flex:none}
+.quote{font-size:14px;line-height:1.55;max-width:65ch}
+
+/* stage page */
+.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.step{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--muted);background:var(--surface)}
+.step.done{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.step.now{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.arr{color:var(--muted);font-size:12px}
+.actbox{border:1px solid var(--accent);background:var(--accent-soft);border-radius:10px;padding:14px 16px;display:grid;gap:10px}
+.actbox.idle{border-color:var(--line);background:var(--surface)}
+.actbox .row{display:flex;flex-wrap:wrap;gap:8px}
+.ver{border-top:1px solid var(--line-2);padding:14px 16px;display:grid;gap:8px}
+.ver:first-child{border-top:0}
+.vh{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vtag{font:600 12px/1 var(--f-mono);background:var(--ink);color:var(--surface);padding:4px 7px;border-radius:4px}
+.dl{display:grid;grid-template-columns:16px minmax(0,1fr);gap:8px;font-size:13px;align-items:start}
+.dl i{width:10px;height:10px;border-radius:50%;margin-top:5px;background:var(--line)}
+.dl i.ok{background:var(--ok)} .dl i.ret,.dl i.changes{background:var(--crit)} .dl i.wait{background:var(--warn)} .dl i.rel{background:var(--accent)} .dl i.received{background:var(--ok)}
+.lay{display:flex;gap:6px;flex-wrap:wrap}
+.lay span{font:600 11.5px/1 var(--f-mono);padding:5px 8px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.lay span.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.strip{border-radius:8px;padding:10px 12px;font-size:13px;background:var(--warn-soft)}
+.strip.ok{background:var(--ok-soft)} .strip.info{background:var(--accent-soft)} .strip.crit{background:var(--crit-soft)}
+.cm{padding:12px 16px;border-top:1px solid var(--line-2);display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px}
+.av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font:600 10.5px/1 var(--f-mono);background:var(--surface-2);border:1px solid var(--line)}
+.av.ext{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.itag{font:600 9.5px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.06em;padding:3px 5px;border-radius:4px;background:var(--warn-soft);color:var(--warn);margin-left:6px}
+.cmf{padding:12px 16px;border-top:1px solid var(--line-2);display:grid;gap:8px}
+.cmf textarea{width:100%;min-height:64px;resize:vertical}
+.cmf .row{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.cmf label{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted)}
+.prog{height:6px;border-radius:3px;background:var(--line-2);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--ok)}
+
+/* dialog */
+dialog{border:1px solid var(--line);border-radius:12px;padding:0;background:var(--surface);color:var(--ink);width:min(520px,calc(100vw - 32px));box-shadow:0 24px 64px var(--shadow)}
+dialog::backdrop{background:var(--overlay)}
+.dh{padding:18px 18px 0;display:grid;gap:4px}
+.db{padding:14px 18px;display:grid;gap:12px}
+.df{padding:4px 18px 18px;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.fld{display:grid;gap:6px;font-size:13px;font-weight:600}
+.fld input,.fld textarea{width:100%;font-weight:400}
+.fld textarea{min-height:90px;resize:vertical}
+.hint{font-size:12.5px;color:var(--muted)}
+.radio{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:400}
+.radio:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.radio input{margin-top:3px}
+
+/* drawer + popovers */
+.try{position:fixed;top:0;right:0;bottom:0;width:min(380px,100%);background:var(--surface);border-left:1px solid var(--line);z-index:40;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px);box-shadow:-12px 0 40px var(--shadow)}
+.try-h{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.try-b{overflow-y:auto;padding:14px 18px 28px;display:grid;gap:18px;align-content:start}
+.scn{display:grid;gap:6px}
+.scn .meta{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.stp{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:8px;align-items:start;font-size:13px;padding:5px 0;border-top:1px solid var(--line-2)}
+.ck{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;margin-top:1px}
+.ck.on{background:var(--ok);border-color:var(--ok)}
+.ck.on::after{content:"";width:8px;height:4px;border-left:2px solid var(--on-strong);border-bottom:2px solid var(--on-strong);transform:rotate(-45deg) translate(1px,-1px)}
+.stp.done span{color:var(--muted)}
+.bellp{position:fixed;z-index:35;top:calc(env(safe-area-inset-top,0px) + 96px);right:max(16px,env(safe-area-inset-right,0px));width:min(380px,calc(100vw - 32px));max-height:70vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 16px 40px var(--shadow)}
+.ni{display:grid;grid-template-columns:8px minmax(0,1fr);gap:10px;padding:10px 14px;border:0;border-top:1px solid var(--line-2);background:none;text-align:left;width:100%;cursor:pointer;font-size:13px}
+.ni:hover{background:var(--surface-2)}
+.ni i{width:8px;height:8px;border-radius:50%;margin-top:6px;background:transparent}
+.ni.new i{background:var(--accent)}
+#toasts{position:fixed;z-index:60;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:max(16px,env(safe-area-inset-left,0px));display:grid;gap:8px;width:min(440px,calc(100vw - 32px));pointer-events:none}
+.toast{background:var(--ink);color:var(--surface);border-radius:8px;padding:10px 12px;font-size:13px;box-shadow:0 8px 24px var(--shadow);display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;animation:tin .18s ease-out}
+.toast .tk2{font:600 10px/1.6 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;opacity:.7}
+.toast.err{background:var(--crit);color:var(--on-strong)}
+@keyframes tin{from{transform:translateY(6px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){ .toast{animation:none} }
+/* ===== visual refresh: colour-coded status, stage palette, navy chrome ===== */
+.top{background:var(--nav);border-bottom:0;color:#fff}
+.bn{color:#fff}
+.who{color:var(--nav-ink)}
+.mark i{background:#5DA8FF}
+.mark i:nth-child(2){background:#3DDC97}
+.mark i:nth-child(3){background:#FFC857}
+.mark i:nth-child(4){background:#FF7AA8}
+.top .btn{background:var(--nav-2);border-color:var(--nav-line);color:#fff}
+.top .btn:hover{border-color:#fff}
+.top .btn.ghost{background:transparent}
+.top .btn.crit{background:var(--s-chg);border-color:var(--s-chg)}
+.top .rs{color:#fff}
+.top .tag{background:#FFC857;color:#1B1F3B}
+#persona{background:#fff;color:#151A20;border-color:#fff}
+.pstrip{background:var(--surface)}
+.pstrip .in{align-items:center}
+.pav{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 11px/1 var(--f-mono);flex:none}
+.side.int{background:var(--accent-soft)}
+
+.logo{height:30px;width:auto;display:block;flex:none}
+.bsep{width:1px;height:26px;background:var(--nav-line);flex:none}
+.brand{flex-wrap:wrap;row-gap:6px}
+.bn{font-size:14px;line-height:1.2;white-space:normal}
+@media (max-width:560px){ .bn{font-size:12px} .logo{height:26px} .top{position:static} }
+/* navigation */
+.shell{grid-template-columns:212px minmax(0,1fr)}
+.nav{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 8px 14px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 76px);gap:2px}
+.nb{gap:10px;padding:10px;border-radius:8px}
+.nb svg{width:18px;height:18px;flex:none}
+.nb .lb{flex:1;min-width:0}
+.nb:hover{background:var(--surface-2);color:var(--ink)}
+.nb[aria-current="page"]{background:var(--accent);color:var(--accent-ink);box-shadow:none}
+.nb[aria-current="page"] .cnt{background:var(--accent-ink);color:var(--accent)}
+.cnt{background:var(--s-fee);color:#fff}
+.lg{display:grid;gap:7px;padding:4px 10px}
+.lgi{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+.lgi i{width:10px;height:10px;border-radius:3px;flex:none}
+
+/* solid status colours */
+.fl{display:flex;align-items:center;justify-content:center;min-height:48px;padding:6px 10px;font-weight:600;font-size:12.5px;line-height:1.25;text-align:center;color:#fff}
+.st-not_started{background:var(--s-todo);color:#1B1F3B;border-color:transparent}
+.st-in_progress{background:var(--s-prog);color:#fff;border-color:transparent}
+.st-internal_review{background:var(--s-rev);color:#fff;border-color:transparent}
+.st-with_client{background:var(--s-cli);color:#fff;border-color:transparent}
+.st-with_apple{background:var(--s-app);color:#fff;border-color:transparent}
+.st-changes_requested{background:var(--s-chg);color:#fff;border-color:transparent}
+.st-awaiting_fee{background:var(--s-fee);color:#fff;border-color:transparent}
+.st-signed_off{background:var(--s-ok);color:#fff;border-color:transparent}
+.st-na{background:var(--s-na);color:#fff;border-color:transparent}
+.h-on_track{background:var(--h-on);color:#fff;border-color:transparent}
+.h-at_risk{background:var(--h-risk);color:#fff;border-color:transparent}
+.h-delayed{background:var(--h-late);color:#fff;border-color:transparent}
+.h-completed{background:var(--h-done);color:#fff;border-color:transparent}
+.w-WSPN{background:var(--g1);color:#fff;border-color:transparent}
+.w-Client{background:var(--s-cli);color:#fff;border-color:transparent}
+.w-Apple{background:var(--s-app);color:#fff;border-color:transparent}
+.w-You{background:var(--s-fee);color:#fff;border-color:transparent}
+.w-done{background:var(--h-done);color:#fff;border-color:transparent}
+.stg1{background:var(--g1);color:#fff}.stg2{background:var(--g2);color:#fff}.stg3{background:var(--g3);color:#fff}.stg4{background:var(--g4);color:#fff}
+.stg5{background:var(--g5);color:#fff}.stg6{background:var(--g6);color:#fff}.stg7{background:var(--g7);color:#fff}.stg8{background:var(--g8);color:#fff}
+.chip[class*=" st-"]::before,.chip[class*=" h-"]::before,.chip[class*=" w-"]::before{display:none}
+.t td.fill{padding:0;border-left:2px solid var(--surface);border-right:2px solid var(--surface);min-width:112px}
+.t td.hbar{box-shadow:inset 5px 0 0 var(--hc,var(--line));padding-left:16px}
+.sb{grid-template-columns:repeat(6,12px)}
+.sb i{height:8px}
+.sb i.c{background-image:linear-gradient(90deg,transparent 50%,rgba(255,255,255,.65) 50%)}
+
+/* view tabs, search, summary tiles */
+.vtabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.vtabs button{border:0;background:none;padding:9px 14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;display:inline-flex;gap:7px;align-items:center;white-space:nowrap}
+.vtabs button svg{width:15px;height:15px}
+.vtabs button:hover{color:var(--ink)}
+.vtabs button[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
+.tb{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}
+.search{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:0 10px;min-width:220px}
+.search svg{width:16px;height:16px;color:var(--muted);flex:none}
+.search input{border:0;padding:8px 0;background:transparent;min-width:0;width:100%}
+.search input:focus-visible{outline:none}
+.search:focus-within{outline:2px solid var(--accent)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tile{border:0;border-radius:10px;padding:12px 14px;color:#fff;text-align:left;display:grid;gap:2px;font:inherit;font-weight:600}
+button.tile{cursor:pointer}
+.tile b{font:700 28px/1 var(--f-display)}
+.tile span{font-size:12.5px}
+.tile[aria-pressed="true"]{outline:3px solid var(--ink);outline-offset:2px}
+.t-all{background:var(--nav-2)}.t-late{background:var(--h-late)}.t-risk{background:var(--h-risk)}.t-on{background:var(--h-on)}.t-done{background:var(--h-done)}.t-you{background:var(--s-fee)}.t-wspn{background:var(--g1)}
+.panel.hot{border-left:5px solid var(--s-fee)}
+
+/* banners */
+.band{border-radius:12px;padding:18px 20px;color:#fff;background:linear-gradient(115deg,var(--nav) 30%,var(--sc,var(--nav-2)));display:grid;gap:12px}
+.band h1{color:#fff}
+.band .eyebrow{color:rgba(255,255,255,.78);margin-bottom:6px}
+.band .sub{color:rgba(255,255,255,.88)}
+.band .chip{box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+.band .chip.plain{background:rgba(255,255,255,.16);color:#fff;border-color:transparent;box-shadow:none}
+.mseg{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;height:8px}
+.mseg i{border-radius:2px;background:rgba(255,255,255,.2)}
+
+/* stage track */
+.tk{border-top:5px solid var(--sc,var(--line))}
+.tk.d{background:var(--ok-soft);border-color:var(--line-2);border-top-color:var(--s-ok)}
+.tk.c{background:var(--sc);border-color:var(--sc);color:#fff;box-shadow:none}
+.tk.c .tn,.tk.c .ts{color:rgba(255,255,255,.92)}
+.tk.n{opacity:.85}
+.actbox{border-left:5px solid var(--accent)}
+.actbox.idle{border-left-color:var(--line)}
+
+/* try drawer */
+.try-h{background:var(--nav);color:#fff}
+.try-h .eyebrow{color:var(--nav-ink)}
+.try-h .btn{background:transparent;color:#fff;border-color:var(--nav-line)}
+
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .nav{flex-direction:row;overflow-x:auto;position:static;padding:6px}
+  .lg,.nh{display:none}
+  .search{min-width:0;flex:1 1 100%}
+}
+
+/* ===== A2: APP CORE TRACKER format ===== */
+:root{ --sh-blue:#BDEBF7; --sh-green:#63D938; --sh-orange:#FFAA00; --sh-grey:#D6D6D6; --sh-send:#86F251; --sh-sendink:#10240A; --sh-ink:#151A20; --sh-line:#A9B0B8; --sh-chg:#FAD4D0; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --sh-blue:#1D4655; --sh-green:#2E7D19; --sh-orange:#8A5A00; --sh-grey:#2B323B; --sh-send:#2F7A19; --sh-sendink:#FFFFFF; --sh-ink:#E5E8EC; --sh-line:#3A424D; --sh-chg:#4A2320; } }
+:root[data-theme="dark"]{ --sh-blue:#1D4655; --sh-green:#2E7D19; --sh-orange:#8A5A00; --sh-grey:#2B323B; --sh-send:#2F7A19; --sh-sendink:#FFFFFF; --sh-ink:#E5E8EC; --sh-line:#3A424D; --sh-chg:#4A2320; }
+.st-with_reviewers{background:var(--s-cli);color:#fff;border-color:transparent}
+.st-approved,.st-done{background:var(--s-ok);color:#fff;border-color:transparent}
+.h-on_hold{background:var(--s-na);color:#fff;border-color:transparent}
+.w-Partner{background:var(--s-cli);color:#fff;border-color:transparent}
+.w-Both{background:linear-gradient(90deg,var(--s-app) 50%,var(--s-cli) 50%);color:#fff;border-color:transparent}
+.w-Hold{background:var(--s-na);color:#fff;border-color:transparent}
+.t-hold{background:var(--s-na)}
+.chip[class*=" st-"]::before,.chip[class*=" h-"]::before,.chip[class*=" w-"]::before{display:none}
+
+/* tracker sheet (same columns and colours as the PDF tracker) */
+.sheet{border-collapse:separate;border-spacing:0;font-size:12px;min-width:2900px;width:100%}
+.sheet th{font:700 11.5px/1.25 var(--f-body);text-transform:none;letter-spacing:0;text-align:center;color:var(--sh-ink);padding:10px 8px;border:1px solid var(--sh-line);white-space:normal;min-width:84px;vertical-align:middle}
+.sheet th.id{background:var(--sh-blue)} .sheet th.tg{background:var(--sh-green)} .sheet th.or{background:var(--sh-orange)} .sheet th.pt{background:var(--nav);color:#fff}
+.sheet thead tr.gr th{padding:4px 8px;font:600 10px/1.2 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;background:var(--surface-2);color:var(--muted);min-width:0}
+.sheet td{padding:8px;border:1px solid var(--sh-line);text-align:center;white-space:nowrap;background:var(--surface);vertical-align:middle}
+.sheet tr.grp td{background:var(--sh-grey);text-align:left;font:700 12px/1.2 var(--f-body);color:var(--sh-ink);letter-spacing:.03em;text-transform:uppercase;border-top:2px solid var(--ink);padding:6px 8px}
+.sheet th.sn,.sheet td.sn{position:sticky;left:0;z-index:2;min-width:240px;text-align:left}
+.sheet td.sn{white-space:normal;font-weight:600;box-shadow:inset 5px 0 0 var(--hc,var(--line));padding-left:14px}
+.sheet td.nm{text-align:left;white-space:normal;min-width:84px}
+.sheet td.now{font-weight:600;min-width:120px}
+.sheet td.now.sent{background:var(--sh-send);color:var(--sh-sendink)}
+.sheet td.chg{background:var(--sh-chg)}
+.sheet td.miss{color:var(--crit);font-weight:600}
+.sheet tr.hold td{opacity:.55}
+.sheet th.nw::after{content:" •";color:var(--crit)}
+.sheet td.tg{min-width:104px}
+.sheet .lnk{font-weight:600;font-size:12.5px}
+.sheet .small{font-size:11.5px;font-weight:400}
+/* Tracker: full-width page, scroll box with frozen header and store column, denser rows */
+.shell,.top-in,.pstrip .in{max-width:none}
+.tw.sw{overflow:auto;max-height:calc(100vh - 96px);min-height:360px}
+.sheet{min-width:0}
+.sheet th{padding:6px;min-width:68px}
+.sheet td{padding:5px 8px}
+.sheet tr.grp td{padding:4px 8px}
+.sw .sheet thead th{position:sticky;top:0;z-index:3}
+.sw .sheet thead tr:not(.gr) th{top:var(--gh,0px)}
+.sw .sheet thead th.sn{z-index:4}
+.sw .sheet tr.grp .gl{position:sticky;left:8px}
+.sheet .sortb{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;font:inherit;color:inherit}
+.sheet .sortb:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.sheet .sarr{font-size:9px;opacity:.45}
+.sheet .sarr.on{opacity:1}
+.shell:has(.tw.sw){padding-bottom:16px}
+.stick-bar{position:sticky;top:var(--toph,0px);z-index:20;background:var(--bg);display:flex;flex-direction:column;gap:12px;padding:6px 0 0;margin-top:-6px}
+/* Tracker declutter: light headers with a thin group-color bar, single-line rows, light rules, zebra rows, muted empty cells */
+:root{--sh-bar-id:#3BA3CC}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--sh-bar-id:#4FB3D9} }
+:root[data-theme="dark"]{--sh-bar-id:#4FB3D9}
+.sheet th,.sheet th.id,.sheet th.tg,.sheet th.or,.sheet th.pt{background:var(--surface-2);color:var(--ink);font-weight:600;border:0;border-bottom:1px solid var(--line)}
+.sheet th.id{box-shadow:inset 0 3px 0 var(--sh-bar-id)}
+.sheet th.tg{box-shadow:inset 0 3px 0 var(--sh-green)}
+.sheet th.or{box-shadow:inset 0 3px 0 var(--sh-orange)}
+.sheet th.pt{box-shadow:inset 0 3px 0 var(--nav)}
+.sheet thead tr.gr th{border:0;border-bottom:1px solid var(--line-2)}
+.sheet td{border:0;border-bottom:1px solid var(--line-2)}
+.sheet [data-g]{border-left:1px solid var(--line)}
+.sheet tbody tr:nth-child(even) td{background:var(--surface-2)}
+.sheet tbody tr:hover td{background:var(--accent-soft)}
+.sheet td.chg,.sheet tbody tr td.chg{background:var(--sh-chg)}
+.sheet td.sn{white-space:nowrap;font-weight:600}
+.sheet td.sn .lnk{display:block;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.sheet th.sn,.sheet td.sn{min-width:0}
+.sheet td.nm{white-space:nowrap}
+.sheet td.now{min-width:0}
+.sheet .nowp{display:inline-block;padding:2px 9px;border-radius:999px;background:var(--line-2);color:var(--ink);font-size:11.5px;font-weight:600;line-height:1.5}
+.sheet .nowp.sent{background:var(--ok-soft);color:var(--ok)}
+.sheet .nil{color:var(--muted);opacity:.45}
+.sheet td.now{text-align:left}
+.sheet .stn{display:inline-block;min-width:62px;margin-right:6px;font:600 10.5px/1 var(--f-mono);color:var(--sc);letter-spacing:.02em}
+.sheet td.ids{line-height:1.2;padding-block:3px}
+.sheet td.ids span{display:block;font:500 11.5px/1.25 var(--f-mono)}
+.sheet td.ids .sfo{color:var(--muted);font-size:10.5px}
+.sheet td.cc{font:600 11.5px/1 var(--f-mono);letter-spacing:.04em}
+
+/* review cards */
+.rvs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:560px){ .rvs{grid-template-columns:minmax(0,1fr)} }
+.rv{border:1px solid var(--line);border-left:5px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:3px;background:var(--surface)}
+.rv.ok{border-left-color:var(--s-ok)} .rv.chg{border-left-color:var(--s-chg)} .rv.wait{border-left-color:var(--s-cli)}
+.rv b{font-size:13.5px}
+.kv.wide{grid-template-columns:max-content minmax(0,1fr)}
+.mg{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px 24px}
+.mg h3{font:600 10.5px/1 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+
+/* calendar */
+.cal-h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.wf-row{display:flex;align-items:center;flex-wrap:nowrap}
+.cal-bar{gap:10px 20px}
+.cal-bar .cal-t{margin:0;white-space:nowrap}
+.cal-t{min-width:11ch;text-align:center;font-size:18px}
+.cal-lg{gap:6px}
+.lgb{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted)}
+.lgb i{width:9px;height:9px;border-radius:50%}
+.lgb[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.cal{overflow-x:auto}
+.cal-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
+.cal-dn{background:var(--surface-2);font:600 10.5px/1 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:8px;text-align:center}
+.cal-c{background:var(--surface);min-height:104px;padding:6px;display:flex;flex-direction:column;gap:3px;cursor:pointer;min-width:0}
+.cal-c.off{background:var(--surface-2);cursor:default}
+.cal-c.we{background:var(--surface-2)}
+.cal-c.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.cal-c.today .cal-d{background:var(--accent);color:var(--accent-ink)}
+.cal-d{font:600 12px/1 var(--f-mono);width:22px;height:22px;border-radius:50%;display:grid;place-items:center}
+.ev{display:block;font-size:11px;line-height:1.3;padding:2px 5px;border-radius:4px;border-left:3px solid var(--ec,var(--line));background:var(--surface-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.ev b{font-weight:600}
+.ev.late{background:var(--crit-soft)}
+.ev.more{color:var(--muted);border-left-color:transparent;background:transparent}
+.evd{width:10px;height:10px;border-radius:50%;display:block}
+@media (max-width:760px){
+  .cal-c{min-height:58px;padding:4px}
+  .ev{font-size:0;height:6px;padding:0;border-left-width:0;background:var(--ec,var(--line));border-radius:3px}
+  .ev.more{font-size:10px;height:auto;background:transparent;color:var(--muted)}
+  .cal-dn{padding:6px 2px;font-size:9px}
+}
+
+.cal-c.hol{background:var(--warn-soft)}
+.hl{font:600 9.5px/1.2 var(--f-mono);letter-spacing:.04em;text-transform:uppercase;color:var(--warn)}
+@media (max-width:760px){ .hl{font-size:8px} }
+</style>
+
+<div id="app"></div>
+<div id="toasts" aria-live="polite"></div>
+<dialog id="dlg" aria-labelledby="dlg-title"><form id="dlgf" novalidate></form></dialog>
+
+<script>
+/*ENGINE*/
+var ENGINE = (function () {
+  var VERSION = 6, TODAY = '2026-11-23', SLA = 1;
+  var STAGES = ['Layout Proposal','IDK Review','FDK Review','Handover','Store Opens','SFF Claims'];
+  var SHORT = ['Layout','IDK','FDK','Handover','Opens','SFF'];
+  var KEYS = ['layout','idk','fdk','handover','opens','sff'];
+  var STATUS = {not_started:'Not started',in_progress:'In progress',internal_review:'Internal review',with_reviewers:'Sent for review',changes_requested:'Changes requested',approved:'Approved',done:'Done'};
+  var HEALTH = {on_track:'On track',at_risk:'At risk',delayed:'Delayed',on_hold:'On hold',completed:'Completed'};
+  var WHO = {partner:'Partner',apple:'Apple'};
+  var COUNTRIES = {ID:'Indonesia',TH:'Thailand',PH:'Philippines',MY:'Malaysia'};
+  var RESELLERS = {
+    ibox:{name:'iBOX',country:'ID'}, digimap:{name:'Digimap',country:'ID'}, hello:{name:'Hello',country:'ID'},
+    advice:{name:'Advice',country:'TH'}, unset:{name:'Reseller not set',country:'TH'},
+    pmc:{name:'Power Mac Center',country:'PH'}, btb:{name:'Beyond the Box',country:'PH'},
+    sw:{name:'Switch',country:'MY'}, machines:{name:'Machines',country:'MY'}
+  };
+  var INTERNAL = ['bd','coord','dd','des'];
+  var PERSONAS = [
+    {id:'bd',role:'BD Executive',ini:'BD',side:'int',home:'calendar',blurb:'Watches every store and country, and puts a store on hold when needed.'},
+    {id:'coord',role:'Project Coordinator',ini:'PC',side:'int',home:'calendar',blurb:'Creates each job (Apple ID, SFO, client, country, store, target opening), enters its start date, collects store documents, sends layouts, IDK and FDK to Apple and the Partner, records their reviews, chases late replies, issues the handover documents and records the opening and the SFF claim.'},
+    {id:'dd',role:'Design Director',ini:'DD',side:'int',home:'calendar',blurb:'Reviews every layout, IDK and FDK before it leaves Whitespace.'},
+    {id:'des',role:'Designer',ini:'DS',side:'int',home:'calendar',blurb:'Produces and submits layouts, IDK and FDK. Sees the projects they are assigned to (all of them here).'}
+  ];
+  var KITS = {SDK:'SDK · without render',RDK:'RDK · with render'};
+  var DOCS = [
+    {k:'brief',name:'Store Brief',from:'Apple / Partner',file:'Store brief.pdf'},
+    {k:'cad',name:'CAD file',from:'Partner / landlord',file:'Store CAD.dwg'},
+    {k:'logo',name:'Logo EPS',from:'Partner',file:'Logo.eps'}
+  ];
+  var HAND = ['1 Page Graphic Priority Guidance','Construction Schedule','Installation One-pager'];
+
+  function persona(id){ for (var i=0;i<PERSONAS.length;i++) if (PERSONAS[i].id===id) return PERSONAS[i]; return null; }
+  function isInt(id){ var p=persona(id); return !!p && p.side==='int'; }
+  function extKind(id){ var p=persona(id); return !p ? null : p.reseller ? 'partner' : p.countries ? 'apple' : null; }
+  function pad(x){ return (x<10?'0':'')+x; }
+  function real(d){ return !!d && d!=='ND'; }
+  function d2n(d){ var a=d.slice(0,10).split('-'); return Date.UTC(+a[0],a[1]-1,+a[2]); }
+  function n2d(n){ return new Date(n).toISOString().slice(0,10); }
+  function addDays(d,k){ return n2d(d2n(d)+k*864e5); }
+  /* Public holidays that fall on a fixed calendar date (mm-dd). Movable holidays (lunar, Islamic, Buddhist, substitute days) are NOT included: add them to HOLX as full dates. Verify before relying on it. */
+  var HOL = {
+    TH:['01-01','04-06','04-13','04-14','04-15','05-01','05-04','06-03','07-28','08-12','10-13','10-23','12-05','12-10','12-31'],
+    ID:['01-01','06-01','08-17','12-25'],
+    PH:['01-01','04-09','05-01','06-12','11-30','12-25','12-30'],
+    MY:['01-01','05-01','08-31','09-16','12-25']
+  };
+  var HOLX = {TH:[],ID:[],PH:[],MY:[]};
+  function isHol(c,d){ return !!c && ((HOL[c]||[]).indexOf(d.slice(5,10))>=0 || (HOLX[c]||[]).indexOf(d.slice(0,10))>=0); }
+  function holidaysOn(d,countries){ return countries.filter(function(c){ return isHol(c,d); }); }
+  function isWork(n,c){ var w=new Date(n).getUTCDay(); return w>0&&w<6&&!isHol(c,n2d(n)); }
+  function workdays(from,to,c){ var k=0,n=d2n(from),e=d2n(to); while(n<e){ n+=864e5; if(isWork(n,c)) k++; } return k; }
+  function addWorkdays(d,k,c){ var n=d2n(d); while(k>0){ n+=864e5; if(isWork(n,c)) k--; } return n2d(n); }
+  function days(from,to){ return Math.max(0,Math.round((d2n(to)-d2n(from))/864e5)); }
+  function folder(g){ return '0'+g.n+' '+STAGES[g.n-1]; }
+  function last(g){ return g.versions[g.versions.length-1]; }
+  function lastSentV(g){ for (var i=g.versions.length-1;i>=0;i--) if (g.versions[i].sentAt) return g.versions[i]; return null; }
+  function later(a,b){ if(real(a)&&real(b)) return a>b?a:b; return real(a)?a:real(b)?b:'ND'; }
+
+  /* ---------- seed helpers ---------- */
+  function G(n,o){ return Object.assign({n:n,key:KEYS[n-1],status:'not_started',versions:[],comments:[],since:null,startAt:null,closedAt:null,doneAt:null,lastChase:null,
+    items:n===4?HAND.map(function(h,i){ return {i:i+1,name:h,doneAt:null,link:null}; }):null},o||{}); }
+  function R(outcome,at,note){ return {outcome:outcome,at:at,note:note||''}; }
+  function V(v,sent,ap,pa,o){ return Object.assign({v:v,link:null,note:'',by:'des',at:sent||'ND',internal:'approved',internalNote:'',sentAt:sent,reviews:{apple:ap||null,partner:pa||null}},o||{}); }
+  function apprD(n,sent,ap,pa){ var c=later(ap,pa); return G(n,{status:'approved',startAt:'ND',closedAt:c,since:real(c)?c:null,versions:[V(1,sent||'ND',R('approved',ap),R('approved',pa))]}); }
+  function sentD(n,sent,ap,pa){ return G(n,{status:'with_reviewers',startAt:'ND',since:real(sent)?sent:null,versions:[V(1,sent||'ND',ap?R('approved',ap):null,pa?R('approved',pa):null)]}); }
+  function mkDocs(brief,cad,logo){
+    var vals=[brief,cad?'ND':null,logo];
+    return DOCS.map(function(d,i){ var v=vals[i], ok=!!v;
+      return {i:i+1,k:d.k,name:d.name,from:d.from,status:ok?'verified':'requested',link:ok?'Shared › 01 Store documents › '+d.file:null,at:ok?(d.k==='brief'?v:'ND'):null,fmt:(d.k==='logo'&&ok)?v:null,note:''}; });
+  }
+  function stages(l,i,f){ var a=[G(1),G(2),G(3),G(4),G(5),G(6)]; if(l)a[0]=l; if(i)a[1]=i; if(f)a[2]=f; return a; }
+  function store(id,name,reseller,country,o){
+    return Object.assign({id:id,store:name,reseller:reseller,client:(RESELLERS[reseller]?RESELLERS[reseller].name:''),country:country,kit:null,appleId:'',sfo:'',target:null,hold:null,expectedIdk:null,docs:mkDocs(null,false,null),stages:stages(),latest:null},o||{});
+  }
+
+  /* Date each job was entered into the portal (sample dates for the seeded stores). */
+  var CREATED = {lippo:'2026-08-10',digimap:'2026-08-07',semper:'2026-09-22',sutoyo:'2026-09-29',timika:'2026-10-12',tuban:'2026-10-19',hello:'2026-11-10',
+    chiangrai:'2026-08-24',burirum:'2026-10-20',nongkhai:'2026-10-26',nakorn:'2026-11-16',maha:'2026-11-16',davao:'2026-08-11',sanlazaro:'2026-08-11',
+    btb:'2026-11-19',genting:'2026-09-01',seremban:'2026-11-18',machines:'2026-08-13'};
+  function createdOf(p){ return p.createdAt||CREATED[p.id]||TODAY; }
+  function seed(){
+    var P=[];
+    P.push(store('lippo','iBOX @ LIPPO MALL KEMANG','ibox','ID',{kit:'SDK',appleId:'728791',sfo:'5869866',target:'2027-01-15',docs:mkDocs('2026-08-18',true,null),
+      stages:stages(apprD(1,'ND','2026-09-07','2026-09-07'),apprD(2,'2026-09-29','ND','ND'),sentD(3,'ND',null,null)),
+      latest:{text:'The FDK is with Apple and iBOX for review. We have not received the logo EPS yet.',at:'2026-11-18'}}));
+    P.push(store('digimap','DIGIMAP @ PONDOK INDAH MALL 3','digimap','ID',{kit:'RDK',appleId:'3486746',sfo:'60585714',target:'2026-12-20',docs:mkDocs('2026-08-14',true,null),
+      stages:stages(apprD(1,'ND','2026-09-02','2026-09-02'),apprD(2,'2026-09-29','ND','2026-09-25'),sentD(3,'ND','2026-10-22',null))}));
+    P.push(store('semper','iBOX @ SEMPER, JAKARTA','ibox','ID',{kit:'SDK',appleId:'4723844',sfo:'60751050',docs:mkDocs('2026-09-29',true,null),
+      stages:stages(apprD(1,'ND','2026-10-06','2026-10-06'),sentD(2,'2026-11-06',null,null))}));
+    P.push(store('sutoyo','iBOX @ SUTOYO, MALANG','ibox','ID',{kit:'SDK',docs:mkDocs('2026-10-05',true,null),
+      stages:stages(G(1,{status:'changes_requested',startAt:'ND',versions:[V(1,'ND',R('changes','ND','Reviewed once. The details were not recorded in the tracker.'),null)]})),
+      latest:{text:'The layout was reviewed once. We are revising it.',at:'2026-11-12'}}));
+    P.push(store('timika','iBOX @ TIMIKA','ibox','ID',{kit:'SDK',stages:stages(G(1,{status:'in_progress',startAt:'ND'}))}));
+    P.push(store('tuban','iBox @ Basuki Rachmat, Tuban','ibox','ID',{stages:stages(G(1,{status:'in_progress',startAt:'ND'}))}));
+    P.push(store('hello','HELLO@VENESIAN MALL BATAM','hello','ID',{kit:'RDK',docs:mkDocs('2026-11-17',true,'EPS'),
+      latest:{text:'We have the store brief, CAD file and logo EPS. The layout starts next.',at:'2026-11-17'}}));
+    P.push(store('chiangrai','ADVICE @ CHIANG RAI','advice','TH',{kit:'RDK',appleId:'4656139',sfo:'60734066',target:'2026-12-20',docs:mkDocs('2026-09-28',true,null),
+      stages:stages(apprD(1,'ND','2026-09-10','2026-09-29'),sentD(2,'2026-11-06','2026-11-06',null)),
+      latest:{text:'The IDK was sent on 6 Nov. Apple has reviewed it. We are waiting for Advice.',at:'2026-11-06'}}));
+    P.push(store('burirum','ADVICE ISTORE @ BURIRUM','advice','TH',{kit:'RDK',appleId:'4656141',sfo:'60734068',target:'2026-12-20',
+      stages:stages(apprD(1,'ND','ND','2026-11-03'),apprD(2,'2026-11-06','2026-11-08','2026-11-08')),
+      latest:{text:'Apple and Advice both reviewed the IDK on 8 Nov. The FDK is ready to start.',at:'2026-11-09'}}));
+    P.push(store('nongkhai','NONG KHAII','unset','TH',{kit:'RDK',stages:stages(sentD(1,'2026-11-09',null,null))}));
+    P.push(store('nakorn','Nakorn Sawan','unset','TH',{}));
+    P.push(store('maha','Mahasarakam','unset','TH',{}));
+    P.push(store('davao','POWER MAC CENTER @ DAVAO GLOBAL TOWNSHIP','pmc','PH',{kit:'SDK',appleId:'4596806',sfo:'60725144',target:'2026-12-18',docs:mkDocs('2026-08-18',true,null),
+      stages:stages(apprD(1,'ND','2026-09-29','ND'),apprD(2,'2026-10-01','ND','ND'),sentD(3,'ND',null,null))}));
+    P.push(store('sanlazaro','POWER MAC CENTER @ SM CITY SAN LAZARO','pmc','PH',{kit:'SDK',appleId:'2256178',sfo:'60474109',target:'2027-01-01',docs:mkDocs('2026-08-18',true,null),
+      stages:stages(apprD(1,'ND','2026-09-25','ND'),apprD(2,'2026-09-29','ND','ND'),sentD(3,'ND',null,null))}));
+    P.push(store('btb','Beyond the Box @ Central Bloc Tomas Morato','btb','PH',{}));
+    P.push(store('genting','SWITCH @ SKY AVENUE GENTING','sw','MY',{appleId:'4535942',sfo:'60722461',target:'2026-12-20',hold:'Greyed out in the tracker. The reason was not recorded.'}));
+    P.push(store('seremban','Switch @ AEON Seremban 2','sw','MY',{}));
+    P.push(store('machines','MACHINES @ AEON PERMAS JAYA','machines','MY',{kit:'RDK',appleId:'4707371',sfo:'60749828',docs:mkDocs('2026-08-20',true,'AI'),
+      stages:stages(apprD(1,'ND','2026-09-22','2026-09-26'),apprD(2,'2026-09-30','2026-10-13','ND'),sentD(3,'ND',null,null))}));
+    P.forEach(function(p){ p.createdAt=CREATED[p.id]||TODAY; });
+    return {v:VERSION,clock:0,seq:20,now:TODAY+' 09:00',projects:P,seen:{},toasts:[],notes:[
+      {id:1,to:['coord'],text:'IDK sent to Apple and the Partner. Apple reviewed it the same day.',pid:'chiangrai',n:2,at:'2026-11-06 10:05',email:false,read:[]},
+      {id:2,to:['coord'],text:'Apple and Advice both reviewed the IDK. The FDK is ready to start.',pid:'burirum',n:2,at:'2026-11-08 15:20',email:true,read:[]},
+      {id:3,to:['des'],text:'Apple requested changes on Layout. Please revise and submit the next version.',pid:'sutoyo',n:1,at:'2026-11-12 11:40',email:true,read:[]},
+      {id:4,to:['coord'],text:'Store documents are complete. The layout can start.',pid:'hello',n:1,at:'2026-11-17 16:02',email:false,read:[]},
+      {id:5,to:['coord','dd'],text:'FDK sent to Apple and the Partner.',pid:'davao',n:3,at:'2026-11-10 09:30',email:false,read:[]}
+    ]};
+  }
+
+  /* ---------- selectors ---------- */
+  function P_(s,pid){ for (var i=0;i<s.projects.length;i++) if (s.projects[i].id===pid) return s.projects[i]; return null; }
+  function sees(s,per,p){ var x=persona(per); if(!x||!p) return false; if(x.side==='int') return true; if(x.reseller) return p.reseller===x.reseller; if(x.countries) return x.countries.indexOf(p.country)>=0; return false; }
+  function visibleProjects(s,per){ return s.projects.filter(function(p){ return sees(s,per,p); }); }
+  function clientsOf(p){ return PERSONAS.filter(function(x){ return x.reseller===p.reseller; }).map(function(x){ return x.id; }); }
+  function applesOf(p){ return PERSONAS.filter(function(x){ return x.countries && x.countries.indexOf(p.country)>=0; }).map(function(x){ return x.id; }); }
+  function extOf(p,k){ return k==='partner'?clientsOf(p):applesOf(p); }
+  function done(p){ return p.stages[5].status==='done'; }
+  function closedStage(g){ return g.status==='approved'||g.status==='done'; }
+  function progress(p){ var c=0; p.stages.forEach(function(g){ if(closedStage(g)) c++; }); return {closed:c,inScope:p.stages.length}; }
+  function currentStage(p){ for (var i=0;i<p.stages.length;i++) if(!closedStage(p.stages[i])) return p.stages[i]; return p.stages[p.stages.length-1]; }
+  function docsReady(p){ return p.docs[0].status==='verified' && p.docs[1].status==='verified'; }
+  function rounds(g){ return g.versions.filter(function(v){ return (v.reviews.apple&&v.reviews.apple.outcome==='changes')||(v.reviews.partner&&v.reviews.partner.outcome==='changes'); }).length; }
+  function pend(g){ var v=last(g); if(!v||g.status!=='with_reviewers') return []; return ['apple','partner'].filter(function(k){ return !v.reviews[k]; }); }
+  function waitingOn(p){
+    if(p.hold) return {who:null,hold:true,days:null,workdays:null,list:[]};
+    if(done(p)) return {who:null,days:0,workdays:0,list:[]};
+    var g=currentStage(p), who='WSPN', list=[];
+    if(g.status==='with_reviewers'){ list=pend(g); who=list.length===2?'Both':list[0]==='apple'?'Apple':'Partner'; }
+    else if(g.n===1&&g.status==='not_started'&&!docsReady(p)){ if(p.docs[0].status==='requested'||p.docs[1].status==='requested'){ who='Partner'; list=['partner']; } }
+    var s=real(g.since)?g.since.slice(0,10):null;
+    return {who:who,list:list,days:s?days(s,TODAY):null,workdays:s?workdays(s,TODAY,p.country):null};
+  }
+  function idkSent(p){ return !!lastSentV(p.stages[1]); }
+  function fdkSent(p){ return !!lastSentV(p.stages[2]); }
+  function startDate(p){ var d=p.stages[0].startAt; return real(d)?d:null; }
+  function expIdk(p){ var d=startDate(p); return d?addDays(d,14):null; }
+  function expFdk(p){ var d=p.stages[1].closedAt; return real(d)?addDays(d,7):null; }
+  function health(p){
+    if(p.hold) return 'on_hold';
+    if(done(p)) return 'completed';
+    var g=currentStage(p), w=waitingOn(p), ei=expIdk(p), ef=expFdk(p);
+    if(ei && !idkSent(p) && TODAY>ei) return 'delayed';
+    if(ef && !fdkSent(p) && TODAY>ef) return 'delayed';
+    if(p.target && TODAY>p.target && p.stages[4].status!=='done') return 'delayed';
+    if(w.who && w.who!=='WSPN' && w.workdays!==null && w.workdays>SLA) return 'at_risk';
+    if(ei && !idkSent(p) && workdays(TODAY,ei,p.country)<=3) return 'at_risk';
+    if(ef && !fdkSent(p) && workdays(TODAY,ef,p.country)<=3) return 'at_risk';
+    if(p.target && g.n<=3 && days(TODAY,p.target)<=30) return 'at_risk';
+    return 'on_track';
+  }
+  function extVersions(g){ return g.versions.filter(function(v){ return !!v.sentAt; }); }
+  function extComments(g){ return g.comments.filter(function(c){ return !c.internal; }); }
+  function stageLabel(p){
+    if(done(p)) return 'Completed';
+    var g=currentStage(p); if(g.n===1&&g.status==='not_started') return '';
+    return STAGES[g.n-1];
+  }
+  function nowLabel(p,ext){
+    if(p.hold) return 'On hold';
+    if(done(p)) return 'SFF claim filed';
+    var g=currentStage(p), nm=SHORT[g.n-1], r=rounds(g);
+    if(g.n<=3){
+      switch(g.status){
+        case 'not_started': return g.n===1?(docsReady(p)?'To start':'To start · documents needed'):'Ready to start '+nm;
+        case 'in_progress': return g.n===1?'Working on layout':'Working on '+nm;
+        case 'internal_review': return ext?(g.n===1?'Working on layout':'Working on '+nm):nm+' in internal review';
+        case 'with_reviewers': return nm+' sent';
+        case 'changes_requested': return nm+' reviewed '+r;
+      }
+    }
+    if(g.n===4){ var c=g.items.filter(function(i){ return i.doneAt; }).length; return 'Handover '+c+'/3'; }
+    if(g.n===5) return 'Ready to open';
+    return 'Opened · SFF claim to file';
+  }
+  function extStatus(g,per){
+    var k=extKind(per);
+    switch(g.status){
+      case 'in_progress': return g.n===4?'Whitespace is issuing documents':'In progress at Whitespace';
+      case 'internal_review': return 'In progress at Whitespace';
+      case 'changes_requested': return 'Revising at Whitespace';
+      case 'with_reviewers': var pe=pend(g); return pe.indexOf(k)>=0?'Waiting on you':(pe.length?'Waiting on '+WHO[pe[0]]:'Sent for review');
+      default: return STATUS[g.status];
+    }
+  }
+  function mval(p,key){
+    var g1=p.stages[0],g2=p.stages[1],g3=p.stages[2],h=p.stages[3];
+    function sent(g){ var v=lastSentV(g); return v?{at:v.sentAt}:null; }
+    function rev(g,k){ for (var i=g.versions.length-1;i>=0;i--){ var r=g.versions[i].reviews[k]; if(r) return {at:r.at,outcome:r.outcome}; } return null; }
+    function d(x){ return x?{at:x}:null; }
+    switch(key){
+      case 'startLayout': return d(g1.startAt); case 'expIdk': return d(expIdk(p)); case 'expFdk': return d(expFdk(p));
+      case 'sentLayout': return sent(g1); case 'apLayout': return rev(g1,'apple'); case 'paLayout': return rev(g1,'partner');
+      case 'sentIdk': return sent(g2); case 'apIdk': return rev(g2,'apple'); case 'paIdk': return rev(g2,'partner');
+      case 'startFdk': return d(g3.startAt); case 'sentFdk': return sent(g3); case 'apFdk': return rev(g3,'apple'); case 'paFdk': return rev(g3,'partner');
+      case 'onePage': return d(h.items[0].doneAt); case 'constr': return d(h.items[1].doneAt); case 'install': return d(h.items[2].doneAt);
+      case 'opens': return d(p.stages[4].doneAt); case 'sff': return d(p.stages[5].doneAt);
+    }
+    return null;
+  }
+
+  function can(s,per,action,pid,n,item){
+    if(action==='createJob') return per==='coord';
+    var p=P_(s,pid); if(!p||!sees(s,per,p)) return false;
+    var k=extKind(per);
+    if(action==='updateLatest'||action==='setKit') return per==='coord';
+    if(p.hold && action!=='comment') return false;
+    if(action==='itemUpload'||action==='itemVerify'||action==='itemReturn'){
+      var it=p.docs[(item||0)-1]; if(!it) return false;
+      if(action==='itemUpload') return per==='coord' && it.status==='requested';
+      return per==='coord' && it.status==='received';
+    }
+    var g=p.stages[(n||0)-1]; if(!g) return false;
+    var v=last(g), dv=g.n<=3;
+    switch(action){
+      case 'startProject': return per==='coord' && g.n===1 && g.status==='not_started' && docsReady(p);
+      case 'setStart': return per==='coord' && g.n===1 && g.status!=='not_started' && g.startAt==='ND';
+      case 'start': return (per==='des'||per==='coord') && g.n>=2 && g.n<=3 && g.status==='not_started' && p.stages[g.n-2].status==='approved';
+      case 'submit': return per==='des' && dv && (g.status==='in_progress'||g.status==='changes_requested');
+      case 'ddApprove': case 'ddReturn': return per==='dd' && dv && g.status==='internal_review' && !!v && v.internal==='pending';
+      case 'send': return per==='coord' && dv && g.status==='internal_review' && !!v && v.internal==='approved';
+      case 'recordApprove': case 'recordChanges': return per==='coord' && dv && g.status==='with_reviewers' && !!v && (item==='apple'||item==='partner') && !v.reviews[item];
+      case 'issueDoc': return per==='coord' && g.n===4 && g.status==='in_progress' && !!g.items[(item||0)-1] && !g.items[item-1].doneAt;
+      case 'recordOpen': return per==='coord' && g.n===5 && g.status==='in_progress';
+      case 'recordSff': return per==='coord' && g.n===6 && g.status==='in_progress';
+      case 'chase': { var w=waitingOn(p); return per==='coord' && (w.who==='Partner'||w.who==='Apple'||w.who==='Both') && g.n===currentStage(p).n; }
+      case 'comment': return g.status!=='not_started';
+    }
+    return false;
+  }
+
+  function stamp(s){ s.clock+=6; var m=9*60+s.clock; s.now=TODAY+' '+pad(Math.floor(m/60)%24)+':'+pad(m%60); return s.now; }
+  function uniq(a){ return a.filter(function(x,i){ return a.indexOf(x)===i; }); }
+  function notify(s,to,text,pid,n,email){
+    to=uniq(to); if(!to.length) return;
+    s.notes.unshift({id:++s.seq,to:to,text:text,pid:pid,n:n,at:s.now,email:!!email,read:[]});
+    if(email) s.toasts.push({kind:'mail',text:'Email sent to '+to.map(function(x){ return persona(x).role; }).join(', ')+': “'+text+'”'});
+  }
+  function fail(m){ return {ok:false,msg:m}; }
+  function who2(k){ return WHO[k]; }
+
+  function act(s,per,action,q){
+    q=q||{};
+    var x=persona(per);
+    if(!can(s,per,action,q.pid,q.n,q.item)) return fail('That isn’t available to '+(x?x.role:'this user')+' right now.');
+    if(action==='createJob'){
+      var f={appleId:String(q.appleId||'').trim(),sfo:String(q.sfo||'').trim(),client:String(q.client||'').trim(),country:String(q.country||''),store:String(q.store||'').trim(),target:String(q.target||'').trim()};
+      if(!f.appleId||!f.sfo||!f.client||!f.country||!f.store||!f.target) return fail('Fill in every field.');
+      if(!/^\d+$/.test(f.appleId)||!/^\d+$/.test(f.sfo)) return fail('Apple ID and SFO are numbers.');
+      if(!COUNTRIES[f.country]) return fail('Choose a country from the list.');
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(f.target)||isNaN(d2n(f.target))||n2d(d2n(f.target))!==f.target) return fail('Enter a valid target opening date.');
+      var dup=null; s.projects.forEach(function(x){ if(x.appleId===f.appleId||(x.sfo&&x.sfo===f.sfo)) dup=x; });
+      if(dup) return fail('A job with this Apple ID or SFO already exists: '+dup.store+'.');
+      stamp(s); var jn=0; s.projects.forEach(function(x){ if(/^job\d+$/.test(x.id)) jn++; });
+      var np=store('job'+(jn+1),f.store,'new',f.country,{client:f.client,appleId:f.appleId,sfo:f.sfo,target:f.target,createdAt:TODAY});
+      s.projects.push(np);
+      notify(s,['bd','des'],'Job created for '+f.store+' ('+COUNTRIES[f.country]+', target opening '+f.target+')',np.id,1,false);
+      return {ok:true,msg:'Job created for '+f.store+'. Next: add the Store Brief and CAD file, then start the project.',pid:np.id};
+    }
+    var p=P_(s,q.pid), isDoc=action==='itemUpload'||action==='itemVerify'||action==='itemReturn';
+    var g=(action==='updateLatest'||isDoc)?null:p.stages[q.n-1], v=g?last(g):null, nm=g?STAGES[g.n-1]:'', k=extKind(per);
+    var note=String(q.note==null?'':q.note).trim(), it=isDoc?p.docs[q.item-1]:null, at, nx;
+    if((action==='ddReturn'||action==='recordChanges'||action==='itemReturn'||action==='submit') && !note) return fail('Add a short note first.');
+    if((action==='comment'||action==='updateLatest') && !String(q.text||'').trim()) return fail('Write something first.');
+    var dt=String(q.date||TODAY).trim();
+    if((action==='startProject'||action==='setStart'||action==='recordApprove'||action==='recordChanges') && (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || isNaN(d2n(dt)) || n2d(d2n(dt))!==dt)) return fail('Enter a valid date.');
+    if((action==='recordApprove'||action==='recordChanges') && dt>TODAY) return fail('A review can’t be dated in the future.');
+    at=stamp(s);
+    switch(action){
+      case 'startProject': {
+        g.status='in_progress'; g.startAt=dt; g.since=at;
+        notify(s,['des','dd'],'Project started for '+p.store+'. IDK is due '+addDays(dt,14)+'.',p.id,1,false);
+        return {ok:true,msg:'Project started on '+dt+'. IDK is due '+addDays(dt,14)+'. FDK is due 1 week after the IDK is approved.'};
+      }
+      case 'setStart':
+        g.startAt=dt;
+        return {ok:true,msg:'Start date set to '+dt+'. IDK is due '+addDays(dt,14)+'.'};
+      case 'start':
+        g.status='in_progress'; g.startAt=TODAY; g.since=at;
+        notify(s,['coord','dd'],'Designer started '+nm+' for '+p.store,p.id,g.n,false);
+        return {ok:true,msg:'Started '+nm+'. Start date recorded as '+TODAY+'.'};
+      case 'submit': {
+        var nv=V(g.versions.length+1,null,null,null,{at:at,link:String(q.link||'').trim()||null,note:note,internal:'pending'});
+        g.versions.push(nv); g.status='internal_review'; g.since=at;
+        notify(s,['dd'],'Designer submitted '+nm+' v'+nv.v+' for review',p.id,g.n,true);
+        return {ok:true,msg:'Submitted v'+nv.v+' to the Design Director. Nothing leaves Whitespace until the Coordinator sends it.'};
+      }
+      case 'ddApprove':
+        v.internal='approved'; v.internalAt=at;
+        notify(s,['coord'],'Design Director approved '+nm+' v'+v.v+'. Ready to send to Apple and the Partner.',p.id,g.n,true);
+        notify(s,['des'],'Design Director approved '+nm+' v'+v.v,p.id,g.n,false);
+        return {ok:true,msg:'Approved v'+v.v+'. The Coordinator can now send it to Apple and the Partner.'};
+      case 'ddReturn':
+        v.internal='returned'; v.internalNote=note; g.status='in_progress'; g.since=at;
+        notify(s,['des'],'Design Director returned '+nm+' v'+v.v+': '+note,p.id,g.n,false);
+        return {ok:true,msg:'Returned v'+v.v+' to the Designer. Internal returns are not review rounds.'};
+      case 'send':
+        v.sentAt=TODAY; g.status='with_reviewers'; g.since=at;
+        return {ok:true,msg:'Sent v'+v.v+' to Apple and the Partner. Sent date recorded as '+TODAY+'. Replies are due '+addWorkdays(TODAY,SLA,p.country)+'. A copy is now in Shared › '+folder(g)+'.'};
+      case 'recordApprove': {
+        var k2=q.item, o1=k2==='apple'?'partner':'apple';
+        v.reviews[k2]=R('approved',dt,note);
+        if(v.reviews[o1]){
+          g.status='approved'; g.closedAt=later(v.reviews.apple.at,v.reviews.partner.at); g.since=at; nx=p.stages[g.n];
+          if(g.n===3){ nx.status='in_progress'; nx.since=at; }
+          var msg=nm+' approved by Apple and the Partner.'+(g.n===3?' Handover documents are next.':' '+STAGES[g.n]+' is ready to start.');
+          notify(s,['des','dd','bd'],msg,p.id,g.n,false);
+          return {ok:true,msg:'Recorded: '+who2(k2)+' approved on '+dt+'. Both reviews are in, so '+nm+' is approved.'};
+        }
+        return {ok:true,msg:'Recorded: '+who2(k2)+' approved on '+dt+'. Waiting on '+who2(o1)+'.'};
+      }
+      case 'recordChanges': {
+        var k3=q.item, o3=k3==='apple'?'partner':'apple';
+        v.reviews[k3]=R('changes',dt,note); g.status='changes_requested'; g.since=at;
+        notify(s,['des','dd'],who2(k3)+' requested changes on '+nm+' v'+v.v+': '+note,p.id,g.n,false);
+        return {ok:true,msg:'Recorded: '+who2(k3)+' requested changes on '+dt+'. Review round '+rounds(g)+'. The next version goes to both Apple and the Partner.'};
+      }
+      case 'itemUpload':
+        it.status='received'; it.link=String(q.link||'').trim()||('Shared › 01 Store documents › '+it.name); it.at=TODAY; it.note='';
+        return {ok:true,msg:'Marked uploaded. The Coordinator will check it.'};
+      case 'itemVerify':
+        it.status='verified'; it.at=TODAY;
+        if(docsReady(p)) notify(s,['coord','des'],'Store Brief and CAD file verified for '+p.store+'. The layout can start.',p.id,1,false);
+        return {ok:true,msg:'Verified.'+(docsReady(p)?' Store Brief and CAD file are in. The Designer can start the layout.':'')};
+      case 'itemReturn':
+        it.status='requested'; it.note=note; it.link=null; it.at=null;
+        return {ok:true,msg:'Marked as requested again, with your reason.'};
+      case 'issueDoc': {
+        var di=g.items[q.item-1]; di.doneAt=TODAY; di.link=String(q.link||'').trim()||('Shared › 04 Handover › '+di.name);
+        if(g.items.every(function(i){ return i.doneAt; })){
+          g.status='done'; g.closedAt=TODAY; g.doneAt=TODAY; nx=p.stages[4]; nx.status='in_progress'; nx.since=at;
+          notify(s,['coord','bd'],'All three handover documents issued for '+p.store+'. The store can open.',p.id,4,false);
+          return {ok:true,msg:'Issued. All three handover documents are done, so Store Opens is next.'};
+        }
+        return {ok:true,msg:'Issued “'+di.name+'”. '+g.items.filter(function(i){ return i.doneAt; }).length+' of 3 handover documents done.'};
+      }
+      case 'recordOpen':
+        g.status='done'; g.doneAt=TODAY; g.closedAt=TODAY; nx=p.stages[5]; nx.status='in_progress'; nx.since=at;
+        notify(s,['bd','des'],p.store+' opened',p.id,5,false);
+        return {ok:true,msg:'Store opening recorded as '+TODAY+'. The SFF claim is next.'};
+      case 'recordSff':
+        g.status='done'; g.doneAt=TODAY; g.closedAt=TODAY; g.since=at;
+        notify(s,['bd'],'SFF claim recorded for '+p.store+'. The project is complete.',p.id,6,false);
+        return {ok:true,msg:'SFF claim recorded as '+TODAY+'. The project is complete.'};
+      case 'chase': {
+        var w=waitingOn(p); g.lastChase=at;
+        return {ok:true,msg:'Chase logged for '+(w.who==='Both'?'Apple and the Partner':w.who)+'. Reply is due by the next working day.'};
+      }
+      case 'comment': {
+        var internal=true;
+        g.comments.push({by:per,text:String(q.text).trim(),internal:internal,at:at,seq:++s.seq});
+        notify(s,['coord','des','dd'].filter(function(y){ return y!==per; }),'New comment on '+nm+' from '+x.role,p.id,g.n,false);
+        return {ok:true,msg:'Comment posted.'};
+      }
+      case 'setKit':
+        if(q.kit!=='SDK'&&q.kit!=='RDK') return fail('Choose SDK or RDK.');
+        p.kit=q.kit; return {ok:true,msg:'Kit type set to '+q.kit+'.'};
+      case 'updateLatest':
+        p.latest={text:String(q.text).trim(),at:at};
+        return {ok:true,msg:'Latest update posted.'};
+    }
+    return fail('Unknown action.');
+  }
+
+  function tasksFor(s,per){
+    var out=[];
+    s.projects.forEach(function(p){
+      function add(n,kind,text,sub,target){ out.push({pid:p.id,n:n,store:p.store,kind:kind,text:text,sub:sub||'',target:target||'stage'}); }
+      var g1=p.stages[0];
+      if(can(s,per,'startProject',p.id,1)) add(1,'startproj','Start the project','Store documents are in. Enter the start date.');
+      if(can(s,per,'setStart',p.id,1) && g1.status!=='approved') add(1,'setstart','Enter the start date','Needed for the IDK due date');
+      if(per==='coord' && g1.status==='not_started' && !docsReady(p)){
+        var up=p.docs.filter(function(i){ return can(s,per,'itemUpload',p.id,1,i.i)&&i.k!=='logo'; });
+        if(up.length) add(1,'upload','Add '+up.length+' store document'+(up.length>1?'s':''),up.map(function(i){ return i.name; }).join(', '),'project');
+      }
+      var vr=p.docs.filter(function(i){ return can(s,per,'itemVerify',p.id,1,i.i); });
+      if(vr.length) add(1,'verify','Verify '+vr.length+' store document'+(vr.length>1?'s':''),vr.map(function(i){ return i.name; }).join(', '),'project');
+      p.stages.forEach(function(g){
+        var v=last(g), nm=STAGES[g.n-1];
+        if(per==='des' && can(s,per,'start',p.id,g.n)) add(g.n,'start','Start '+nm,STAGES[g.n-2]+' approved');
+        if(can(s,per,'submit',p.id,g.n)){
+          var lc=null; if(v){ ['apple','partner'].forEach(function(kk){ if(v.reviews[kk]&&v.reviews[kk].outcome==='changes') lc={who:kk,note:v.reviews[kk].note}; }); }
+          add(g.n,'submit',(g.status==='changes_requested'?'Revise and submit v':'Submit v')+(g.versions.length+1)+' · '+SHORT[g.n-1],g.status==='changes_requested'&&lc?WHO[lc.who]+': '+(lc.note||'changes requested'):v&&v.internal==='returned'?'Returned: '+v.internalNote:'Work in progress');
+        }
+        if(can(s,per,'ddApprove',p.id,g.n)) add(g.n,'review','Review '+SHORT[g.n-1]+' v'+v.v,'Submitted '+fmtISO(v.at));
+        if(can(s,per,'send',p.id,g.n)) add(g.n,'send','Send '+SHORT[g.n-1]+' v'+v.v+' to Apple and Partner','Approved by Design Director');
+        if(per==='coord' && g.status==='with_reviewers'){
+          var pe=pend(g), w=waitingOn(p), late=w.workdays!==null&&w.workdays>SLA;
+          add(g.n,'record','Record '+pe.map(function(k){ return WHO[k]; }).join(' + ')+' review · '+SHORT[g.n-1]+' v'+v.v,(real(v.sentAt)?'Sent '+fmtISO(v.sentAt)+' · reply due '+addWorkdays(v.sentAt,SLA,p.country):'Sent date not recorded')+(late?' · overdue '+(w.workdays-SLA)+' working day'+(w.workdays-SLA>1?'s':''):''));
+          if(late && (!g.lastChase||g.lastChase.slice(0,10)!==TODAY)) add(g.n,'chase','Chase '+(w.who==='Both'?'Apple and Partner':w.who)+' · '+SHORT[g.n-1],'Waiting '+w.workdays+' working days (SLA '+SLA+')');
+        }
+        if(per==='coord' && g.n===4 && g.status==='in_progress'){ var left=g.items.filter(function(i){ return !i.doneAt; }).length; add(4,'issue','Issue '+left+' handover document'+(left>1?'s':''),g.items.filter(function(i){ return !i.doneAt; }).map(function(i){ return i.name; }).join(', ')); }
+        if(can(s,per,'recordOpen',p.id,g.n)) add(5,'open','Record the store opening',p.target?'Target '+p.target:'');
+        if(can(s,per,'recordSff',p.id,g.n)) add(6,'sff','Record the SFF claim','');
+      });
+    });
+    return out;
+  }
+  function events(s){
+    var out=[];
+    s.projects.forEach(function(p){
+      function add(date,n,type,label,late){ if(real(date)) out.push({date:date.slice(0,10),pid:p.id,n:n,type:type,label:label,late:!!late}); }
+      var g1=p.stages[0],g2=p.stages[1],g3=p.stages[2], ei=expIdk(p), ef=expFdk(p);
+      add(g1.startAt,1,'start','Project start'); add(g2.startAt,2,'start','Start IDK'); add(g3.startAt,3,'start','Start FDK');
+      if(ei) add(ei,2,'due','IDK due',!idkSent(p)&&TODAY>ei);
+      if(ef) add(ef,3,'due','FDK due',!fdkSent(p)&&TODAY>ef);
+      [0,1,2].forEach(function(i){ var g=p.stages[i], nm=SHORT[i];
+        g.versions.forEach(function(v){
+          add(v.sentAt,g.n,'sent',nm+' v'+v.v+' sent');
+          ['apple','partner'].forEach(function(k){ var r=v.reviews[k]; if(r) add(r.at,g.n,k,WHO[k]+(r.outcome==='approved'?' approved ':' changes · ')+nm); });
+          if(v===last(g) && g.status==='with_reviewers' && real(v.sentAt)){ var dd=addWorkdays(v.sentAt,SLA,p.country); add(dd,g.n,'sla','Reply due: '+pend(g).map(function(k){ return WHO[k]; }).join(' + ')+' · '+nm,TODAY>dd); }
+        });
+      });
+      p.stages[3].items.forEach(function(it){ add(it.doneAt,4,'handover',it.name+' issued'); });
+      add(p.stages[4].doneAt,5,'open','Store opened'); add(p.stages[5].doneAt,6,'sff','SFF claim recorded');
+      add(p.target,5,'target','Target opening');
+    });
+    out.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; });
+    return out;
+  }
+  function fmtISO(a){ return a&&a!=='ND'?a.slice(0,10):'earlier'; }
+
+  function markSeen(s,key){ s.seen[key]=++s.seq; }
+  function st(s,pid,n){ return P_(s,pid).stages[n-1]; }
+  function lv(s,pid,n){ return last(st(s,pid,n)); }
+  function rvOf(s,pid,n,k,o){ var vs=st(s,pid,n).versions; return vs.some(function(v){ return v.reviews[k]&&v.reviews[k].outcome===o; }); }
+  var scenarios=[
+    {id:'s0',title:'Create a job',sub:'A new store · Create job, documents, start',steps:[
+      {text:'As Coordinator, press Create job. Enter Apple ID, SFO, Registered Client Name, Country, Store Name and Target Opening Date.',persona:'coord',go:{view:'portfolio'},done:function(s){ return !!P_(s,'job1'); }},
+      {text:'As Coordinator, add and verify the Store Brief and the CAD file for the new job.',persona:'coord',go:{view:'project',pid:'job1'},done:function(s){ var p=P_(s,'job1'); return !!p&&docsReady(p); }},
+      {text:'As Coordinator, start the project with a start date. The job moves onto the Calendar and the IDK due date appears.',persona:'coord',go:{view:'stage',pid:'job1',n:1},done:function(s){ var p=P_(s,'job1'); return !!p&&real(p.stages[0].startAt); }}
+    ]},
+    {id:'s1',title:'A layout goes through review',sub:'iBOX @ Timika · Layout Proposal',steps:[
+      {text:'As Coordinator, enter the project start date (it was never recorded). The IDK due date appears.',persona:'coord',go:{view:'stage',pid:'timika',n:1},done:function(s){ return real(st(s,'timika',1).startAt); }},
+      {text:'As Designer, submit Layout v1.',persona:'des',go:{view:'stage',pid:'timika',n:1},done:function(s){ return st(s,'timika',1).versions.length>=1; }},
+      {text:'As Design Director, approve v1.',persona:'dd',go:{view:'stage',pid:'timika',n:1},done:function(s){ var v=lv(s,'timika',1); return !!v&&v.internal==='approved'; }},
+      {text:'As Coordinator, send it to Apple and the Partner. The reply is due in 1 working day.',persona:'coord',go:{view:'stage',pid:'timika',n:1},done:function(s){ var v=lv(s,'timika',1); return !!v&&!!v.sentAt; }},
+      {text:'As Coordinator, record the Apple review and the Partner review. Both approve, so Layout is approved.',persona:'coord',go:{view:'stage',pid:'timika',n:1},done:function(s){ return st(s,'timika',1).status==='approved'; }}
+    ]},
+    {id:'s2',title:'A change request resets the reviews',sub:'ADVICE @ Chiang Rai · IDK Review (Apple already approved v1)',steps:[
+      {text:'As Coordinator, record that the Partner requested changes on IDK v1.',persona:'coord',go:{view:'stage',pid:'chiangrai',n:2},done:function(s){ return rvOf(s,'chiangrai',2,'partner','changes'); }},
+      {text:'As Designer, revise and submit v2.',persona:'des',go:{view:'stage',pid:'chiangrai',n:2},done:function(s){ return st(s,'chiangrai',2).versions.length>=2; }},
+      {text:'As Design Director, approve v2.',persona:'dd',go:{view:'stage',pid:'chiangrai',n:2},done:function(s){ var vs=st(s,'chiangrai',2).versions; return vs.length>=2&&vs[vs.length-1].internal==='approved'; }},
+      {text:'As Coordinator, send v2. Apple’s v1 approval does not carry over: both review v2.',persona:'coord',go:{view:'stage',pid:'chiangrai',n:2},done:function(s){ var vs=st(s,'chiangrai',2).versions; return vs.length>=2&&!!vs[vs.length-1].sentAt; }}
+    ]},
+    {id:'s3',title:'Documents arrive, project starts',sub:'Switch @ AEON Seremban 2 · Store documents',steps:[
+      {text:'As Coordinator, add links for the Store Brief and the CAD file.',persona:'coord',go:{view:'project',pid:'seremban'},done:function(s){ var d=P_(s,'seremban').docs; return d[0].status!=='requested'&&d[1].status!=='requested'; }},
+      {text:'As Coordinator, verify both.',persona:'coord',go:{view:'project',pid:'seremban'},done:function(s){ var d=P_(s,'seremban').docs; return d[0].status==='verified'&&d[1].status==='verified'; }},
+      {text:'As Coordinator, start the project with a start date. IDK is due 2 weeks later.',persona:'coord',go:{view:'stage',pid:'seremban',n:1},done:function(s){ return real(st(s,'seremban',1).startAt); }}
+    ]},
+    {id:'s4',title:'From FDK to the SFF claim',sub:'iBOX @ Lippo Mall Kemang · FDK Review onward',steps:[
+      {text:'As Coordinator, record that Apple approved the FDK.',persona:'coord',go:{view:'stage',pid:'lippo',n:3},done:function(s){ return rvOf(s,'lippo',3,'apple','approved'); }},
+      {text:'As Coordinator, record that the Partner approved the FDK. Handover starts.',persona:'coord',go:{view:'stage',pid:'lippo',n:3},done:function(s){ return st(s,'lippo',3).status==='approved'; }},
+      {text:'As Coordinator, issue the three handover documents.',persona:'coord',go:{view:'stage',pid:'lippo',n:4},done:function(s){ return st(s,'lippo',4).status==='done'; }},
+      {text:'As Coordinator, record the store opening.',persona:'coord',go:{view:'stage',pid:'lippo',n:5},done:function(s){ return st(s,'lippo',5).status==='done'; }},
+      {text:'As Coordinator, record the SFF claim. The project is completed.',persona:'coord',go:{view:'stage',pid:'lippo',n:6},done:function(s){ return st(s,'lippo',6).status==='done'; }}
+    ]},
+    {id:'s5',title:'Chase a late reply (1-day SLA)',sub:'ADVICE @ Chiang Rai · Partner has not replied since 6 Nov',steps:[
+      {text:'As Coordinator, open the Calendar (the default page). Reply-due and deadline dates are on it.',persona:'coord',go:{view:'calendar'},done:function(s){ return !!s.seen['coord:calendar']; }},
+      {text:'As Coordinator, open My tasks and find the Chase task for Chiang Rai.',persona:'coord',go:{view:'tasks'},done:function(s){ return !!s.seen['coord:tasks']; }},
+      {text:'As Coordinator, log the chase on Chiang Rai IDK.',persona:'coord',go:{view:'stage',pid:'chiangrai',n:2},done:function(s){ return !!st(s,'chiangrai',2).lastChase; }}
+    ]}
+  ];
+
+  return {VERSION:VERSION,TODAY:TODAY,STAGES:STAGES,SHORT:SHORT,STATUS:STATUS,HEALTH:HEALTH,WHO:WHO,COUNTRIES:COUNTRIES,RESELLERS:RESELLERS,PERSONAS:PERSONAS,INTERNAL:INTERNAL,DOCS:DOCS,KITS:KITS,HAND:HAND,
+    persona:persona,isInt:isInt,extKind:extKind,seed:seed,createdOf:createdOf,P:P_,sees:sees,visibleProjects:visibleProjects,clientsOf:clientsOf,applesOf:applesOf,progress:progress,currentStage:currentStage,
+    waitingOn:waitingOn,health:health,extVersions:extVersions,extComments:extComments,extStatus:extStatus,can:can,act:act,tasksFor:tasksFor,markSeen:markSeen,scenarios:scenarios,
+    folder:folder,last:last,workdays:workdays,rounds:rounds,pend:pend,docsReady:docsReady,done:done,stageLabel:stageLabel,nowLabel:nowLabel,mval:mval,real:real,HOL:HOL,HOLX:HOLX,holidaysOn:holidaysOn,lastSentV:lastSentV,events:events,expIdk:expIdk,expFdk:expFdk,SLA:SLA,addWorkdays:addWorkdays,startDate:startDate};
+})();
+/*END ENGINE*/
+
+
+(function(){
+  var E=ENGINE, KEY='aar-portal-prototype-a2c', S, U;
+  var app=document.getElementById('app'), dlg=document.getElementById('dlg'), dlgf=document.getElementById('dlgf'), toastsEl=document.getElementById('toasts');
+  var LOGO='data:image/png;base64,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';
+  var MODES={portfolio:['tracker','pipeline','kanban'],home:['tracker','pipeline','kanban'],tasks:['table','pipeline','kanban']};
+  function defUI(){ return {persona:'coord',view:'calendar',cal:{y:2026,m:10,sel:'2026-11-23',type:''},pid:null,n:null,tab:'stages',modes:{portfolio:'tracker',tasks:'table',home:'tracker'},filt:{country:'',reseller:'',health:'',q:''},sort:{k:'created',dir:'desc'},tryOpen:true,bell:false,confirmReset:false,intComment:true}; }
+  function load(){
+    try{ var raw=localStorage.getItem(KEY); if(raw){ var o=JSON.parse(raw); if(o&&o.state&&o.state.v===E.VERSION&&Array.isArray(o.state.projects)&&E.persona(o.ui&&o.ui.persona)){ S=o.state; U=Object.assign(defUI(),o.ui); U.bell=false; U.confirmReset=false; S.toasts=[]; return; } } }catch(e){}
+    S=E.seed(); U=defUI();
+  }
+  function save(){ try{ localStorage.setItem(KEY,JSON.stringify({state:S,ui:U})); }catch(e){} }
+  function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function fmtD(d){ if(!d) return '—'; if(d==='ND') return 'date not recorded'; var a=d.slice(0,10).split('-'); return (+a[2])+' '+MON[a[1]-1]+(a[0]!=='2026'?' '+a[0]:''); }
+  function fmtS(d){ if(!d) return ''; if(d==='ND') return '✓'; var a=d.slice(0,10).split('-'); return a[2]+'.'+a[1]+'.'+a[0].slice(2); }
+  function fmtAt(at){ if(!at) return '—'; if(at==='ND') return 'date not recorded'; if(at.slice(0,10)===E.TODAY) return 'Today'+(at.length>10?' '+at.slice(11,16):''); return fmtD(at); }
+  function per(){ return U.persona; }
+  function ext(){ return !E.isInt(U.persona); }
+  function kind(){ return E.extKind(U.persona); }
+  function rname(p){ return p.client||'Client not set'; }
+  function clientNames(){ var o={},l=[]; S.projects.forEach(function(p){ if(p.client&&!o[p.client]){ o[p.client]=1; l.push(p.client); } }); return l.sort(); }
+  function createBtn(){ return E.can(S,per(),'createJob')?'<button class="btn p" data-act="createJob">+ Create job</button>':''; }
+  function cname(p){ return E.COUNTRIES[p.country]; }
+  function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+  var IC={
+    tracker:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6.5h12M2 10h12M6 3v10"/></svg>',
+    table:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6.5h12M2 10h12"/></svg>',
+    pipeline:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h4M7 4h3M11 4h3M2 8h6M9 8h5M2 12h2M5 12h9"/></svg>',
+    kanban:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2.5" width="3.2" height="11" rx="1"/><rect x="6.4" y="2.5" width="3.2" height="7" rx="1"/><rect x="10.8" y="2.5" width="3.2" height="9" rx="1"/></svg>',
+    bell:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 8a5 5 0 0 1 10 0c0 4 1.5 5.5 1.5 5.5h-13S5 12 5 8Z"/><path d="M8.3 16a1.8 1.8 0 0 0 3.4 0"/></svg>',
+    search:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>',
+    tasks:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="m7 10 2.2 2.2L13.5 8"/></svg>',
+    grid:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.5"/><rect x="11" y="3" width="6" height="6" rx="1.5"/><rect x="3" y="11" width="6" height="6" rx="1.5"/><rect x="11" y="11" width="6" height="6" rx="1.5"/></svg>',
+    users:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="7" r="3"/><path d="M2.5 16c.5-3 2.7-4.5 5.5-4.5s5 1.5 5.5 4.5"/><circle cx="14.5" cy="8" r="2"/><path d="M14.5 11.5c2 0 3.2 1.2 3.5 3.5"/></svg>',
+    home:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 9.5 10 3l7 6.5V17H3z"/><path d="M8 17v-5h4v5"/></svg>',
+    cal:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2.5"/><path d="M3 8.5h14M7 3v3M13 3v3"/></svg>',
+    drive:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2 5.5h4l1.2 1.5H14v6.5H2z"/></svg>'
+  };
+  function drive(path,title){ return '<span class="drive" title="'+esc(title||'Placeholder Drive link in the prototype')+'">'+IC.drive+esc(path)+'</span>'; }
+  function stLabel(g){ return ext()?E.extStatus(g,per()):E.STATUS[g.status]; }
+  function stChip(g){ return '<span class="chip st-'+g.status+'">'+esc(stLabel(g))+'</span>'; }
+  function hChip(p){ var h=E.health(p); return '<span class="chip h-'+h+'">'+E.HEALTH[h]+'</span>'; }
+  function segbar(p){ var c=E.currentStage(p), dn=E.done(p); return '<span class="sb" aria-hidden="true">'+p.stages.map(function(g){ var cl=(g.status==='approved'||g.status==='done')?'d':(g===c&&!dn)?'c':''; return '<i class="'+cl+'"'+(cl?' style="background-color:var(--g'+g.n+')"':'')+'></i>'; }).join('')+'</span>'; }
+  function waitName(p){ var w=E.waitingOn(p); if(w.hold) return 'On hold'; if(!w.who) return 'Completed'; var nm=w.who==='WSPN'?'Whitespace':w.who==='Both'?'Apple + Partner':w.who; if((kind()==='partner'&&w.list.indexOf('partner')>=0)||(kind()==='apple'&&w.list.indexOf('apple')>=0)) nm='You'; return nm; }
+  function waitLabel(p){ var w=E.waitingOn(p); var nm=waitName(p); if(w.hold||!w.who) return nm; return nm+(w.days===null?'':' · '+(w.days===0?'today':w.days+(w.days===1?' day':' days'))); }
+  function waitClass(p){ var w=E.waitingOn(p); if(w.hold) return 'w-Hold'; if(!w.who) return 'w-done'; if(waitName(p)==='You') return 'w-You'; return 'w-'+w.who; }
+  function flags(p){
+    if(ext()) return '';
+    var f=[], g=E.currentStage(p), started=p.stages[0].status!=='not_started';
+    if(!p.kit) f.push('<span class="chip warn">Kit type not set</span>');
+    if(started){ if(p.docs[0].status!=='verified') f.push('<span class="chip warn">Store Brief missing</span>'); if(p.docs[1].status!=='verified') f.push('<span class="chip warn">CAD file missing</span>'); }
+    if(g.n>=2 && p.docs[2].status!=='verified' && !E.done(p)) f.push('<span class="chip warn">Logo EPS missing</span>');
+    return f.join(' ');
+  }
+  function go(view,pid,n){ U.view=view; U.pid=pid||null; U.n=n?+n:null; if(view==='project') U.tab='stages'; U.bell=false; render(); window.scrollTo(0,0); }
+  function homeOf(id){ return E.persona(id).home; }
+
+  /* ---------- shell ---------- */
+  function top(){
+    var unread=S.notes.filter(function(x){ return x.to.indexOf(per())>=0 && x.read.indexOf(per())<0; }).length;
+    var opts=function(side){ return E.PERSONAS.filter(function(x){ return x.side===side; }).map(function(x){ return '<option value="'+x.id+'"'+(x.id===per()?' selected':'')+'>'+esc(x.role)+'</option>'; }).join(''); };
+    return '<header class="top"><div class="top-in gut wide">'+
+      '<div class="brand"><img class="logo" src="'+LOGO+'" alt="Whitespace Partners"><span class="bsep" aria-hidden="true"></span><span class="bn">APP CORE</span><span class="tag">Prototype A.2</span></div>'+
+      '<label class="who" for="persona"><span>Viewing as</span><select id="persona"><optgroup label="Whitespace team">'+opts('int')+'</optgroup></select></label>'+
+      '<div class="tools"><button class="btn ib" data-ui="bell" aria-label="Notifications, '+unread+' unread" aria-expanded="'+U.bell+'">'+IC.bell+(unread?'<span class="badge">'+unread+'</span>':'')+'</button>'+
+      '<button class="btn" data-ui="try" aria-expanded="'+U.tryOpen+'">Try this</button>'+
+      (U.confirmReset?'<span class="rs">Reset everything? <button class="btn crit sm" data-ui="resetYes">Reset</button><button class="btn ghost sm" data-ui="resetNo">Cancel</button></span>':'<button class="btn ghost" data-ui="reset">Reset</button>')+
+      '</div></div></header>'+
+      '<div class="pstrip"><div class="in gut wide"><span class="pav" style="background:'+PCOL[per()]+'">'+esc(E.persona(per()).ini)+'</span><span class="side '+(ext()?'ext':'int')+'">'+(ext()?'External':'Internal')+'</span><b>'+esc(E.persona(per()).role)+'</b><span class="pb">'+esc(E.persona(per()).blurb)+'</span></div></div>';
+  }
+  function nav(){
+    var cur=(U.view==='project'||U.view==='stage')?'portfolio':U.view;
+    var b=function(view,label,count,icon){ return '<button class="nb" data-go="'+view+'"'+(cur===view?' aria-current="page"':'')+'>'+IC[icon]+'<span class="lb">'+label+'</span>'+(count?'<span class="cnt">'+count+'</span>':'')+'</button>'; };
+    var t=E.tasksFor(S,per()).length;
+    var lg='<div class="nh">Stage colors</div><div class="lg">'+E.SHORT.map(function(s,i){ return '<span class="lgi"><i style="background:var(--g'+(i+1)+')"></i>'+(i+1)+' · '+esc(s)+'</span>'; }).join('')+'</div>';
+    if(ext()) return '<nav class="nav" aria-label="Main"><div class="nh">Portal</div>'+b('home','Tracker',t,'home')+lg+'</nav>';
+    return '<nav class="nav" aria-label="Main"><div class="nh">Work</div>'+b('calendar','Calendar',0,'cal')+b('tasks','My tasks',t,'tasks')+b('portfolio','Tracker',0,'grid')+'<div class="nh">Directory</div>'+b('clients','Resellers',0,'users')+lg+'</nav>';
+  }
+  function switcher(screen){
+    return '<div class="vtabs" role="group" aria-label="View as">'+MODES[screen].map(function(m){ return '<button data-mode="'+screen+'|'+m+'" aria-pressed="'+(U.modes[screen]===m)+'">'+IC[m]+cap(m)+'</button>'; }).join('')+'</div>';
+  }
+  function toolbar(extra){
+    return '<div class="tb"><label class="search"><span style="position:absolute;left:-9999px">Search stores</span>'+IC.search+'<input id="q" type="search" placeholder="Search stores" value="'+esc(U.filt.q||'')+'" autocomplete="off"></label>'+(extra||'')+'</div>';
+  }
+  function projSeg(p){
+    var c=E.currentStage(p), dn=E.done(p);
+    return '<div class="mseg" aria-hidden="true">'+p.stages.map(function(g){ var st=(g.status==='approved'||g.status==='done')?'background:var(--g'+g.n+')':(g===c&&!dn)?'background:#fff':''; return '<i style="'+st+'"></i>'; }).join('')+'</div>';
+  }
+  function band(eyebrow,title,sub,right,sc,seg){
+    return '<div class="band" style="--sc:'+(sc||'var(--nav-2)')+'"><div class="sh"><div><p class="eyebrow">'+eyebrow+'</p><h1>'+title+'</h1>'+(sub?'<p class="sub">'+sub+'</p>':'')+'</div>'+(right?'<div class="bar">'+right+'</div>':'')+'</div>'+(seg||'')+'</div>';
+  }
+  function head(eyebrow,title,sub,right){ return '<div class="sh"><div><p class="eyebrow">'+eyebrow+'</p><h1>'+title+'</h1>'+(sub?'<p class="sub">'+sub+'</p>':'')+'</div>'+(right?'<div class="bar">'+right+'</div>':'')+'</div>'; }
+
+  /* ---------- tracker sheet (same columns and colours as the PDF) ---------- */
+  var HC={on_track:'var(--h-on)',at_risk:'var(--h-risk)',delayed:'var(--h-late)',on_hold:'var(--s-na)',completed:'var(--h-done)'};
+  var STC={not_started:'var(--s-todo)',in_progress:'var(--s-prog)',internal_review:'var(--s-rev)',with_reviewers:'var(--s-cli)',changes_requested:'var(--s-chg)',approved:'var(--s-ok)',done:'var(--s-ok)'};
+  var PCOL={bd:'var(--g1)',coord:'var(--g2)',dd:'var(--g4)',des:'var(--g6)',cl_ibox:'var(--g5)',cl_advice:'var(--g5)',cl_pmc:'var(--g5)',ap_id:'var(--s-app)',ap_th:'var(--s-app)',ap_phmy:'var(--s-app)'};
+  var COLS=[
+    ['created','Created','id'],['store','Store Name','id sn'],['ids','Apple ID / SFO','id'],['country','Country','id'],['target','Target Opening Date','tg'],['now','Now','or'],
+    ['brief','Store Brief','or'],['cad','CAD file','or'],['logo','LOGO EPS','or'],['kit','SDK or RDK','or'],
+    ['startLayout','Start Layout','or'],['expIdk','Expected IDK Finish','or'],['expFdk','Expected FDK Finish','or nw'],['sentLayout','Sent layout','or'],['apLayout','Apple Layout Reviewed','or'],['paLayout','Partner Layout Reviewed','or'],
+    ['sentIdk','Sent IDK','or'],['apIdk','Apple IDK Reviewed','or'],['paIdk','Partner IDK Reviewed','or'],
+    ['startFdk','Start FDK','or'],['sentFdk','Sent FDK','or nw'],['apFdk','Apple FDK Review','or'],['paFdk','Partner FDK Review','or'],
+    ['onePage','1 Page Graphic Priority Guidance','or'],['constr','Construction Schedule','or'],['install','Installation One pager','or'],
+    ['opens','Store Opens','or'],['sff','SFF Claims','or'],['wait','Waiting on','pt'],['health','Health','pt']
+  ];
+  var GROUPS=[['Store',4],['Target',1],['Now',1],['Store documents',4],['Layout',6],['IDK',3],['FDK',4],['Handover',3],['Open &amp; claim',2],['Portal',2]];
+  var DATEKEYS={startLayout:1,expIdk:1,sentLayout:1,apLayout:1,paLayout:1,sentIdk:1,apIdk:1,paIdk:1,startFdk:1,sentFdk:1,apFdk:1,paFdk:1,onePage:1,constr:1,install:1,opens:1,sff:1};
+  function sortProjects(list){ var co=Object.keys(E.COUNTRIES); return list.slice().sort(function(a,b){ var d=co.indexOf(a.country)-co.indexOf(b.country); return d||S.projects.indexOf(a)-S.projects.indexOf(b); }); }
+  /* Tracker sort: Created or Target Opening Date; empty dates always go last. */
+  var SORTABLE={created:function(p){ return E.createdOf(p); },target:function(p){ return p.target||''; }};
+  function sheetSort(list){
+    var k=SORTABLE[U.sort.k]?U.sort.k:'created', f=SORTABLE[k], up=U.sort.dir==='asc';
+    return list.slice().sort(function(a,b){ var x=f(a), y=f(b);
+      if(x!==y){ if(!x) return 1; if(!y) return -1; return (x<y?-1:1)*(up?1:-1); }
+      return S.projects.indexOf(a)-S.projects.indexOf(b); });
+  }
+  function qmatch(s){ var q=(U.filt.q||'').toLowerCase().trim(); return !q||String(s).toLowerCase().indexOf(q)>=0; }
+  function sheetCell(p,key){
+    var g=E.currentStage(p), X=ext();
+    switch(key){
+      case 'created': return '<td>'+esc(fmtS(E.createdOf(p)))+'</td>';
+      case 'country': return '<td class="cc" title="'+esc(cname(p))+'">'+esc(p.country)+'</td>';
+      case 'ids': return '<td class="ids">'+(p.appleId?'<span>'+esc(p.appleId)+'</span>':'')+(p.sfo?'<span class="sfo">SFO '+esc(p.sfo)+'</span>':'')+'</td>';
+      case 'store': return '<td class="sn" style="--hc:'+(X?'var(--g'+g.n+')':HC[E.health(p)])+'"><button class="lnk" data-go="project|'+p.id+'" title="'+esc(p.store)+'">'+esc(p.store)+'</button></td>';
+      case 'target': return '<td class="tg">'+esc(p.target?fmtD(p.target):'')+'</td>';
+      case 'now': return '<td class="now">'+(E.stageLabel(p)?'<span class="stn" style="--sc:var(--g'+g.n+')" title="Stage '+g.n+' · '+esc(E.stageLabel(p))+'">'+g.n+'·'+esc(E.SHORT[g.n-1])+'</span>':'')+'<span class="nowp'+(g.status==='with_reviewers'&&!p.hold?' sent':'')+'">'+esc(E.nowLabel(p,X))+'</span></td>';
+      case 'brief': { var b=p.docs[0]; return '<td'+(b.status==='verified'?'':' class="miss"')+'>'+(b.status==='verified'?esc(fmtS(b.at)):b.status==='received'?'Received':'')+'</td>'; }
+      case 'cad': { var c=p.docs[1]; return '<td'+(c.status==='verified'?'':' class="miss"')+'>'+(c.status==='verified'?'Yes':c.status==='received'?'Received':'')+'</td>'; }
+      case 'logo': { var l=p.docs[2]; return '<td>'+(l.status==='verified'?(l.fmt==='AI'?'AI':'Yes'):l.status==='received'?'Received':'')+'</td>'; }
+      case 'kit': return '<td>'+esc(p.kit||'')+'</td>';
+      case 'wait': return '<td class="nm">'+esc(waitLabel(p))+'</td>';
+      case 'health': return '<td class="nm">'+(p.hold?'<span class="chip h-on_hold">On hold</span>':hChip(p))+'</td>';
+    }
+    var m=E.mval(p,key); if(!m) return '<td></td>';
+    var ch=m.outcome==='changes';
+    return '<td'+(ch?' class="chg" title="Changes requested"':'')+'>'+(ch?'↺ ':'')+esc(fmtS(m.at))+'</td>';
+  }
+  function projSheet(list){
+    var X=ext(), cols=COLS.filter(function(c){ return !(X&&c[0]==='health'); }), n=cols.length;
+    var GS={}, gi=0; GROUPS.forEach(function(g){ GS[gi]=1; gi+=g[1]; });
+    var gmark=function(s,i){ return GS[i]&&i>0?s.replace(/^<t([dh])/,'<t$1 data-g'):s; };
+    var h='<p class="hint-row">Based on the APP CORE TRACKER. Now shows the current stage (for example 3·FDK) and its status. Country uses its code: hover for the full name. Dates are dd.mm.yy. “✓” means done, but the date was not recorded. ↺ is a change request. A green Now label means the work is with Apple and the Partner. “–” means no data yet. Hover a store name to see it in full. “Sent FDK” and “Expected FDK Finish” (marked •) are new columns. Expected IDK Finish is the start date plus 2 weeks. Expected FDK Finish is 1 week after the IDK is approved.</p><div class="tw sw"><table class="t sheet"><thead><tr class="gr">'+GROUPS.map(function(g,i){ var span=(X&&i===GROUPS.length-1)?g[1]-1:g[1]; return '<th colspan="'+span+'"'+(i>0?' data-g':'')+'>'+g[0]+'</th>'; }).join('')+'</tr><tr>'+
+      cols.map(function(c,ci){ var cl=c[2].split(' '), srt=SORTABLE[c[0]], on=srt&&U.sort.k===c[0];
+        var inner=srt?'<button class="sortb" data-sort="'+c[0]+'" title="Sort by '+esc(c[1])+'">'+esc(c[1])+'<span class="sarr'+(on?' on':'')+'">'+(on?(U.sort.dir==='asc'?'▲':'▼'):'↕')+'</span></button>':esc(c[1]);
+        return gmark('<th class="'+c[2]+'"',ci)+(srt?' aria-sort="'+(on?(U.sort.dir==='asc'?'ascending':'descending'):'none')+'"':'')+(cl.indexOf('nw')>=0?' title="New column. Not in the PDF tracker."':'')+'>'+inner+'</th>'; }).join('')+'</tr></thead><tbody>';
+    sheetSort(list).forEach(function(p){
+      h+='<tr'+(p.hold?' class="hold"':'')+'>'+cols.map(function(c,ci){ return gmark(sheetCell(p,c[0]),ci).replace(/^(<td[^>]*>)<\/td>$/,'$1<span class="nil" aria-label="empty">–</span></td>'); }).join('')+'</tr>';
+    });
+    return h+'</tbody></table></div>';
+  }
+
+  /* ---------- pipeline + kanban ---------- */
+  function cellInfo(p,g){
+    var v=E.last(g);
+    if(g.n<=3){
+      var parts=[]; if(g.startAt) parts.push('Start '+fmtS(g.startAt)); var sv=E.lastSentV(g); if(sv) parts.push('Sent '+fmtS(sv.sentAt));
+      if(sv){ ['apple','partner'].forEach(function(k){ var r=sv.reviews[k]; if(r) parts.push(E.WHO[k]+' '+(r.outcome==='approved'?'✓':'↺')+(r.at!=='ND'?' '+fmtS(r.at):'')); }); }
+      return parts.slice(0,3).map(function(x){ return '<span>'+esc(x)+'</span>'; }).join('');
+    }
+    if(g.n===4) return '<span>'+g.items.filter(function(i){ return i.doneAt; }).length+' of 3 issued</span>';
+    return '';
+  }
+  function pipeHead(){ return '<thead><tr><th class="sc">Store</th>'+E.STAGES.map(function(s,i){ return '<th><span class="chev stg'+(i+1)+'" title="'+esc(s)+'">'+(i+1)+' · '+esc(E.SHORT[i])+'</span></th>'; }).join('')+'</tr></thead>'; }
+  function pipeCell(p,g,extra){
+    var c=E.currentStage(p), isCur=g===c&&!E.done(p), goA=' data-go="stage|'+p.id+'|'+g.n+'"';
+    var lbl=' aria-label="'+esc(p.store+', '+E.STAGES[g.n-1])+'"';
+    if(g.status==='approved'||g.status==='done') return '<td><button class="pc done"'+goA+lbl+'><b>✓ '+(g.closedAt?fmtD(g.closedAt):'')+'</b>'+cellInfo(p,g)+(extra||'')+'</button></td>';
+    if(isCur&&!p.hold&&(g.status!=='not_started')) return '<td><button class="pc cur st-'+g.status+'"'+goA+lbl+'><b>'+esc(stLabel(g))+'</b>'+cellInfo(p,g)+(extra||'')+'</button></td>';
+    if(isCur&&!p.hold) return '<td><button class="pc cur st-not_started"'+goA+lbl+'><b>'+esc(g.n===1&&!E.docsReady(p)?'Documents needed':'Ready to start')+'</b>'+(extra||'')+'</button></td>';
+    return '<td><div class="pc todo">'+(p.hold&&isCur?'On hold':'—')+(extra||'')+'</div></td>';
+  }
+  function projPipeline(list){
+    var prev='', h='<div class="tw"><table class="t pipe">'+pipeHead()+'<tbody>';
+    sortProjects(list).forEach(function(p){
+      var g=E.currentStage(p);
+      if(p.country!==prev){ h+='<tr class="grp"><td colspan="7">'+esc(cname(p))+'</td></tr>'; prev=p.country; }
+      h+='<tr><td class="sc hbar" style="--hc:'+(ext()?'var(--g'+g.n+')':HC[E.health(p)])+'"><button class="lnk" data-go="project|'+p.id+'">'+esc(p.store)+'</button><div class="small">'+esc(rname(p))+(p.kit?' · '+p.kit:'')+'</div><div class="chips" style="margin-top:6px">'+(ext()?'<span class="chip '+waitClass(p)+'">'+esc(waitLabel(p))+'</span>':hChip(p))+'</div></td>'+p.stages.map(function(s){ return pipeCell(p,s); }).join('')+'</tr>';
+    });
+    return h+'</tbody></table></div><p class="hint-row">One row per store, all six stages across. Green cells are approved or done, and the colored cell is where each store is now.</p>';
+  }
+  function kanbanCols(cardsFor){
+    return '<div class="kb">'+E.STAGES.map(function(s,i){ var cards=cardsFor(i+1); return '<section class="kcol" aria-label="'+esc(s)+'"><header class="stg'+(i+1)+'"><span class="kn">'+(i+1)+'</span>'+esc(s)+'<span class="kc">'+cards.length+'</span></header><div class="kcards">'+(cards.join('')||'<div class="kempty">Nothing here</div>')+'</div></section>'; }).join('')+'</div>';
+  }
+  function projKanban(list){
+    return kanbanCols(function(n){
+      return sortProjects(list).filter(function(p){ return E.currentStage(p).n===n; }).map(function(p){
+        var g=E.currentStage(p), pr=E.progress(p), dn=E.done(p), hl=E.health(p);
+        return '<button class="kcard" style="--bar:'+(ext()?'var(--g'+g.n+')':HC[hl])+'" data-go="project|'+p.id+'"><b>'+esc(p.store)+'</b><span class="small">'+esc(rname(p))+' · '+esc(cname(p))+(p.kit?' · '+p.kit:'')+'</span>'+
+          '<span class="chips"><span class="chip plain">'+esc(E.nowLabel(p,ext()))+'</span><span class="chip '+waitClass(p)+'">'+esc(waitLabel(p))+'</span></span>'+
+          '<span class="small num">'+segbar(p)+pr.closed+'/'+pr.inScope+(p.target&&!dn?' · opens '+fmtD(p.target):'')+'</span>'+
+          (ext()?'':'<span class="chips">'+hChip(p)+flags(p)+'</span>')+'</button>';
+      });
+    })+'<p class="hint-row">Columns are the six stages. A card moves only when its stage is approved or done, so cards can’t be dragged.</p>';
+  }
+  function projectsView(list,screen){
+    var m=U.modes[screen];
+    if(!list.length) return '<div class="panel empty">No stores match.</div>';
+    return m==='pipeline'?projPipeline(list):m==='kanban'?projKanban(list):projSheet(list);
+  }
+
+  /* ---------- task views ---------- */
+  function goOf(t){ return t.target==='project'?'project|'+t.pid:'stage|'+t.pid+'|'+t.n; }
+  function taskTable(tasks){
+    return '<div class="tw"><table class="t"><thead><tr><th>Task</th><th>Store</th><th>Stage</th><th>Detail</th><th></th></tr></thead><tbody>'+tasks.map(function(t){
+      return '<tr><td class="hbar" style="--hc:var(--g'+t.n+')"><button class="lnk" data-go="'+goOf(t)+'">'+esc(t.text)+'</button></td><td>'+esc(t.store)+'</td><td class="fill"><div class="fl stg'+t.n+'">'+t.n+' · '+esc(E.SHORT[t.n-1])+'</div></td><td class="small">'+esc(t.sub)+'</td><td><button class="btn sm p" data-go="'+goOf(t)+'">Open</button></td></tr>';
+    }).join('')+'</tbody></table></div>';
+  }
+  function taskPipeline(tasks){
+    var pids=[]; tasks.forEach(function(t){ if(pids.indexOf(t.pid)<0) pids.push(t.pid); });
+    var h='<div class="tw"><table class="t pipe">'+pipeHead()+'<tbody>';
+    pids.forEach(function(pid){
+      var p=E.P(S,pid), g=E.currentStage(p);
+      h+='<tr><td class="sc hbar" style="--hc:var(--g'+g.n+')"><button class="lnk" data-go="project|'+p.id+'">'+esc(p.store)+'</button><div class="small">'+esc(rname(p))+' · '+esc(cname(p))+'</div></td>'+p.stages.map(function(s){
+        var mine=tasks.filter(function(t){ return t.pid===pid&&t.n===s.n; });
+        return pipeCell(p,s,mine.map(function(t){ return '<span class="tchip">'+esc(t.text)+'</span>'; }).join(''));
+      }).join('')+'</tr>';
+    });
+    return h+'</tbody></table></div><p class="hint-row">Each row is a store you have work on. Your tasks sit in the stage they belong to.</p>';
+  }
+  function taskKanban(tasks){
+    return kanbanCols(function(n){ return tasks.filter(function(t){ return t.n===n; }).map(function(t){
+      var p=E.P(S,t.pid), g=p.stages[t.n-1];
+      return '<button class="kcard" style="--bar:'+STC[g.status]+'" data-go="'+goOf(t)+'"><b>'+esc(t.text)+'</b><span class="small">'+esc(t.store)+'</span>'+(t.sub?'<span class="small">'+esc(t.sub)+'</span>':'')+stChip(g)+'</button>';
+    }); })+'<p class="hint-row">Columns are the six stages. Each card is one thing waiting on you.</p>';
+  }
+  function tasksView(tasks,screen){
+    if(!tasks.length) return '<div class="panel empty">Nothing is waiting on you right now. Switch role in “Viewing as”, or open the Tracker.</div>';
+    var m=U.modes[screen]; return m==='pipeline'?taskPipeline(tasks):m==='kanban'?taskKanban(tasks):taskTable(tasks);
+  }
+
+  /* ---------- screens ---------- */
+  function vTasks(){
+    var all=E.tasksFor(S,per()), t=all.filter(function(x){ return qmatch(x.store+' '+x.text+' '+E.STAGES[x.n-1]); });
+    return head('Spec W3 · My tasks','My tasks',all.length+' thing'+(all.length===1?'':'s')+' waiting on you as '+esc(E.persona(per()).role)+'.',createBtn())+switcher('tasks')+toolbar('')+tasksView(t,'tasks');
+  }
+  function vPortfolio(){
+    var all=E.visibleProjects(S,per()), f=U.filt;
+    var list=all.filter(function(p){ return (!f.country||p.country===f.country)&&(!f.reseller||p.client===f.reseller)&&(!f.health||E.health(p)===f.health)&&qmatch(p.store+' '+rname(p)+' '+cname(p)+' '+p.appleId+' '+p.sfo); });
+    var cnt={}; all.forEach(function(p){ var h=E.health(p); cnt[h]=(cnt[h]||0)+1; });
+    var tiles='<div class="tiles"><div class="tile t-all"><b>'+all.length+'</b><span>Stores in tracker</span></div>'+[['delayed','t-late'],['at_risk','t-risk'],['on_track','t-on'],['on_hold','t-hold'],['completed','t-done']].map(function(x){ return '<button class="tile '+x[1]+'" data-health="'+x[0]+'" aria-pressed="'+(f.health===x[0])+'"><b>'+(cnt[x[0]]||0)+'</b><span>'+E.HEALTH[x[0]]+(f.health===x[0]?' · click to clear':'')+'</span></button>'; }).join('')+'</div>';
+    var co='<label for="f-country">Country <select id="f-country"><option value="">All</option>'+Object.keys(E.COUNTRIES).map(function(c){ return '<option value="'+c+'"'+(f.country===c?' selected':'')+'>'+E.COUNTRIES[c]+'</option>'; }).join('')+'</select></label>';
+    var re='<label for="f-reseller">Reseller <select id="f-reseller"><option value="">All</option>'+clientNames().map(function(r){ return '<option value="'+esc(r)+'"'+(f.reseller===r?' selected':'')+'>'+esc(r)+'</option>'; }).join('')+'</select></label>';
+    return head('Spec W2 · Tracker','Tracker','The APP CORE TRACKER as a live view: '+all.length+' stores in four countries. Click a colored tile to filter by health.',createBtn())+tiles+'<div class="stick-bar">'+switcher('portfolio')+toolbar(co+re)+'</div>'+projectsView(list,'portfolio');
+  }
+  function vHome(){
+    var k=kind(), t=E.tasksFor(S,per()), list0=E.visibleProjects(S,per()), x=E.persona(per());
+    var list=list0.filter(function(p){ return qmatch(p.store+' '+rname(p)+' '+cname(p)); });
+    var title=k==='apple'?'Region overview':'Your stores';
+    var sub=k==='apple'?'Every store in '+x.countries.map(function(c){ return E.COUNTRIES[c]; }).join(' and ')+', grouped by country. You see sent work only, and you review layouts, IDK and FDK.':'All '+esc(E.RESELLERS[x.reseller].name)+' stores. You see work once Whitespace sends it.';
+    var closed=0, wspn=0; list0.forEach(function(p){ closed+=E.progress(p).closed; if(E.waitingOn(p).who==='WSPN') wspn++; });
+    var tiles='<div class="tiles"><div class="tile t-you"><b>'+t.length+'</b><span>Waiting on you</span></div><div class="tile t-wspn"><b>'+wspn+'</b><span>With Whitespace</span></div><div class="tile t-all"><b>'+list0.length+'</b><span>Stores</span></div><div class="tile t-done"><b>'+closed+'</b><span>Stages approved or done</span></div></div>';
+    var wait='<section class="panel hot"><div class="ph"><h2>Waiting on you</h2><span class="small">'+t.length+'</span></div>'+(t.length?t.map(function(tk){
+      return '<div class="pbd" style="border-top:1px solid var(--line-2);grid-template-columns:minmax(0,1fr) auto;align-items:center"><div><b>'+esc(tk.text)+'</b><div class="small">'+esc(tk.store)+' · '+esc(E.STAGES[tk.n-1])+(tk.sub?' · '+esc(tk.sub):'')+'</div></div><button class="btn p sm" data-go="'+goOf(tk)+'">Open</button></div>';
+    }).join(''):'<div class="pbd small">Nothing needs you right now. We’ll email you when something does.</div>')+'</section>';
+    return head(k==='apple'?'Spec W12 · Apple PM home':'Spec W11 · Partner home',esc(x.role),k==='apple'?'Apple regional representative':'',null)+tiles+wait+
+      '<div><h2>'+title+'</h2><p class="sub">'+sub+'</p></div>'+switcher('home')+toolbar('')+projectsView(list,'home');
+  }
+  /* ---------- calendar (default page) ---------- */
+  var EV={start:['Start','var(--g2)'],due:['Due date','var(--h-late)'],sent:['Sent','var(--s-cli)'],apple:['Apple review','var(--s-app)'],partner:['Partner review','var(--g8)'],sla:['Reply due (SLA)','var(--h-risk)'],handover:['Handover','var(--g4)'],open:['Store opens','var(--g6)'],target:['Target opening','var(--nav-2)'],sff:['SFF claim','var(--h-done)']};
+  function shortName(p){ var n=p.store; var i=n.indexOf('@'); return (i>=0?n.slice(i+1):n).replace(/^\s+/,'').slice(0,28); }
+  function pad2(x){ return (x<10?'0':'')+x; }
+  function vCalendar(){
+    var c=U.cal, f=U.filt, all=E.events(S).filter(function(e){ var p=E.P(S,e.pid); return (!f.country||p.country===f.country)&&(!c.type||e.type===c.type)&&qmatch(p.store); });
+    var first=new Date(Date.UTC(c.y,c.m,1)), lead=(first.getUTCDay()+6)%7, dim=new Date(Date.UTC(c.y,c.m+1,0)).getUTCDate();
+    var byDay={}; all.forEach(function(e){ (byDay[e.date]=byDay[e.date]||[]).push(e); });
+    var h='<div class="cal-h"><div class="wf-row" style="gap:8px"><button class="btn" data-cal="prev" aria-label="Previous month">‹</button><h2 class="cal-t">'+['January','February','March','April','May','June','July','August','September','October','November','December'][c.m]+' '+c.y+'</h2><button class="btn" data-cal="next" aria-label="Next month">›</button><button class="btn ghost" data-cal="today">Today</button></div></div>';
+    var cells='', days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(function(d){ return '<div class="cal-dn">'+d+'</div>'; }).join('');
+    for(var i=0;i<lead;i++) cells+='<div class="cal-c off"></div>';
+    for(var d=1;d<=dim;d++){
+      var key=c.y+'-'+pad2(c.m+1)+'-'+pad2(d), ev=byDay[key]||[], wd=(lead+d-1)%7, isT=key===E.TODAY;
+      var hol=E.holidaysOn(key,f.country?[f.country]:Object.keys(E.COUNTRIES));
+      cells+='<div class="cal-c'+(wd>=5?' we':'')+(hol.length?' hol':'')+(isT?' today':'')+(c.sel===key?' sel':'')+'" role="button" tabindex="0" data-day="'+key+'" aria-label="'+d+' '+(ev.length?ev.length+' events':'no events')+(hol.length?', public holiday in '+hol.join(' '):'')+'"><span class="cal-d">'+d+'</span>'+(hol.length?'<span class="hl" title="Public holiday: '+hol.map(function(k){ return E.COUNTRIES[k]; }).join(', ')+'">Holiday '+hol.join(' ')+'</span>':'')+ev.slice(0,3).map(function(e){ var p=E.P(S,e.pid); return '<span class="ev'+(e.late?' late':'')+'" style="--ec:'+EV[e.type][1]+'" title="'+esc(p.store+' · '+e.label)+'"><b>'+esc(shortName(p))+'</b> '+esc(e.label)+'</span>'; }).join('')+(ev.length>3?'<span class="ev more">+'+(ev.length-3)+' more</span>':'')+'</div>';
+    }
+    var legend='<div class="chips cal-lg">'+Object.keys(EV).map(function(k){ return '<button class="lgb" data-evt="'+k+'" aria-pressed="'+(c.type===k)+'"><i style="background:'+EV[k][1]+'"></i>'+EV[k][0]+'</button>'; }).join('')+'</div>';
+    var sel=byDay[c.sel]||[];
+    var day='<section class="panel"><div class="ph"><h2>'+(c.sel===E.TODAY?'Today · ':'')+fmtD(c.sel)+'</h2><span class="small">'+sel.length+' event'+(sel.length===1?'':'s')+'</span></div>'+(sel.length?sel.map(function(e){ var p=E.P(S,e.pid); return '<div class="pbd" style="border-top:1px solid var(--line-2);grid-template-columns:auto minmax(0,1fr) auto;align-items:center"><i class="evd" style="background:'+EV[e.type][1]+'"></i><div><b>'+esc(p.store)+'</b><div class="small">'+esc(e.label)+(e.late?' · overdue':'')+' · '+esc(EV[e.type][0])+'</div></div><button class="btn sm" data-go="stage|'+p.id+'|'+e.n+'">Open</button></div>'; }).join(''):'<div class="pbd small">Nothing on this day.</div>')+'</section>';
+    var soon=E.events(S).filter(function(e){ return (e.type==='due'||e.type==='sla'||e.type==='target')&&(e.date<=E.addWorkdays(E.TODAY,10))&&(e.late||e.date>=E.TODAY)&&(!f.country||E.P(S,e.pid).country===f.country); }).sort(function(a,b){ return a.date<b.date?-1:1; }).slice(0,12);
+    var up='<section class="panel"><div class="ph"><h2>Overdue and coming up</h2><span class="small">Reply due = '+E.SLA+' working day after sending, excluding weekends and public holidays</span></div>'+(soon.length?soon.map(function(e){ var p=E.P(S,e.pid); return '<div class="pbd" style="border-top:1px solid var(--line-2);grid-template-columns:auto minmax(0,1fr) auto;align-items:center"><i class="evd" style="background:'+EV[e.type][1]+'"></i><div><b>'+esc(p.store)+'</b><div class="small">'+esc(e.label)+' · '+fmtD(e.date)+'</div></div>'+(e.late?'<span class="chip crit">Overdue</span>':'<span class="chip plain">'+fmtD(e.date)+'</span>')+'</div>'; }).join(''):'<div class="pbd small">Nothing overdue or due in the next 10 working days.</div>')+'</section>';
+    var co='<label for="f-country">Country <select id="f-country"><option value="">All</option>'+Object.keys(E.COUNTRIES).map(function(k){ return '<option value="'+k+'"'+(f.country===k?' selected':'')+'>'+E.COUNTRIES[k]+'</option>'; }).join('')+'</select></label>';
+    return head('Spec W1 · Calendar','Calendar','Every dated step of every store in one place. Weekends and public holidays are marked and don’t count toward the reply SLA: starts, due dates, sends, replies, handover and openings. The IDK due date shows once the Coordinator has entered a start date, and the FDK due date once the IDK is approved.',createBtn())+'<div class="tb cal-bar">'+h+toolbar(co)+'</div>'+legend+'<div class="cal"><div class="cal-g">'+days+cells+'</div></div><div class="cols">'+day+up+'</div>';
+  }
+  function vClients(){
+    var h=head('Spec W11 · Resellers','Resellers','Country › Registered client › Store. Apple and the Partners are not portal users, so this is a directory of who each store belongs to.');
+    Object.keys(E.COUNTRIES).forEach(function(c){
+      var names=[]; S.projects.forEach(function(p){ if(p.country===c&&names.indexOf(p.client)<0) names.push(p.client); });
+      names.forEach(function(nm){
+        var stores=S.projects.filter(function(p){ return p.country===c&&p.client===nm; });
+        h+='<section class="panel"><div class="ph"><div><p class="eyebrow" style="margin:0 0 4px">'+esc(E.COUNTRIES[c])+'</p><h2>'+esc(nm||'Client not set')+'</h2></div><span class="small">'+stores.length+' store'+(stores.length>1?'s':'')+'</span></div><div class="pbd">'+
+          '<dl class="kv"><dt>Stores</dt><dd>'+stores.map(function(p){ return '<button class="lnk" data-go="project|'+p.id+'">'+esc(p.store)+'</button> <span class="small">· '+esc(E.nowLabel(p,false))+'</span>'; }).join('<br>')+'</dd>'+
+          '<dt>Drive folders</dt><dd class="small">Created by the Administrator outside the portal. The Coordinator links them to each job.</dd></dl></div></section>';
+      });
+    });
+    return h;
+  }
+
+  function track(p){
+    var c=E.currentStage(p), dn=E.done(p);
+    return '<div class="track">'+p.stages.map(function(g){
+      var closed=g.status==='approved'||g.status==='done', cls=closed?'d':(g===c&&!dn)?'c':'n';
+      var sub=closed?'✓ '+fmtD(g.closedAt):(g===c&&!dn)?(p.hold?'On hold':g.status==='not_started'?(g.n===1&&!E.docsReady(p)?'Documents needed':'Ready to start'):stLabel(g)):'—';
+      var inner='<span class="tn">'+g.n+'</span><span class="tl">'+esc(E.STAGES[g.n-1])+'</span><span class="ts">'+esc(sub)+'</span>';
+      return cls==='n'?'<div class="tk '+cls+'" style="--sc:var(--g'+g.n+')">'+inner+'</div>':'<button class="tk '+cls+'" style="--sc:var(--g'+g.n+')" data-go="stage|'+p.id+'|'+g.n+'">'+inner+'</button>';
+    }).join('')+'</div>';
+  }
+  function missingDocs(p){ return p.docs.filter(function(d){ return d.k!=='logo'&&d.status==='requested'; }).map(function(d){ return d.name; }); }
+  function lastChanger(g){ var v=E.last(g), w=null; if(v) ['apple','partner'].forEach(function(k){ if(v.reviews[k]&&v.reviews[k].outcome==='changes') w=k; }); return w; }
+  function waitText(p,g){
+    var X=ext(), k=kind(), v=E.last(g), nm=E.STAGES[g.n-1], sn=E.SHORT[g.n-1];
+    if(p.hold) return 'This store is on hold: '+p.hold;
+    switch(g.status){
+      case 'not_started':
+        if(g.n===1){ if(E.docsReady(p)) return X?'Whitespace will start the layout.':'Store documents are in. Waiting on the Coordinator to enter the start date.'; var m=missingDocs(p); return m.length?'Waiting for '+m.join(' and ')+(X?(k==='partner'?' from you.':' from the Partner.'):' from the Partner.'):'Waiting on the Coordinator to verify the store documents.'; }
+        if(g.n<=3) return p.stages[g.n-2].status==='approved'?(X?'Whitespace will start '+sn+'.':'Ready to start. Waiting on the Designer.'):'Starts when '+E.STAGES[g.n-2]+' is approved.';
+        return 'Starts when '+E.STAGES[g.n-2]+' is '+(g.n===4?'approved':'done')+'.';
+      case 'in_progress':
+        if(g.n<=3) return X?'Whitespace is working on '+sn+'.':(g.n===1&&!E.real(g.startAt)?'The start date was never recorded. ':'')+'Waiting on the Designer for v'+(g.versions.length+1)+'.';
+        if(g.n===4){ var left=g.items.filter(function(i){ return !i.doneAt; }).length; return X?'Whitespace is issuing '+left+' handover document'+(left>1?'s':'')+'.':'Waiting on the Coordinator to issue '+left+' handover document'+(left>1?'s':'')+'.'; }
+        if(g.n===5) return X?'Waiting for the store to open.':'Waiting on the Coordinator to record the store opening.';
+        return X?'Whitespace will file the SFF claim.':'Waiting on the Coordinator to record the SFF claim.';
+      case 'internal_review': return X?'Whitespace is reviewing the next version internally.':v.internal==='pending'?'Waiting on the Design Director to review v'+v.v+'.':'Approved internally. Waiting on the Coordinator to send v'+v.v+' to Apple and the Partner.';
+      case 'changes_requested': var by=lastChanger(g); return X?'Whitespace is revising after the change request.':(by?E.WHO[by]+' requested changes. ':'Changes requested. ')+'Waiting on the Designer for v'+(g.versions.length+1)+'.';
+      case 'with_reviewers': var pe=E.pend(g); if(pe.indexOf(k)>=0) return 'Waiting on you to review v'+v.v+'.'; var w=E.waitingOn(p); return 'Waiting on '+pe.map(function(x){ return E.WHO[x]; }).join(' and ')+' to review v'+v.v+(w.workdays!==null&&w.workdays>E.SLA?'. Overdue: the reply was due within '+E.SLA+' working day.':'. Reply is due within '+E.SLA+' working day of sending. Weekends and '+cname(p)+' public holidays don’t count.')+' Record each reply here.';
+      case 'approved': return 'Approved '+fmtD(g.closedAt)+' by Apple and the Partner.';
+      case 'done': return 'Done '+fmtD(g.closedAt)+'.';
+    }
+    return '';
+  }
+  function docsPanel(p){
+    var X=ext(), it=p.docs;
+    var rows=it.map(function(i){
+      var acts=[];
+      if(E.can(S,per(),'itemUpload',p.id,1,i.i)) acts.push('<button class="btn sm p" data-act="itemUpload" data-pid="'+p.id+'" data-n="1" data-item="'+i.i+'">Add link</button>');
+      if(E.can(S,per(),'itemVerify',p.id,1,i.i)) acts.push('<button class="btn sm p" data-act="itemVerify" data-pid="'+p.id+'" data-n="1" data-item="'+i.i+'">Verify</button>');
+      if(E.can(S,per(),'itemReturn',p.id,1,i.i)) acts.push('<button class="btn sm" data-act="itemReturn" data-pid="'+p.id+'" data-n="1" data-item="'+i.i+'">Send back</button>');
+      var chip={requested:'warn',received:'info',verified:'ok'}[i.status], lbl={requested:'Requested',received:'Received',verified:'Verified'}[i.status];
+      return '<tr><td>'+esc(i.name)+(i.fmt==='AI'?' <span class="small">(AI file)</span>':'')+(i.note?'<div class="small" style="color:var(--crit)">Sent back: '+esc(i.note)+'</div>':'')+'</td><td class="small">'+esc(i.from)+'</td><td><span class="chip '+chip+'">'+lbl+'</span>'+(i.status==='verified'&&i.at&&i.at!=='ND'?' <span class="small">'+fmtD(i.at)+'</span>':'')+'</td><td>'+(i.link?drive(i.link):'<span class="small">—</span>')+'</td><td><div class="chips">'+acts.join('')+'</div></td></tr>';
+    }).join('');
+    return '<section class="panel"><div class="ph"><h2>Store documents</h2><span class="small">Store Brief and CAD file are needed to start the layout. Logo EPS is flagged, never blocking.</span></div><div style="overflow-x:auto"><table class="t"><thead><tr><th>Document</th><th>Usually from</th><th>Status</th><th>Link</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+  }
+  function milestonesPanel(p){
+    var groups=[['Layout',['startLayout','expIdk','sentLayout','apLayout','paLayout']],['IDK',['sentIdk','apIdk','paIdk']],['FDK',['startFdk','sentFdk','apFdk','paFdk']],['Handover',['onePage','constr','install']],['Open & claim',['opens','sff']]];
+    var lab={}; COLS.forEach(function(c){ lab[c[0]]=c[1]; });
+    return '<section class="panel"><div class="ph"><h2>Milestones</h2><span class="small">The tracker’s date columns for this store</span></div><div class="pbd"><div class="mg">'+groups.map(function(g){
+      return '<div><h3>'+esc(g[0])+'</h3><dl class="kv">'+g[1].map(function(k){ var m=E.mval(p,k); return '<dt>'+esc(lab[k])+'</dt><dd>'+(m?(m.outcome==='changes'?'↺ ':'')+esc(m.at==='ND'?'✓ date not recorded':fmtD(m.at))+(m.outcome==='changes'?' <span class="small">changes requested</span>':''):'<span class="small">—</span>')+'</dd>'; }).join('')+'</dl></div>';
+    }).join('')+'</div></div></section>';
+  }
+  function vProject(p){
+    var X=ext(), g=E.currentStage(p), pr=E.progress(p), dn=E.done(p);
+    var h='<div class="crumb">'+(X?'<button data-go="home">Tracker</button>':'<button data-go="portfolio">Tracker</button>')+'<span>›</span><span>'+esc(cname(p))+'</span><span>›</span><span>'+esc(rname(p))+'</span></div>'+
+      band('Spec W5 · Store page',esc(p.store),(p.kit?esc(p.kit)+' · ':'')+(p.appleId?'Apple ID '+esc(p.appleId)+' · ':'')+(p.sfo?'SFO '+esc(p.sfo)+' · ':'')+(p.target?'Target opening '+fmtD(p.target):'No target opening date yet'),(X?'':hChip(p))+'<span class="chip plain">Now: '+esc(E.nowLabel(p,X))+'</span><span class="chip plain">Waiting on '+esc(waitLabel(p))+'</span><span class="chip plain num">'+pr.closed+'/'+pr.inScope+' stages</span>','var(--nav-2)',projSeg(p));
+    if(!X) h+='<div class="tabs" role="tablist"><button role="tab" data-tab="stages" aria-selected="'+(U.tab==='stages')+'">Stages</button><button role="tab" data-tab="setup" aria-selected="'+(U.tab==='setup')+'">Setup</button></div>';
+    if(!X && U.tab==='setup') return h+setup(p);
+    h+=track(p);
+    var fl=flags(p);
+    var now='<section class="panel" style="border-top:5px solid var('+(dn?'--h-done':p.hold?'--s-na':'--g'+g.n)+')"><div class="ph"><h2>'+(dn?'Completed':'Now: stage '+g.n+' · '+esc(E.STAGES[g.n-1]))+'</h2>'+(dn?'<span class="chip ok">Completed</span>':stChip(g))+'</div><div class="pbd"><p>'+esc(waitText(p,g))+'</p>'+
+      '<dl class="kv">'+(E.expIdk(p)?'<dt>IDK due</dt><dd>'+fmtD(E.expIdk(p))+'</dd>':'')+(E.expFdk(p)?'<dt>FDK due</dt><dd>'+fmtD(E.expFdk(p))+'</dd>':'')+(g.n<=3&&E.rounds(g)?'<dt>Review rounds</dt><dd class="num">'+E.rounds(g)+'</dd>':'')+(p.target?'<dt>Target opening</dt><dd>'+fmtD(p.target)+'</dd>':'')+'<dt>SDK or RDK</dt><dd>'+esc(p.kit?E.KITS[p.kit]:'Not set')+(E.can(S,per(),'setKit',p.id)?' <button class="btn sm" data-act="setKit" data-pid="'+p.id+'" data-n="1">'+(p.kit?'Change':'Set kit type')+'</button>':'')+'</dd></dl>'+
+      (fl?'<div class="chips">'+fl+'</div>':'')+(p.hold&&!X?'':'<div><button class="btn p" data-go="stage|'+p.id+'|'+g.n+'">Open stage</button></div>')+'</div></section>';
+    var upd='<section class="panel"><div class="ph"><h2>Latest update</h2>'+(E.can(S,per(),'updateLatest',p.id)?'<button class="btn sm" data-act="updateLatest" data-pid="'+p.id+'" data-n="1">'+(p.latest?'Edit':'Write')+'</button>':'<span class="small">from the Project Coordinator</span>')+'</div><div class="pbd">'+(p.latest?'<p class="quote">'+esc(p.latest.text)+'</p><p class="small">Posted '+fmtAt(p.latest.at)+''+'</p>':'<p class="small">No update posted yet.</p>')+'</div></section>';
+    var team='<section class="panel"><div class="ph"><h2>Team</h2></div><div class="pbd"><dl class="kv">'+
+      (X?'<dt>Whitespace</dt><dd>Project Coordinator (your contact)</dd>':'<dt>BD</dt><dd>BD Executive</dd><dt>Coordinator</dt><dd>Project Coordinator</dd><dt>Review</dt><dd>Design Director</dd><dt>Design</dt><dd>Designer</dd>')+
+      '<dt>Reviewers</dt><dd>'+esc(rname(p))+' (Partner) and Apple. Not portal users: the Coordinator records their replies.</dd></dl></div></section>';
+    var folders='<section class="panel"><div class="ph"><h2>Drive folders</h2></div><div class="pbd">'+(X?'':drive('WSPN working › '+p.store)+'<span class="small">Internal working folder. Whitespace only.</span>')+drive('Shared › '+p.store)+'<span class="small">Shared folder: sent versions, store documents and handover documents. Created by the Administrator; linked here by the Coordinator at setup.</span></div></section>';
+    return h+'<div class="cols"><div class="stack">'+now+upd+docsPanel(p)+milestonesPanel(p)+'</div><div class="stack">'+team+folders+'</div></div>';
+  }
+  function setup(p){
+    var rows=[['Project start date',E.startDate(p)?fmtD(E.startDate(p)):'Entered by the Coordinator'],['Country',cname(p)],['Registered client name',rname(p)],['Store name',p.store],['Apple ID',p.appleId||'Not assigned yet'],['SFO',p.sfo||'Not assigned yet'],['SDK or RDK',p.kit?E.KITS[p.kit]:'Not set. The Coordinator sets it on the store page.'],['Target opening date',p.target?fmtD(p.target):'Not set'],['Expected IDK finish',E.expIdk(p)?fmtD(E.expIdk(p)):'Start date + 2 weeks'],['Expected FDK finish',E.expFdk(p)?fmtD(E.expFdk(p)):'1 week after the IDK is approved']];
+    return '<p class="sub">Set when the Coordinator creates the job, and the start date is entered after that. Read-only in the prototype. Spec W5.</p>'+
+      '<section class="panel"><div class="ph"><h2>Store record</h2><span class="small">Entered when the job was created</span></div><div class="pbd"><dl class="kv">'+rows.map(function(r){ return '<dt>'+esc(r[0])+'</dt><dd>'+esc(r[1])+'</dd>'; }).join('')+'</dl></div></section>'+
+      '<section class="panel"><div class="ph"><h2>Setup checklist</h2></div><div class="pbd"><dl class="kv"><dt>Drive folders</dt><dd>✓ Created by the Administrator (outside the portal), linked by the Coordinator</dd><dt>Apple and Partner</dt><dd>Not portal users. The Coordinator records their reviews.</dd>'+(p.hold?'<dt>On hold</dt><dd>'+esc(p.hold)+'</dd>':'')+'</dl></div></section>';
+  }
+
+  function chainHTML(p,g){
+    if(g.n>3) return '';
+    var v=E.last(g), X=ext(), steps, now;
+    if(X) steps=['Whitespace prepares','Apple + Partner review','Approved']; else steps=['Designer submits','Design Director','Coordinator sends','Apple + Partner review','Approved'];
+    switch(g.status){
+      case 'not_started': now=-1; break;
+      case 'in_progress': case 'changes_requested': now=0; break;
+      case 'internal_review': now=X?0:(v.internal==='pending'?1:2); break;
+      case 'with_reviewers': now=X?1:3; break;
+      case 'approved': now=steps.length; break;
+    }
+    return '<div class="chain" aria-label="Review steps">'+steps.map(function(s,i){ var c=i<now?'done':i===now?'now':''; return (i?'<span class="arr">→</span>':'')+'<span class="step '+c+'">'+esc(s)+'</span>'; }).join('')+'</div>';
+  }
+  function reviewCards(p,g){
+    var v=E.lastSentV(g); if(!v) return '';
+    var cur=E.last(g)===v;
+    return '<section class="panel"><div class="ph"><h2>Reviews on v'+v.v+'</h2><span class="small">Apple and the Partner review the same version, in either order. Both must approve. The Coordinator records each reply.</span></div><div class="pbd"><div class="rvs">'+['apple','partner'].map(function(k){
+      var r=v.reviews[k], c=r?(r.outcome==='approved'?'ok':'chg'):'wait';
+      var t=r?(r.outcome==='approved'?'Approved · ':'Changes requested · ')+(r.at==='ND'?'date not recorded':fmtD(r.at)):(g.status==='with_reviewers'&&cur?'Waiting · reply due '+(E.real(v.sentAt)?fmtD(E.addWorkdays(v.sentAt,E.SLA,p.country)):'1 working day after sending'):g.status==='changes_requested'?'Not reviewed (paused)':'—');
+      return '<div class="rv '+c+'"><span class="small">'+E.WHO[k]+' review</span><b>'+esc(t)+'</b>'+(r&&r.note?'<span class="small">“'+esc(r.note)+'”</span>':'')+'</div>';
+    }).join('')+'</div></div></section>';
+  }
+  function actionsHTML(p,g){
+    var b=[], v=E.last(g);
+    function A(action,label,cls,item){ if(E.can(S,per(),action,p.id,g.n,item)) b.push('<button class="btn '+(cls||'')+'" data-act="'+action+'" data-pid="'+p.id+'" data-n="'+g.n+'"'+(item?(typeof item==='string'?' data-party="'+item+'"':' data-item="'+item+'"'):'')+'>'+esc(label)+'</button>'); }
+    A('startProject','Start the project','p'); A('setStart','Enter the start date','p');
+    A('start','Start '+E.SHORT[g.n-1],'p');
+    A('submit','Submit v'+(g.versions.length+1),'p');
+    if(v){ A('ddApprove','Approve v'+v.v,'p'); A('ddReturn','Return to Designer'); A('send','Send v'+v.v+' to Apple and Partner','p'); ['apple','partner'].forEach(function(k){ A('recordApprove',E.WHO[k]+' approved','p',k); A('recordChanges',E.WHO[k]+' requested changes','',k); }); }
+    A('recordOpen','Record store opening','p'); A('recordSff','Record SFF claim','p');
+    A('chase','Log a chase');
+    var wt=esc(waitText(p,g)), extra='';
+    if(g.n===1&&g.status==='not_started'&&!E.docsReady(p)) extra='<div class="strip">The layout can’t start until the Store Brief and the CAD file are verified. Add them in Store documents on the project page.</div>';
+    if(!b.length) return '<div class="actbox idle"><p><b>Nothing for you to do here.</b> '+wt+'</p>'+extra+'</div>';
+    return '<div class="actbox"><p><b>Your action.</b> '+wt+'</p>'+extra+'<div class="row">'+b.join('')+'</div></div>';
+  }
+  function versionsHTML(p,g){
+    var X=ext(), list=(X?E.extVersions(g):g.versions).slice().reverse(), fol=E.folder(g);
+    if(!list.length) return '<div class="pbd small">'+(X?'Nothing has been sent to you in this stage yet. You’ll be notified when it is.':'No versions yet.')+'</div>';
+    return list.map(function(v){
+      var L=[];
+      function dl(c,t){ L.push('<div class="dl"><i class="'+c+'"></i><span>'+t+'</span></div>'); }
+      if(!X){ if(v.internal==='pending') dl('wait','Waiting for Design Director review'); else if(v.internal==='returned') dl('ret','Returned by Design Director: '+esc(v.internalNote)+' <span class="small">(not a review round)</span>'); else if(v.at!=='ND') dl('ok','Approved by Design Director'); }
+      if(v.sentAt) dl('rel','Sent to Apple and the Partner '+fmtAt(v.sentAt)+(X?'':' · copied to Shared › '+esc(fol)));
+      ['apple','partner'].forEach(function(k){ var r=v.reviews[k]; if(r) dl(r.outcome==='changes'?'changes':'ok',esc(E.WHO[k]+(r.outcome==='approved'?' approved':' requested changes'))+' · '+esc(fmtAt(r.at))+(r.note?': '+esc(r.note):'')); });
+      var links=(X?'':drive(v.link||('WSPN working › '+fol+' › v'+v.v),'Internal working folder (placeholder)'))+(v.sentAt?' '+drive('Shared › '+fol+' › v'+v.v,'Shared folder copy (placeholder)'):'');
+      return '<div class="ver"><div class="vh"><span class="vtag">v'+v.v+'</span><span class="small">Submitted by Designer · '+fmtAt(v.at)+'</span></div>'+(v.note?'<p>'+esc(v.note)+'</p>':'')+'<div class="chips">'+links+'</div>'+L.join('')+'</div>';
+    }).join('');
+  }
+  function commentsHTML(p,g){
+    var X=ext(), list=X?E.extComments(g):g.comments;
+    var h='<section class="panel"><div class="ph"><h2>Comments</h2><span class="small">'+(X?'Visible to Whitespace and everyone on this stage':'Whitespace team only')+'</span></div>';
+    if(!list.length) h+='<div class="pbd small">No comments yet.</div>';
+    list.forEach(function(c){ var a=E.persona(c.by); h+='<div class="cm"><span class="av '+(a.side==='ext'?'ext':'')+'">'+esc(a.ini)+'</span><div><div><b>'+esc(a.role)+'</b> <span class="small">'+fmtAt(c.at)+'</span>'+(c.internal?'<span class="itag">Internal</span>':'')+'</div><p>'+esc(c.text)+'</p></div></div>'; });
+    if(E.can(S,per(),'comment',p.id,g.n)) h+='<form class="cmf" data-form="comment" data-pid="'+p.id+'" data-n="'+g.n+'"><label class="sr" for="cm-text" style="position:absolute;left:-9999px">Comment</label><textarea id="cm-text" name="text" placeholder="Write a comment"></textarea><div class="row"><span class="small">Comments are visible to the Whitespace team only.</span><button class="btn p" type="submit" disabled>Post</button></div></form>';
+    return h+'</section>';
+  }
+  function handoverHTML(p,g){
+    if(g.status==='not_started') return '';
+    var rows=g.items.map(function(i){
+      var a=E.can(S,per(),'issueDoc',p.id,4,i.i)?'<button class="btn sm p" data-act="issueDoc" data-pid="'+p.id+'" data-n="4" data-item="'+i.i+'">Issue</button>':'';
+      return '<tr><td class="mono small">'+i.i+'</td><td>'+esc(i.name)+'</td><td>'+(i.doneAt?'<span class="chip ok">Issued '+(i.doneAt==='ND'?'':fmtD(i.doneAt))+'</span>':'<span class="chip warn">Not issued</span>')+'</td><td>'+(i.link?drive(i.link):'<span class="small">—</span>')+'</td><td>'+a+'</td></tr>';
+    }).join('');
+    return '<section class="panel"><div class="ph"><h2>Handover documents</h2><span class="small num">'+g.items.filter(function(i){ return i.doneAt; }).length+' of 3 issued</span></div><div style="overflow-x:auto"><table class="t"><thead><tr><th>#</th><th>Document</th><th>Status</th><th>Link</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+  }
+  function milePanel(p,g){
+    var t=g.n===5?'Store opening':'SFF claim', lab=g.n===5?'Store Opens':'SFF Claims';
+    return '<section class="panel"><div class="ph"><h2>'+t+'</h2></div><div class="pbd"><dl class="kv"><dt>'+lab+'</dt><dd>'+(g.doneAt?fmtD(g.doneAt):'<span class="small">Not recorded yet</span>')+'</dd>'+(g.n===5?'<dt>Target opening</dt><dd>'+(p.target?fmtD(p.target):'<span class="small">Not set</span>')+'</dd>':'')+'</dl></div></section>';
+  }
+  function vStage(p,g){
+    var X=ext(), nm=E.STAGES[g.n-1];
+    var right=stChip(g)+(g.n<=3&&E.rounds(g)?'<span class="chip plain num">Review rounds '+E.rounds(g)+'</span>':'')+(E.expIdk(p)?'<span class="chip plain">IDK due '+fmtD(E.expIdk(p))+'</span>':'')+(E.expFdk(p)?'<span class="chip plain">FDK due '+fmtD(E.expFdk(p))+'</span>':'');
+    var h='<div class="crumb">'+(X?'<button data-go="home">Tracker</button>':'<button data-go="portfolio">Tracker</button>')+'<span>›</span><button data-go="project|'+p.id+'">'+esc(p.store)+'</button></div>'+band(g.n<=3?'Spec W6 · Stage page':'Spec W6 · Milestone stage','Stage '+g.n+' · '+esc(nm),null,right,'var(--g'+g.n+')');
+    h+=chainHTML(p,g)+actionsHTML(p,g);
+    if(g.n<=3){
+      if(g.status!=='not_started') h+=reviewCards(p,g)+'<section class="panel"><div class="ph"><h2>Versions</h2><span class="small">'+(X?'Sent work only':'Newest first · drafts stay in the internal working folder')+'</span></div>'+versionsHTML(p,g)+'</section>';
+    } else if(g.n===4) h+=handoverHTML(p,g);
+    else if(g.status!=='not_started') h+=milePanel(p,g);
+    if(g.status!=='not_started') h+=commentsHTML(p,g);
+    return h;
+  }
+
+  /* ---------- overlays ---------- */
+  function bellHTML(){
+    var list=S.notes.filter(function(x){ return x.to.indexOf(per())>=0; }).slice(0,25);
+    var h='<div class="bellp" role="dialog" aria-label="Notifications"><div class="ph"><h2>Notifications</h2><span class="small">In-app · emails shown as messages</span></div>';
+    if(!list.length) h+='<div class="pbd small">Nothing yet.</div>';
+    list.forEach(function(x){ var p=E.P(S,x.pid); h+='<button class="ni'+(x.read.indexOf(per())<0?' new':'')+'" data-go="'+(x.n>=1&&p?'stage|'+x.pid+'|'+x.n:'project|'+x.pid)+'"><i></i><span><b>'+esc(p?p.store:'')+'</b> · '+esc(x.text)+'<span class="small" style="display:block">'+fmtAt(x.at)+(x.email?' · also emailed':'')+'</span></span></button>'; });
+    return h+'</div>';
+  }
+  function tryHTML(){
+    var total=0, dn=0;
+    var sc=E.scenarios.map(function(s,si){
+      var c=s.steps.filter(function(st){ return st.done(S); }).length; total+=s.steps.length; dn+=c;
+      return '<section class="scn"><div class="meta"><h3>'+(si+1)+'. '+esc(s.title)+'</h3><span class="small num">'+c+'/'+s.steps.length+'</span></div><p class="small">'+esc(s.sub)+'</p>'+s.steps.map(function(st,ti){
+        var d=st.done(S);
+        return '<div class="stp'+(d?' done':'')+'"><span class="ck'+(d?' on':'')+'" aria-label="'+(d?'Done':'Not done')+'"></span><span>'+esc(st.text)+'</span><button class="btn sm'+(d?' ghost':'')+'" data-try="'+si+'|'+ti+'">Go</button></div>';
+      }).join('')+'</section>';
+    }).join('');
+    return '<aside class="try" aria-label="Try this"><div class="try-h"><div><p class="eyebrow" style="margin:0 0 6px">Internal review · '+dn+' of '+total+' steps</p><h2>Try this</h2></div><button class="btn sm ghost" data-ui="try">Close</button></div><div class="try-b">'+
+      '<p class="small">A working mock-up seeded with the 18 stores from the APP CORE TRACKER, for the Whitespace team only. Apple and the Partners are not users: the Coordinator records their replies. Switch role in “Viewing as”, or press Go on any step. What you do changes the example data for every role, and stays in your browser only. Reset starts over.</p>'+sc+
+      '<p class="small">Not in the prototype: real sign-in, files, Drive or emails. Links are placeholders. “Today” is fixed at Monday 23 Nov 2026. Leave feedback as comments on this page.</p></div></aside>';
+  }
+
+  /* ---------- render ---------- */
+  /* Keep the view tabs + filters stuck under the top bar, and size the tracker sheet to fill the rest of the window. */
+  function fitSheet(){
+    var tb=app.querySelector('.top'), sb=app.querySelector('.stick-bar'), sw=app.querySelector('.tw.sw');
+    var th=tb&&getComputedStyle(tb).position==='sticky'?tb.offsetHeight:0;
+    document.documentElement.style.setProperty('--toph',th+'px');
+    if(sw){ var bh=sb?sb.offsetHeight+8:0, below=document.documentElement.scrollHeight-(sw.getBoundingClientRect().bottom+window.scrollY);
+      sw.style.maxHeight=Math.max(320,Math.floor(window.innerHeight-th-bh-Math.max(0,below)))+'px'; }
+  }
+  window.addEventListener('resize',fitSheet);
+  function render(){
+    var ae=document.activeElement, keepQ=!!ae&&ae.id==='q', caret=keepQ?ae.selectionStart:0;
+    var p=U.pid?E.P(S,U.pid):null;
+    if(U.view==='home') U.view='calendar';
+    if((U.view==='project'||U.view==='stage') && (!p||!E.sees(S,per(),p))){ U.view=homeOf(per()); p=null; }
+    var g=(U.view==='stage'&&p)?p.stages[(U.n||1)-1]:null;
+    if(U.view==='stage'&&!g){ U.view='project'; }
+    var body=U.view==='calendar'?vCalendar():U.view==='tasks'?vTasks():U.view==='portfolio'?vPortfolio():U.view==='clients'?vClients():U.view==='home'?vHome():U.view==='project'?vProject(p):vStage(p,g);
+    E.markSeen(S,per()+':'+U.view+(U.view==='stage'?':'+p.id+':'+g.n:''));
+    document.body.classList.toggle('try-open',!!U.tryOpen);
+    app.innerHTML=top()+'<div class="shell gut wide">'+nav()+'<main id="main">'+body+'</main></div>'+(U.tryOpen?tryHTML():'')+(U.bell?bellHTML():'');
+    var sgr=app.querySelector('.sw thead tr.gr'); if(sgr) sgr.parentNode.parentNode.style.setProperty('--gh',sgr.offsetHeight+'px');
+    fitSheet();
+    if(keepQ){ var qi=document.getElementById('q'); if(qi){ qi.focus(); try{ qi.setSelectionRange(caret,caret); }catch(e){} } }
+    if(U.bell) S.notes.forEach(function(x){ if(x.to.indexOf(per())>=0 && x.read.indexOf(per())<0) x.read.push(per()); });
+    var q=S.toasts.splice(0); q.forEach(function(t){ toast(t.text,t.kind); });
+    save();
+  }
+  function toast(text,k){
+    var el=document.createElement('div'); el.className='toast'+(k==='err'?' err':'');
+    el.innerHTML='<span class="tk2">'+(k==='mail'?'Email':k==='err'?'Not done':'Done')+'</span><span>'+esc(text)+'</span>';
+    toastsEl.appendChild(el);
+    while(toastsEl.children.length>4) toastsEl.removeChild(toastsEl.firstChild);
+    setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },k==='mail'?7000:5000);
+  }
+  function doAct(action,q){
+    var r=E.act(S,per(),action,q);
+    if(!r.ok){ toast(r.msg,'err'); return false; }
+    toast(r.msg,'ok'); if(r.pid){ go('project',r.pid); return true; } render(); return true;
+  }
+
+  /* ---------- modal ---------- */
+  var DIRECT={start:1,ddApprove:1,send:1,itemVerify:1,recordOpen:1,recordSff:1,chase:1};
+  var pending=null;
+  function fld(id,label,type,val,req,ph){ return '<label class="fld" for="'+id+'">'+label+(type==='textarea'?'<textarea id="'+id+'" name="'+id+'"'+(req?' data-req':'')+(ph?' placeholder="'+esc(ph)+'"':'')+'>'+esc(val||'')+'</textarea>':'<input id="'+id+'" name="'+id+'" type="text" value="'+esc(val||'')+'"'+(req?' data-req':'')+(ph?' placeholder="'+esc(ph)+'"':'')+'>')+'</label>'; }
+  function fldDate(id,label,val){ return '<label class="fld" for="'+id+'">'+label+'<input id="'+id+'" name="'+id+'" type="date" value="'+esc(val)+'" data-req></label>'; }
+  function hint(t){ return '<p class="hint">'+t+'</p>'; }
+  function fldSel(id,label,opts,val){ return '<label class="fld" for="'+id+'">'+label+'<select id="'+id+'" name="'+id+'" data-req><option value="">Choose a country</option>'+opts.map(function(o){ return '<option value="'+esc(o[0])+'"'+(o[0]===val?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select></label>'; }
+  function openCreate(){
+    var names=clientNames();
+    var b=fld('f-appleId','Apple ID','input','',true,'e.g. 4656139')+fld('f-sfo','SFO','input','',true,'e.g. 60734066')+
+      '<label class="fld" for="f-client">Registered client name<input id="f-client" name="f-client" type="text" list="client-list" data-req placeholder="e.g. Advice" autocomplete="off"><datalist id="client-list">'+names.map(function(n){ return '<option value="'+esc(n)+'">'; }).join('')+'</datalist></label>'+
+      fldSel('f-country','Country',Object.keys(E.COUNTRIES).map(function(c){ return [c,E.COUNTRIES[c]]; }),'')+
+      fld('f-store','Store name','input','',true,'e.g. ADVICE @ CHIANG RAI')+fldDate('f-target','Target opening date','')+
+      hint('Apple ID and SFO are numbers. This creates the job in the tracker with its documents requested. Next, add the Store Brief and CAD file, then start the project with a start date.');
+    pending={action:'createJob',pid:null,n:0,item:null};
+    dlgf.innerHTML='<div class="dh"><p class="eyebrow" style="margin:0">Tracker</p><h2 id="dlg-title">Create job</h2></div><div class="db">'+b+'</div><div class="df"><button type="button" class="btn ghost" data-dlg="cancel">Cancel</button><button type="submit" class="btn p" id="dlg-ok">Create job</button></div>';
+    validate(); dlg.showModal();
+    var f=dlgf.querySelector('input'); if(f) f.focus();
+  }
+  function openModal(action,pid,n,item){
+    if(action==='createJob'){ openCreate(); return; }
+    var p=E.P(S,pid), isDoc=action==='itemUpload'||action==='itemReturn', g=(action==='updateLatest'||isDoc)?null:p.stages[n-1], v=g?E.last(g):null, nm=g?E.STAGES[g.n-1]:'', k=kind(), t='', b='', ok='Confirm', it=isDoc&&item?p.docs[item-1]:null;
+    switch(action){
+      case 'submit': t='Submit '+nm+' v'+(g.versions.length+1);
+        b=fld('f-link','Drive link (internal working folder)','input','WSPN working › '+E.folder(g)+' › v'+(g.versions.length+1),true)+fld('f-note','What changed','textarea','',true,'e.g. Revised the Genius table zone')+hint('This goes to the Design Director only. Nothing leaves Whitespace until the Coordinator sends it.'); ok='Submit for internal review'; break;
+      case 'ddReturn': t='Return v'+v.v+' to the Designer'; b=fld('f-note','What needs to change','textarea','',true)+hint('Internal returns are not review rounds.'); ok='Return'; break;
+      case 'setKit': t='SDK or RDK'; b='<label class="fld" for="f-kit">Kit type<select id="f-kit" name="f-kit" data-req><option value="">Choose</option>'+['SDK','RDK'].map(function(o){ return '<option value="'+o+'"'+(p.kit===o?' selected':'')+'>'+esc(E.KITS[o])+'</option>'; }).join('')+'</select></label>'+hint('RDK includes a render. SDK does not. Shown in the SDK or RDK column of the tracker.'); ok='Save'; break;
+      case 'startProject': t='Start the project'; b=fldDate('f-date','Project start date',E.TODAY)+hint('This is the first day of the project. IDK is due 2 weeks later. FDK is due 1 week after the IDK is approved. The Designer then works on the layout.'); ok='Start project'; break;
+      case 'setStart': t='Enter the start date'; b=fldDate('f-date','Project start date',E.TODAY)+hint('The tracker has no start date for this store. IDK is due 2 weeks after it.'); ok='Save start date'; break;
+      case 'recordApprove': t='Record: '+E.WHO[item]+' approved '+nm+' v'+v.v; b=fldDate('f-date','Date of their reply',E.TODAY)+fld('f-note','Note (optional)','textarea','')+hint('When both Apple and the Partner have approved, the stage closes and the next one is ready.'); ok='Record approval'; break;
+      case 'recordChanges': t='Record: '+E.WHO[item]+' requested changes on '+nm+' v'+v.v; b=fldDate('f-date','Date of their reply',E.TODAY)+fld('f-note','What they asked to change','textarea','',true)+'<div class="strip">This is review round '+(E.rounds(g)+1)+'. The next version goes back to both Apple and the Partner. An approval on v'+v.v+' does not carry over.</div>'; ok='Record change request'; break;
+      case 'approve': t='Approve '+nm+' v'+v.v; b=fld('f-note','Note (optional)','textarea','')+hint('Apple and the Partner review separately. When both have approved, the stage closes and the next one is ready.'); ok='Approve'; break;
+      case 'requestChanges': t='Request changes on '+nm+' v'+v.v;
+        b=fld('f-note','What should change','textarea','',true)+'<div class="strip">This is review round '+(E.rounds(g)+1)+'. The next version goes back to both Apple and the Partner for review. An approval on v'+v.v+' does not carry over.</div>'; ok='Send change request'; break;
+      case 'itemUpload': t='Add link · '+it.name; b=fld('f-link','Drive link','input','Shared › 01 Store documents › '+it.name,true)+hint('Put the file in the shared Drive folder first, then paste its link here.'); ok='Mark uploaded'; break;
+      case 'itemReturn': t='Send back · '+it.name; b=fld('f-note','Reason','textarea','',true,'e.g. The CAD file is missing the ceiling plan'); ok='Send back'; break;
+      case 'issueDoc': it=g.items[item-1]; t='Issue · '+it.name; b=fld('f-link','Drive link','input','Shared › 04 Handover › '+it.name,true)+hint('Issued date is recorded as today. When all three documents are issued, Store Opens is next.'); ok='Mark issued'; break;
+      case 'updateLatest': t='Latest update · '+p.store; b=fld('f-text','Update','textarea',p.latest?p.latest.text:'',true)+hint('Partners and the Apple PM see this on their home screen. No email is sent.'); ok='Post update'; break;
+    }
+    pending={action:action,pid:pid,n:+n,item:item?(typeof item==='string'?item:+item):null};
+    dlgf.innerHTML='<div class="dh"><p class="eyebrow" style="margin:0">'+esc(p.store)+'</p><h2 id="dlg-title">'+esc(t)+'</h2></div><div class="db">'+b+'</div><div class="df"><button type="button" class="btn ghost" data-dlg="cancel">Cancel</button><button type="submit" class="btn p" id="dlg-ok">'+esc(ok)+'</button></div>';
+    validate(); dlg.showModal();
+    var f=dlgf.querySelector('textarea[data-req],input[data-req]:not([type=radio]),input[type=radio]'); if(f) f.focus();
+  }
+  function validate(){
+    var okb=document.getElementById('dlg-ok'); if(!okb) return;
+    var good=true;
+    dlgf.querySelectorAll('[data-req]').forEach(function(el){ if(el.type==='radio'){ if(!dlgf.querySelector('input[name="'+el.name+'"]:checked')) good=false; } else if(!String(el.value).trim()) good=false; });
+    okb.disabled=!good;
+  }
+  dlgf.addEventListener('input',validate);
+  dlgf.addEventListener('change',validate);
+  dlgf.addEventListener('submit',function(e){
+    e.preventDefault(); if(!pending) return;
+    var fd=new FormData(dlgf), q={pid:pending.pid,n:pending.n,item:pending.item,note:fd.get('f-note')||'',link:fd.get('f-link')||'',text:fd.get('f-text')||'',date:fd.get('f-date')||'',appleId:fd.get('f-appleId')||'',sfo:fd.get('f-sfo')||'',client:fd.get('f-client')||'',country:fd.get('f-country')||'',store:fd.get('f-store')||'',target:fd.get('f-target')||'',kit:fd.get('f-kit')||''};
+    var a=pending.action; pending=null; dlg.close(); doAct(a,q);
+  });
+  dlgf.addEventListener('click',function(e){ if(e.target.closest('[data-dlg="cancel"]')){ pending=null; dlg.close(); } });
+
+  /* ---------- events ---------- */
+  document.addEventListener('click',function(e){
+    var el=e.target.closest('[data-go],[data-act],[data-mode],[data-ui],[data-try],[data-tab],[data-health],[data-cal],[data-day],[data-evt],[data-sort]');
+    if(!el||el.closest('dialog')) { if(U.bell&&!e.target.closest('.bellp')&&!e.target.closest('[data-ui="bell"]')){ U.bell=false; render(); } return; }
+    if(el.dataset.sort){ var sk=el.dataset.sort; U.sort=U.sort.k===sk?{k:sk,dir:U.sort.dir==='asc'?'desc':'asc'}:{k:sk,dir:sk==='target'?'asc':'desc'}; render(); return; }
+    if(el.dataset.go){ var a=el.dataset.go.split('|'); go(a[0],a[1],a[2]); return; }
+    if(el.dataset.evt){ U.cal.type=U.cal.type===el.dataset.evt?'':el.dataset.evt; render(); return; }
+    if(el.dataset.cal){ var cm=el.dataset.cal; if(cm==='prev'){ U.cal.m--; if(U.cal.m<0){ U.cal.m=11; U.cal.y--; } } else if(cm==='next'){ U.cal.m++; if(U.cal.m>11){ U.cal.m=0; U.cal.y++; } } else { U.cal.y=2026; U.cal.m=10; U.cal.sel=E.TODAY; } render(); return; }
+    if(el.dataset.day){ U.cal.sel=el.dataset.day; render(); return; }
+    if(el.dataset.health){ U.filt.health=U.filt.health===el.dataset.health?'':el.dataset.health; render(); return; }
+    if(el.dataset.tab){ U.tab=el.dataset.tab; render(); return; }
+    if(el.dataset.mode){ var m=el.dataset.mode.split('|'); U.modes[m[0]]=m[1]; render(); return; }
+    if(el.dataset.act){ var ac=el.dataset.act, q={pid:el.dataset.pid||null,n:+el.dataset.n||0,item:el.dataset.party?el.dataset.party:el.dataset.item?+el.dataset.item:null}; if(DIRECT[ac]) doAct(ac,q); else openModal(ac,q.pid,q.n,q.item); return; }
+    if(el.dataset.try){ var t=el.dataset.try.split('|'), st=E.scenarios[+t[0]].steps[+t[1]]; U.persona=st.persona; U.bell=false; if(window.innerWidth<1180) U.tryOpen=false; go(st.go.view,st.go.pid,st.go.n); return; }
+    switch(el.dataset.ui){
+      case 'bell': U.bell=!U.bell; render(); break;
+      case 'try': U.tryOpen=!U.tryOpen; render(); break;
+      case 'reset': U.confirmReset=true; render(); break;
+      case 'resetNo': U.confirmReset=false; render(); break;
+      case 'resetYes': S=E.seed(); var keep=U.modes; U=defUI(); U.modes=keep; render(); toast('Example data reset to Monday 23 Nov 2026.','ok'); break;
+    }
+  });
+  document.addEventListener('change',function(e){
+    var t=e.target;
+    if(t.id==='persona'){ U.persona=t.value; U.view=homeOf(t.value); U.pid=null; U.n=null; U.bell=false; render(); return; }
+    if(t.id==='f-country'){ U.filt.country=t.value; render(); return; }
+    if(t.id==='f-reseller'){ U.filt.reseller=t.value; render(); return; }
+    if(t.id==='cm-int'){ U.intComment=t.checked; save(); }
+  });
+  document.addEventListener('input',function(e){
+    if(e.target.id==='q'){ U.filt.q=e.target.value; render(); return; }
+    if(e.target.id==='cm-text'){ var b=e.target.closest('form').querySelector('button[type=submit]'); b.disabled=!e.target.value.trim(); }
+  });
+  document.addEventListener('submit',function(e){
+    var f=e.target; if(f.dataset.form!=='comment') return;
+    e.preventDefault();
+    var txt=f.querySelector('#cm-text').value, chk=f.querySelector('#cm-int');
+    doAct('comment',{pid:f.dataset.pid,n:+f.dataset.n,text:txt,internal:chk?chk.checked:false});
+  });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&(U.bell)){ U.bell=false; render(); } if((e.key==='Enter'||e.key===' ')&&e.target&&e.target.dataset&&e.target.dataset.day){ e.preventDefault(); U.cal.sel=e.target.dataset.day; render(); } });
+
+  load(); render();
+})();
+</script>

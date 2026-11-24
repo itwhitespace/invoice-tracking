@@ -21,6 +21,7 @@ import {
   ShieldAlert,
   KeyRound,
   Receipt,
+  FolderKanban,
 } from "lucide-react";
 import { SetPasswordForm } from "@/components/set-password-form";
 import { CompanyOption } from "@/lib/company-utils";
@@ -49,6 +50,7 @@ const NAV_ITEMS: NavItemDef[] = [
   { href: "/proposal-preview", label: "Proposal Preview", icon: FileSearch, hasCompanySubmenu: true },
   { href: "/upload-proposal", label: "Upload Proposal", icon: UploadCloud, requires: "create_proposal" },
   { href: "/invoices", label: "ใบแจ้งหนี้", icon: Receipt, requires: "issue_documents" },
+  { href: "/project-management", label: "Project Management", icon: FolderKanban, requires: "project_management" },
   { href: "/users", label: "ผู้ใช้งาน", icon: Users, requires: "admin" },
   { href: "/settings", label: "Settings", icon: Settings, requires: "admin" },
   { href: "/info", label: "Info", icon: Info },
@@ -71,9 +73,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { isLoading, session, appUser } = useAuth();
   const isPublicPath = PUBLIC_PATHS.includes(pathname || "");
 
+  // Project Management is not tied to a company, so someone with that
+  // permission but no company still gets in — straight to that page.
+  const pmOnly =
+    !!appUser && !appUser.is_admin && appUser.companies.length === 0 && appUser.permissions.includes("project_management");
+
   useEffect(() => {
     if (!isLoading && !session && !isPublicPath) router.replace("/login");
   }, [isLoading, session, isPublicPath, router]);
+
+  useEffect(() => {
+    if (pmOnly && pathname !== "/project-management") router.replace("/project-management");
+  }, [pmOnly, pathname, router]);
 
   if (isPublicPath) return <>{children}</>;
 
@@ -85,7 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!appUser || (!appUser.is_admin && appUser.companies.length === 0)) {
+  if (!appUser || (!appUser.is_admin && appUser.companies.length === 0 && !pmOnly)) {
     return <NoAccessScreen email={session.user.email || ""} isListed={!!appUser} />;
   }
 
