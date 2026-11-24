@@ -18,7 +18,7 @@ function OpenPrototype() {
   return (
     <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-500 p-6 text-center">
       <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-      <p className="text-xs">กำลังเปิด APP CORE…</p>
+      <p className="text-xs">กำลังเปิด APP CORE Tracking…</p>
       <a href={PROTOTYPE_SRC} className="text-xs font-semibold text-slate-700 hover:underline">
         ถ้าไม่เปิดเอง กดที่นี่
       </a>

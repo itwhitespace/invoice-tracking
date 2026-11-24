@@ -2,7 +2,7 @@
 <html lang="en">
 <meta name="robots" content="noindex,nofollow">
 <meta charset="utf-8">
-<title>AAR Portal Prototype</title>
+<title>APP CORE Tracking</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1063,7 +1063,7 @@ var ENGINE = (function () {
     var unread=S.notes.filter(function(x){ return x.to.indexOf(per())>=0 && x.read.indexOf(per())<0; }).length;
     var opts=function(side){ return E.PERSONAS.filter(function(x){ return x.side===side; }).map(function(x){ return '<option value="'+x.id+'"'+(x.id===per()?' selected':'')+'>'+esc(x.role)+'</option>'; }).join(''); };
     return '<header class="top"><div class="top-in gut wide">'+
-      '<div class="brand"><img class="logo" src="'+LOGO+'" alt="Whitespace Partners"><span class="bsep" aria-hidden="true"></span><span class="bn">APP CORE</span><span class="tag">Prototype A.2</span></div>'+
+      '<div class="brand"><img class="logo" src="'+LOGO+'" alt="Whitespace Partners"><span class="bsep" aria-hidden="true"></span><span class="bn">APP CORE Tracking</span><span class="tag">Prototype A.2</span></div>'+
       '<label class="who" for="persona"><span>Viewing as</span><select id="persona"><optgroup label="Whitespace team">'+opts('int')+'</optgroup></select></label>'+
       '<div class="tools"><button class="btn ib" data-ui="bell" aria-label="Notifications, '+unread+' unread" aria-expanded="'+U.bell+'">'+IC.bell+(unread?'<span class="badge">'+unread+'</span>':'')+'</button>'+
       '<button class="btn" data-ui="try" aria-expanded="'+U.tryOpen+'">Try this</button>'+

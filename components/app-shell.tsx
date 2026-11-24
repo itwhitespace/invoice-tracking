@@ -52,7 +52,7 @@ const NAV_ITEMS: NavItemDef[] = [
   { href: "/proposal-preview", label: "Proposal Preview", icon: FileSearch, hasCompanySubmenu: true },
   { href: "/upload-proposal", label: "Upload Proposal", icon: UploadCloud, requires: "create_proposal" },
   { href: "/invoices", label: "ใบแจ้งหนี้", icon: Receipt, requires: "issue_documents" },
-  { href: "/project-management", label: "APP CORE", icon: FolderKanban, requires: "project_management", newTab: true },
+  { href: "/project-management", label: "APP CORE Tracking", icon: FolderKanban, requires: "project_management", newTab: true },
   { href: "/users", label: "ผู้ใช้งาน", icon: Users, requires: "admin" },
   { href: "/settings", label: "Settings", icon: Settings, requires: "admin" },
   { href: "/info", label: "Info", icon: Info },
