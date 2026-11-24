@@ -22,6 +22,7 @@ import {
   KeyRound,
   Receipt,
   FolderKanban,
+  ExternalLink,
 } from "lucide-react";
 import { SetPasswordForm } from "@/components/set-password-form";
 import { CompanyOption } from "@/lib/company-utils";
@@ -41,6 +42,7 @@ interface NavItemDef {
   label: string;
   icon: typeof LayoutDashboard;
   hasCompanySubmenu?: boolean;
+  newTab?: boolean;
   requires?: PermissionKey | "admin";
 }
 
@@ -50,7 +52,7 @@ const NAV_ITEMS: NavItemDef[] = [
   { href: "/proposal-preview", label: "Proposal Preview", icon: FileSearch, hasCompanySubmenu: true },
   { href: "/upload-proposal", label: "Upload Proposal", icon: UploadCloud, requires: "create_proposal" },
   { href: "/invoices", label: "ใบแจ้งหนี้", icon: Receipt, requires: "issue_documents" },
-  { href: "/project-management", label: "Project Management", icon: FolderKanban, requires: "project_management" },
+  { href: "/project-management", label: "APP CORE", icon: FolderKanban, requires: "project_management", newTab: true },
   { href: "/users", label: "ผู้ใช้งาน", icon: Users, requires: "admin" },
   { href: "/settings", label: "Settings", icon: Settings, requires: "admin" },
   { href: "/info", label: "Info", icon: Info },
@@ -365,7 +367,9 @@ function SidebarNav({
             ) : (
               <Link
                 href={item.href}
-                title={collapsed ? item.label : undefined}
+                target={item.newTab ? "_blank" : undefined}
+                rel={item.newTab ? "noopener noreferrer" : undefined}
+                title={collapsed ? item.label : item.newTab ? "เปิดในแท็บใหม่" : undefined}
                 className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-semibold transition ${
                   isActive
                     ? "bg-slate-900 text-white shadow-xs"
@@ -374,6 +378,7 @@ function SidebarNav({
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 {!collapsed && <span className="truncate">{item.label}</span>}
+                {!collapsed && item.newTab && <ExternalLink className="w-3 h-3 shrink-0 ml-auto opacity-50" />}
               </Link>
             )}
 
