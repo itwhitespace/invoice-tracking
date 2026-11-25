@@ -496,13 +496,16 @@ button.tile{cursor:pointer}
 .t2leg h3{font:600 11px/1 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--v2-mute);margin:0 0 8px}
 .t2leg p{margin:0 0 6px}
 .t2wrap{overflow-x:auto}
-table.t2{border-collapse:separate;border-spacing:0;width:100%;min-width:1494px;table-layout:fixed;font-size:13.5px}
+table.t2{border-collapse:separate;border-spacing:0;width:100%;min-width:1738px;table-layout:fixed;font-size:13.5px}
 .t2 th{background:var(--v2-head);font:600 12px/1.2 'IBM Plex Sans',sans-serif;text-transform:uppercase;letter-spacing:.04em;color:var(--v2-mute);text-align:left;padding:12px 14px;border-bottom:1px solid var(--v2-line);white-space:nowrap}
 .t2 td{padding:12px 14px;border-bottom:1px solid var(--v2-row);vertical-align:middle;background:var(--v2-card);color:var(--v2-ink)}
 .t2 tr.r:hover td{background:var(--v2-hover)}
-.t2 .c-store{position:sticky;left:0;z-index:2;box-shadow:1px 0 0 var(--v2-line)}
-.t2 td.c-store{box-shadow:inset 4px 0 0 var(--hb),1px 0 0 var(--v2-line);padding-left:18px}
-.t2 th.c-store{z-index:3}
+.t2 .c-cr{position:sticky;left:0;z-index:2}
+.t2 td.c-cr{box-shadow:inset 4px 0 0 var(--hb);padding-left:18px}
+.t2 .c-store{position:sticky;left:124px;z-index:2;box-shadow:1px 0 0 var(--v2-line)}
+.t2 th.c-store,.t2 th.c-cr{z-index:3}
+.t2 th.c-cr{padding-left:18px}
+.t2 td.c-co{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sn2w{display:flex;align-items:center;gap:6px;min-width:0}
 .sn2{all:unset;cursor:pointer;font-weight:700;font-size:14px;color:var(--v2-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px}
 .sn2:hover{color:var(--v2-pri)}
@@ -880,8 +883,9 @@ var ENGINE = (function () {
   function dueState(p,key){
     if(p.hold||done(p)) return null;
     var d=null, fin=false;
-    if(key==='expIdk'){ d=expIdk(p)||estIdk(p); fin=idkSent(p); }
-    else if(key==='expFdk'){ d=expFdk(p)||estFdk(p); fin=fdkSent(p); }
+    if(key==='expLayout'){ d=expLayout(p); fin=closedStage(p.stages[0]); }
+    else if(key==='expIdk'){ d=expIdk(p); fin=idkSent(p); }
+    else if(key==='expFdk'){ d=expFdk(p); fin=fdkSent(p); }
     else if(key==='target'){ d=p.target; fin=p.stages[4].status==='done'; }
     if(!d||fin) return null;
     if(TODAY>d) return 'late';
@@ -913,19 +917,23 @@ var ENGINE = (function () {
   function fdkSent(p){ return closedStage(p.stages[2])||!!lastSentV(p.stages[2]); }
   function startDate(p){ var d=p.stages[0].startAt; return real(d)?d:null; }
   /* Due dates count working days only: weekends and the store country's public holidays are skipped. */
-  function expIdk(p){ var d=startDate(p); return d?addWorkdays(d,10,p.country):null; }
-  function expFdk(p){ var d=p.stages[1].closedAt; return real(d)?addWorkdays(d,5,p.country):null; }
+  /* Due dates: Layout = Created + 1 working week, IDK = + 2, FDK = + 3 (weekends and Thai public holidays skipped). */
+  function expLayout(p){ return addWorkdays(createdOf(p),5,p.country); }
+  function expIdk(p){ return addWorkdays(createdOf(p),10,p.country); }
+  function expFdk(p){ return addWorkdays(createdOf(p),15,p.country); }
   /* Rough timeline shown until the real due date exists: IDK = Created + 2 working weeks (10 days), FDK = Created + 3 working weeks (15 days). */
   function estIdk(p){ return addWorkdays(createdOf(p),10,p.country); }
   function estFdk(p){ return addWorkdays(createdOf(p),15,p.country); }
   function health(p){
     if(p.hold) return 'on_hold';
     if(done(p)) return 'completed';
-    var g=currentStage(p), w=waitingOn(p), ei=expIdk(p), ef=expFdk(p);
+    var g=currentStage(p), w=waitingOn(p), ei=expIdk(p), ef=expFdk(p), el=expLayout(p), ld=closedStage(p.stages[0]);
+    if(!ld && TODAY>el) return 'delayed';
     if(ei && !idkSent(p) && TODAY>ei) return 'delayed';
     if(ef && !fdkSent(p) && TODAY>ef) return 'delayed';
     if(p.target && TODAY>p.target && p.stages[4].status!=='done') return 'delayed';
     if(w.who && w.who!=='WSPN' && w.workdays!==null && w.workdays>SLA) return 'at_risk';
+    if(!ld && workdays(TODAY,el,p.country)<=3) return 'at_risk';
     if(ei && !idkSent(p) && workdays(TODAY,ei,p.country)<=3) return 'at_risk';
     if(ef && !fdkSent(p) && workdays(TODAY,ef,p.country)<=3) return 'at_risk';
     if(p.target && g.n<=3 && days(TODAY,p.target)<=30) return 'at_risk';
@@ -995,7 +1003,7 @@ var ENGINE = (function () {
     function ok(g){ return closedStage(g)&&real(g.closedAt)?{at:g.closedAt}:null; }
     switch(key){
       case 'startIdk': return d(g2.startAt); case 'okLayout': return ok(g1); case 'okIdk': return ok(g2); case 'okFdk': return ok(g3);
-      case 'startLayout': return d(g1.startAt); case 'expIdk': return expIdk(p)?d(expIdk(p)):{at:estIdk(p),est:true}; case 'expFdk': return expFdk(p)?d(expFdk(p)):{at:estFdk(p),est:true};
+      case 'startLayout': return d(g1.startAt); case 'expLayout': return d(expLayout(p)); case 'expIdk': return d(expIdk(p)); case 'expFdk': return d(expFdk(p));
       case 'sentLayout': return sent(g1); case 'apLayout': return rev(g1,'apple'); case 'paLayout': return rev(g1,'partner');
       case 'sentIdk': return sent(g2); case 'apIdk': return rev(g2,'apple'); case 'paIdk': return rev(g2,'partner');
       case 'startFdk': return d(g3.startAt); case 'sentFdk': return sent(g3); case 'apFdk': return rev(g3,'apple'); case 'paFdk': return rev(g3,'partner');
@@ -1090,12 +1098,12 @@ var ENGINE = (function () {
     switch(action){
       case 'startProject': {
         g.status='in_progress'; g.startAt=dt; g.since=at;
-        notify(s,['des','dd'],'Project started for '+p.store+'. IDK is due '+addWorkdays(dt,10,p.country)+'.',p.id,1,false);
-        return {ok:true,msg:'Project started on '+dt+'. IDK is due '+addWorkdays(dt,10,p.country)+' (10 working days). FDK is due 5 working days after the IDK is approved.'};
+        notify(s,['des','dd'],'Project started for '+p.store+'. Layout is due '+expLayout(p)+'.',p.id,1,false);
+        return {ok:true,msg:'Project started on '+dt+'. Layout is due '+expLayout(p)+', IDK '+expIdk(p)+', FDK '+expFdk(p)+'.'};
       }
       case 'setStart':
         g.startAt=dt;
-        return {ok:true,msg:'Start date set to '+dt+'. IDK is due '+addWorkdays(dt,10,p.country)+'.'};
+        return {ok:true,msg:'Start date set to '+dt+'.'};
       case 'start':
         g.status='in_progress'; g.startAt=TODAY; g.since=at;
         notify(s,['coord','dd'],'Designer started '+nm+' for '+p.store,p.id,g.n,false);
@@ -1298,6 +1306,7 @@ var ENGINE = (function () {
       function add(date,n,type,label,late){ if(real(date)) out.push({date:date.slice(0,10),pid:p.id,n:n,type:type,label:label,late:!!late}); }
       var g1=p.stages[0],g2=p.stages[1],g3=p.stages[2], ei=expIdk(p), ef=expFdk(p);
       add(g1.startAt,1,'start','Project start'); add(g2.startAt,2,'start','Start IDK'); add(g3.startAt,3,'start','Start FDK');
+      add(expLayout(p),1,'due','Layout due',!closedStage(g1)&&TODAY>expLayout(p));
       if(ei) add(ei,2,'due','IDK due',!idkSent(p)&&TODAY>ei);
       if(ef) add(ef,3,'due','FDK due',!fdkSent(p)&&TODAY>ef);
       [0,1,2].forEach(function(i){ var g=p.stages[i], nm=SHORT[i];
@@ -1668,7 +1677,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     var soon=E.events(S).filter(function(e){ return (e.type==='due'||e.type==='sla'||e.type==='target')&&(e.date<=E.addWorkdays(E.TODAY,10))&&(e.late||e.date>=E.TODAY)&&(!f.country||E.P(S,e.pid).country===f.country); }).sort(function(a,b){ return a.date<b.date?-1:1; }).slice(0,12);
     var up='<section class="panel"><div class="ph"><h2>Overdue and coming up</h2><span class="small">Due dates count working days, excluding weekends and Thai public holidays</span></div>'+(soon.length?soon.map(function(e){ var p=E.P(S,e.pid); return '<div class="pbd" style="border-top:1px solid var(--line-2);grid-template-columns:auto minmax(0,1fr) auto;align-items:center"><i class="evd" style="background:'+EV[e.type][1]+'"></i><div><b>'+esc(p.store)+'</b><div class="small">'+esc(e.label)+' · '+fmtD(e.date)+'</div></div>'+(e.late?'<span class="chip crit">Overdue</span>':'<span class="chip plain">'+fmtD(e.date)+'</span>')+'</div>'; }).join(''):'<div class="pbd small">Nothing overdue or due in the next 10 working days.</div>')+'</section>';
     var co='<label for="f-country">Country <select id="f-country"><option value="">All</option>'+usedCountries().map(function(k){ return '<option value="'+k+'"'+(f.country===k?' selected':'')+'>'+E.COUNTRIES[k]+'</option>'; }).join('')+'</select></label>';
-    return head('Spec W1 · Calendar','Calendar','Every dated step of every store in one place. Starts, due dates, approvals, handover and openings. Weekends and Thai public holidays are marked and don’t count as working days. The IDK due date shows once the Coordinator has entered a start date, and the FDK due date once the IDK is approved.',createBtn())+'<div class="tb cal-bar">'+h+toolbar(co)+'</div>'+legend+'<div class="cal"><div class="cal-g">'+days+cells+'</div></div><div class="cols">'+day+up+'</div>';
+    return head('Spec W1 · Calendar','Calendar','Every dated step of every store in one place. Starts, due dates, approvals, handover and openings. Weekends and Thai public holidays are marked and don’t count as working days. Due dates: Layout = Created + 1 working week, IDK + 2, FDK + 3.',createBtn())+'<div class="tb cal-bar">'+h+toolbar(co)+'</div>'+legend+'<div class="cal"><div class="cal-g">'+days+cells+'</div></div><div class="cols">'+day+up+'</div>';
   }
   /* ================= Tracker V2: same data and actions as Tracker, redesigned table ================= */
   var T2STAGE=['Layout','IDK','FDK','Handover','Opens','SFF'];
@@ -1679,7 +1688,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   }
   function t2Deadline(p){
     if(E.done(p)) return {lab:'Completed',m:null,ds:null};
-    var g=E.currentStage(p), key=g.n<=2?'expIdk':g.n===3?'expFdk':'target', lab=g.n<=2?'IDK due':g.n===3?'FDK due':'Opening';
+    var g=E.currentStage(p), key=g.n===1?'expLayout':g.n===2?'expIdk':g.n===3?'expFdk':'target', lab=g.n===1?'Layout due':g.n===2?'IDK due':g.n===3?'FDK due':'Opening';
     var m=key==='target'?(p.target?{at:p.target}:null):E.mval(p,key);
     return {lab:lab,m:m,ds:p.hold?null:E.dueState(p,key)};
   }
@@ -1698,9 +1707,10 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     var dlHtml=dl.m?'<span class="dl-l">'+dl.lab+'</span><span class="dl-d'+(dl.ds?' dl-'+dl.ds:'')+(dl.m.est?' est':'')+'">'+fmtD(dl.m.at)+(dl.m.est?' <span class="estc">est.</span>':'')+'</span>':'<span class="dl-l">'+dl.lab+'</span><span class="t2nil">–</span>';
     var docs=t2Doc(p.docs[0].status,'Brief',p.docs[0].name+': '+p.docs[0].status)+t2Doc(p.docs[1].status,'CAD',p.docs[1].name+': '+p.docs[1].status)+t2Doc(p.docs[2].status,'Logo',p.docs[2].name+': '+p.docs[2].status)+t2Doc(p.kit?'verified':'requested',p.kit||'SDK',p.kit?E.KITS[p.kit]:'Kit type not set');
     var row='<tr class="r'+(open?' open':'')+'">'+
-      '<td class="c-store" style="--hb:var(--h-'+h+')"><div class="sn2w"><button type="button" class="sn2" data-t2="x|'+p.id+'" aria-expanded="'+open+'">'+esc(p.store)+'</button>'+(cr?'<span class="cr" title="Change request open">↺</span>':'')+'</div>'+
-        '<div class="ids2">ID '+esc(p.appleId||'—')+' · SFO '+esc(p.sfo||'—')+' · <abbr title="'+esc(cname(p))+'">'+esc(p.country)+'</abbr></div></td>'+
-      '<td>'+t2Date(p,'created',E.createdOf(p))+'</td>'+
+      '<td class="c-cr" style="--hb:var(--h-'+h+')">'+t2Date(p,'created',E.createdOf(p))+'</td>'+
+      '<td class="c-store"><div class="sn2w"><button type="button" class="sn2" data-t2="x|'+p.id+'" aria-expanded="'+open+'">'+esc(p.store)+'</button>'+(cr?'<span class="cr" title="Change request open">↺</span>':'')+'</div>'+
+        '<div class="ids2">ID '+esc(p.appleId||'—')+' · SFO '+esc(p.sfo||'—')+'</div></td>'+
+      '<td class="c-co" title="'+esc(cname(p))+'">'+esc(cname(p))+'</td>'+
       '<td>'+t2Date(p,'target',p.target||'')+'</td>'+
       '<td><div class="sp">'+seg+'</div><div class="sp-t">'+(dn?'Completed':'Stage '+g.n+' of 6')+'</div></td>'+
       '<td><div class="now-s" style="color:var(--s'+g.n+')">'+g.n+' · '+esc(E.SHORT[g.n-1])+'</div><div class="now-t">'+esc(E.nowLabel(p,false))+'</div></td>'+
@@ -1710,14 +1720,14 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<td>'+t2Health(p)+'</td>'+
       '<td><button type="button" class="xb" data-t2="x|'+p.id+'" aria-expanded="'+open+'" aria-label="'+(open?'Hide':'Show')+' all dates for '+esc(p.store)+'">'+IC.chev+'</button></td></tr>';
     if(!open) return row;
-    var cards=[[1,'1 · Layout',[['startLayout','Start'],['okLayout','Approved']]],[2,'2 · IDK',[['startIdk','Start'],['expIdk','Due'],['okIdk','Approved']]],[3,'3 · FDK',[['startFdk','Start'],['expFdk','Due'],['okFdk','Approved']]],[4,'4 · Handover',[['onePage','1-page'],['constr','Schedule'],['install','Install']]],[5,'5 · Open & Claim',[['opens','Opens'],['sff','SFF']]],[6,'Portal',null]];
+    var cards=[[1,'1 · Layout',[['expLayout','Due'],['startLayout','Start'],['okLayout','Approved']]],[2,'2 · IDK',[['expIdk','Due'],['startIdk','Start'],['okIdk','Approved']]],[3,'3 · FDK',[['expFdk','Due'],['startFdk','Start'],['okFdk','Approved']]],[4,'4 · Handover',[['onePage','1-page'],['constr','Schedule'],['install','Install']]],[5,'5 · Open & Claim',[['opens','Opens'],['sff','SFF']]],[6,'Portal',null]];
     var xs=cards.map(function(c){
       var cur=!dn&&(c[0]===g.n||(c[0]===5&&g.n===6)), body;
-      if(c[2]) body=c[2].map(function(k){ var m=E.mval(p,k[0]); var v=m?((m.outcome==='changes'?'<span class="cr" title="Changes requested">↺</span> ':'')+t2Date(p,k[0],m.at)):'<span class="t2nil">–</span>'; return '<div class="kv2"><span>'+k[1]+'</span><span>'+v+'</span></div>'; }).join('');
+      if(c[2]) body=c[2].map(function(k){ var m=E.mval(p,k[0]); var ds=/^exp/.test(k[0])&&!p.hold?E.dueState(p,k[0]):null; var v=m?((m.outcome==='changes'?'<span class="cr" title="Changes requested">↺</span> ':'')+(ds?'<b class="dl-'+ds+'">'+t2Date(p,k[0],m.at)+'</b>':t2Date(p,k[0],m.at))):'<span class="t2nil">–</span>'; return '<div class="kv2"><span>'+k[1]+'</span><span>'+v+'</span></div>'; }).join('');
       else body='<div class="kv2"><span>Waiting on</span><span>'+esc(waitLabel(p))+'</span></div><div class="kv2"><span>Health</span><span>'+t2Health(p)+'</span></div>';
       return '<div class="xc'+(cur?' cur':'')+'" style="--sc:var(--s'+(c[0]<=6?c[0]:1)+')"><div class="xch">'+(c[0]<6||c[2]?'<i></i>':'')+c[1]+'</div>'+body+'</div>';
     }).join('');
-    return row+'<tr class="xr"><td colspan="10"><div class="x6">'+xs+'</div><div class="xfoot"><button type="button" class="btn sm" data-go="project|'+p.id+'">Open store page ›</button></div></td></tr>';
+    return row+'<tr class="xr"><td colspan="11"><div class="x6">'+xs+'</div><div class="xfoot"><button type="button" class="btn sm" data-go="project|'+p.id+'">Open store page ›</button></div></td></tr>';
   }
   function vTracker2(){
     var r=t2Rows(), f=U.filt, all=r.base, list=r.list, mode=U.t2mode||'table';
@@ -1731,18 +1741,18 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     var bar='<div class="t2bar">'+seg+'<label class="search s2"><span style="position:absolute;left:-9999px">Search store, Apple ID, SFO</span>'+IC.search+'<input id="q" type="search" placeholder="Search store, Apple ID, SFO" value="'+esc(f.q||'')+'" autocomplete="off"></label>'+co+re+
       (hasF?'<button type="button" class="btn ghost sm2" data-t2="clear">Clear filters</button>':'')+'<span class="sp-flex"></span><button type="button" class="btn sm2" data-t2="legend" aria-expanded="'+!!U.t2legend+'">'+IC.info+'How to read</button></div>';
     var legend=U.t2legend?'<div class="t2leg"><div><h3>Deadline colours</h3><p><b class="dl-ok">dd/mm/yyyy</b> on track</p><p><b class="dl-risk">dd/mm/yyyy</b> close: 3 working days or less (opening: 30 days while still in design)</p><p><b class="dl-late">dd/mm/yyyy</b> overdue and not done</p></div>'+
-      '<div><h3>Estimated dates</h3><p><i>dd/mm/yyyy</i> <span class="estc">est.</span> rough timeline: IDK = Created + 10 working days, FDK = Created + 15, skipping weekends and Thai public holidays.</p><p>Replaced by the real due date once the project starts (IDK) or the IDK is approved (FDK).</p></div>'+
+      '<div><h3>Due dates</h3><p>Layout = Created + 1 working week</p><p>IDK = Created + 2 working weeks</p><p>FDK = Created + 3 working weeks</p><p>Weekends and Thai public holidays are skipped.</p></div>'+
       '<div><h3>Docs</h3><p><span class="dk2 ok">✓ Brief</span> checked</p><p><span class="dk2 chk">◐ CAD</span> received, to check</p><p><span class="dk2 todo">○ Logo</span> not received / kit not set</p></div>'+
       '<div><h3>Other marks</h3><p><span class="cr">↺</span> change request</p><p>✓ done, date not recorded</p><p>– no data yet</p><p>Dates with a calendar icon can be clicked to change.</p></div></div>':'';
     var body;
     if(mode==='pipeline') body=list.length?projPipeline(list):'';
     else if(mode==='kanban') body=list.length?projKanban(list):'';
-    else body=list.length?'<div class="t2wrap"><table class="t2"><colgroup><col style="width:240px"><col style="width:120px"><col style="width:120px"><col style="width:196px"><col style="width:188px"><col style="width:156px"><col style="width:176px"><col style="width:132px"><col style="width:118px"><col style="width:56px"></colgroup>'+
-      '<thead><tr><th class="c-store">Store</th><th>'+t2Sort('created','Created')+'</th><th>'+t2Sort('target','Target')+'</th><th>Stage progress</th><th>Now</th><th>Next deadline</th><th>Docs · Kit</th><th>Waiting on</th><th>Health</th><th><span class="sr">Expand</span></th></tr></thead><tbody>'+list.map(t2Row).join('')+'</tbody></table></div>':'';
+    else body=list.length?'<div class="t2wrap"><table class="t2"><colgroup><col style="width:124px"><col style="width:240px"><col style="width:120px"><col style="width:120px"><col style="width:196px"><col style="width:188px"><col style="width:156px"><col style="width:176px"><col style="width:132px"><col style="width:118px"><col style="width:56px"></colgroup>'+
+      '<thead><tr><th class="c-cr">'+t2Sort('created','Created')+'</th><th class="c-store">Store</th><th>Country</th><th>'+t2Sort('target','Target')+'</th><th>Stage progress</th><th>Now</th><th>Next deadline</th><th>Docs · Kit</th><th>Waiting on</th><th>Health</th><th><span class="sr">Expand</span></th></tr></thead><tbody>'+list.map(t2Row).join('')+'</tbody></table></div>':'';
     if(!list.length) body='<div class="t2empty">'+(all.length||f.health?'No stores match these filters.':'No stores yet. Press Create job to add the first one.')+'</div>';
     var foot='<div class="t2foot"><span>Showing '+list.length+' of '+E.visibleProjects(S,per()).length+' stores</span><span>Dates are dd/mm/yyyy</span></div>';
     var acts='<button type="button" class="btn" data-t2="export">'+IC.dl+'Export</button>'+(E.can(S,per(),'createJob')?'<button type="button" class="btn p" data-act="createJob">'+IC.plus+'Create job</button>':'');
-    return '<div class="v2"><div class="v2-head"><div><p class="v2-eye">SPEC W2 · TRACKER V2</p><h1>Tracker</h1><p class="v2-sub">Live view of every store across the 6 stages. Click a status card to filter, click a row to see all dates.</p></div><div class="v2-acts">'+acts+'</div></div>'+
+    return '<div class="v2"><div class="v2-head"><div><p class="v2-eye">SPEC W2 · TRACKER</p><h1>Tracker</h1><p class="v2-sub">Live view of every store across the 6 stages. Click a status card to filter, click a row to see all dates.</p></div><div class="v2-acts">'+acts+'</div></div>'+
       tiles+'<section class="t2card">'+bar+legend+body+foot+'</section></div>';
   }
   function t2Sort(k,label){ var on=U.sort.k===k; return '<button type="button" class="sortb t2s" data-sort="'+k+'" title="Sort by '+label+'">'+label+'<span class="sarr'+(on?' on':'')+'">'+(on?(U.sort.dir==='asc'?'↑':'↓'):'↕')+'</span></button>'; }
@@ -1834,8 +1844,8 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<h3 class="dsub">Other documents</h3>'+(ex?'<div class="docs">'+ex+'</div>':'<p class="small">None yet. Press + Add to keep a Google Drive link here.</p>')+'</div></section>';
   }
   function milestonesPanel(p){
-    var groups=[['Layout',['startLayout','okLayout']],['IDK',['startIdk','expIdk','okIdk']],['FDK',['startFdk','expFdk','okFdk']],['Handover',['onePage','constr','install']],['Open & claim',['opens','sff']]];
-    var lab={}; COLS.forEach(function(c){ lab[c[0]]=colName(c); }); lab.startIdk='Start IDK'; lab.okLayout='Layout approved'; lab.okIdk='IDK approved'; lab.okFdk='FDK approved'; lab.expIdk='IDK due'; lab.expFdk='FDK due';
+    var groups=[['Layout',['expLayout','startLayout','okLayout']],['IDK',['expIdk','startIdk','okIdk']],['FDK',['expFdk','startFdk','okFdk']],['Handover',['onePage','constr','install']],['Open & claim',['opens','sff']]];
+    var lab={}; COLS.forEach(function(c){ lab[c[0]]=colName(c); }); lab.startIdk='Start IDK'; lab.okLayout='Layout approved'; lab.okIdk='IDK approved'; lab.okFdk='FDK approved'; lab.expLayout='Layout due'; lab.expIdk='IDK due'; lab.expFdk='FDK due';
     return '<section class="panel"><div class="ph"><h2>Milestones</h2><span class="small">The tracker’s date columns for this store</span></div><div class="pbd"><div class="mg">'+groups.map(function(g){
       return '<div><h3>'+esc(g[0])+'</h3><dl class="kv">'+g[1].map(function(k){ var m=E.mval(p,k); return '<dt>'+esc(lab[k])+'</dt><dd>'+(m?(m.outcome==='changes'?'↺ ':'')+esc(m.at==='ND'?'✓ date not recorded':fmtD(m.at))+(m.outcome==='changes'?' <span class="small">changes requested</span>':'')+(m.est?' <span class="small">estimate</span>':''):'<span class="small">—</span>')+'</dd>'; }).join('')+'</dl></div>';
     }).join('')+'</div></div></section>';
@@ -1930,7 +1940,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   /* Key dates with the tracker's colours and a countdown. */
   function dayDiff(d){ var x=d.split('-'), t=E.TODAY.split('-'); return Math.round((Date.UTC(+x[0],x[1]-1,+x[2])-Date.UTC(+t[0],t[1]-1,+t[2]))/864e5); }
   function keyDates(p){
-    var K=[['IDK due','expIdk','okIdk','IDK approved'],['FDK due','expFdk','okFdk','FDK approved'],['Target opening','target',null,'Store opened']];
+    var K=[['Layout due','expLayout','okLayout','Layout approved'],['IDK due','expIdk','okIdk','IDK approved'],['FDK due','expFdk','okFdk','FDK approved'],['Target opening','target',null,'Store opened']];
     return '<div class="kds"><h3 class="dsub" style="margin:2px 0 4px;padding-top:0;border-top:0">Key dates</h3>'+K.map(function(k){
       var m=k[1]==='target'?(p.target?{at:p.target}:null):E.mval(p,k[1]);
       var fin=k[1]==='target'?p.stages[4].status==='done':!!E.mval(p,k[2]);
@@ -2149,9 +2159,10 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<div class="fsec"><h3>Store documents</h3>'+docs+hint('Tick Received for documents you already have. A link without a tick is saved as received, to check later. Store Brief and CAD file must be ticked before the layout can start; Logo EPS never blocks.')+'</div>'+
       '<div class="fsec"><h3>Filled in automatically</h3><ul class="auto">'+
         '<li>Created = today ('+esc(fmtD(E.TODAY))+')</li>'+
-        '<li>Expected IDK Finish ≈ <b id="est-idk">'+esc(fmtD(E.addWorkdays(E.TODAY,10,'')))+'</b> (Created + 2 working weeks)</li>'+
-        '<li>Expected FDK Finish ≈ <b id="est-fdk">'+esc(fmtD(E.addWorkdays(E.TODAY,15,'')))+'</b> (Created + 3 working weeks)</li></ul>'+
-        hint('Working weeks skip weekends and Thai public holidays. These are replaced by the real due dates once they exist.')+'</div>';
+        '<li>Layout due <b id="est-lay">'+esc(fmtD(E.addWorkdays(E.TODAY,5,'')))+'</b> (Created + 1 working week)</li>'+
+        '<li>IDK due <b id="est-idk">'+esc(fmtD(E.addWorkdays(E.TODAY,10,'')))+'</b> (Created + 2 working weeks)</li>'+
+        '<li>FDK due <b id="est-fdk">'+esc(fmtD(E.addWorkdays(E.TODAY,15,'')))+'</b> (Created + 3 working weeks)</li></ul>'+
+        hint('Working weeks skip weekends and Thai public holidays.')+'</div>';
     pending={action:'createJob',pid:null,n:0,item:null};
     dlg.classList.add('wide');
     dlgf.innerHTML='<div class="dh"><p class="eyebrow" style="margin:0">Tracker</p><h2 id="dlg-title">Create job</h2></div><div class="db">'+b+'</div><div class="df"><button type="button" class="btn ghost" data-dlg="cancel">Cancel</button><button type="submit" class="btn p" id="dlg-ok">Create job</button></div>';
@@ -2169,7 +2180,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       case 'setKit': t='SDK or RDK'; b='<label class="fld" for="f-kit">Kit type<select id="f-kit" name="f-kit" data-req><option value="">Choose</option>'+['SDK','RDK'].map(function(o){ return '<option value="'+o+'"'+(p.kit===o?' selected':'')+'>'+esc(E.KITS[o])+'</option>'; }).join('')+'</select></label>'+hint('RDK includes a render. SDK does not. Shown in the SDK or RDK column of the tracker.'); ok='Save'; break;
       case 'startProject': t='Start the project'; b=fldDate('f-date','Project start date',E.TODAY)+hint('This is the first day of the project. IDK is due 2 weeks later. FDK is due 1 week after the IDK is approved. The Designer then works on the layout.'); ok='Start project'; break;
       case 'setStart': t='Enter the start date'; b=fldDate('f-date','Project start date',E.TODAY)+hint('The tracker has no start date for this store. IDK is due 2 weeks after it.'); ok='Save start date'; break;
-      case 'approveStage': t='Approve '+nm; b=fldDate('f-date','Approval date',E.TODAY)+fld('f-link','Approved file link (optional)','input','',false,'https://drive.google.com/...')+hint(g.n<3?'This closes '+nm+' and starts '+E.STAGES[g.n]+' on the approval date.'+(g.n===2?' FDK is due 5 working days after it.':''):'This closes '+nm+'. Handover documents are next.')+hint('A link you add is kept in Store documents.'); ok='Approve'; break;
+      case 'approveStage': t='Approve '+nm; b=fldDate('f-date','Approval date',E.TODAY)+fld('f-link','Approved file link (optional)','input','',false,'https://drive.google.com/...')+hint(g.n<3?'This closes '+nm+' and starts '+E.STAGES[g.n]+' on the approval date.':'This closes '+nm+'. Handover documents are next.')+hint('A link you add is kept in Store documents.'); ok='Approve'; break;
       case 'recordApprove': if(item==='partner'){ t='Approve '+nm+' v'+v.v+' and start '+(g.n<3?E.STAGES[g.n]:'Handover'); b=fldDate('f-date','Approval date',E.TODAY)+fld('f-note','Note (optional)','textarea','')+hint('Apple has approved. This closes '+nm+' and starts the next stage today.'); ok='Approve & start'; break; }
         t='Record: '+E.WHO[item]+' approved '+nm+' v'+v.v; b=fldDate('f-date','Date of their reply',E.TODAY)+fld('f-note','Note (optional)','textarea','')+hint('When both Apple and the Partner have approved, the stage closes and the next one is ready.'); ok='Record approval'; break;
       case 'recordChanges': t=(item==='partner'?'Request changes on ':'Record: Apple requested changes on ')+nm+' v'+v.v; b=fldDate('f-date','Date of their reply',E.TODAY)+fld('f-note','What they asked to change','textarea','',true)+'<div class="strip">This is review round '+(E.rounds(g)+1)+'. The next version goes back to both Apple and the Partner. An approval on v'+v.v+' does not carry over.</div>'; ok='Record change request'; break;
@@ -2235,7 +2246,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   cfm.addEventListener('cancel',function(){ cfmGo=null; });
   dlgf.addEventListener('input',validate);
   dlgf.addEventListener('change',validate);
-  dlgf.addEventListener('change',function(e){ if(e.target.id!=='f-jcountry') return; var c=e.target.value, a=document.getElementById('est-idk'), b=document.getElementById('est-fdk'); if(a) a.textContent=fmtD(E.addWorkdays(E.TODAY,10,c)); if(b) b.textContent=fmtD(E.addWorkdays(E.TODAY,15,c)); });
+  dlgf.addEventListener('change',function(e){ if(e.target.id!=='f-jcountry') return; var c=e.target.value, a=document.getElementById('est-idk'), b=document.getElementById('est-fdk'); var l=document.getElementById('est-lay'); if(l) l.textContent=fmtD(E.addWorkdays(E.TODAY,5,c)); if(a) a.textContent=fmtD(E.addWorkdays(E.TODAY,10,c)); if(b) b.textContent=fmtD(E.addWorkdays(E.TODAY,15,c)); });
   dlgf.addEventListener('submit',function(e){
     e.preventDefault(); if(!pending) return;
     var fd=new FormData(dlgf), q={pid:pending.pid,n:pending.n,item:pending.item,note:fd.get('f-note')||'',link:fd.get('f-link')||'',text:fd.get('f-text')||'',date:fd.get('f-date')||'',appleId:fd.get('f-appleId')||'',sfo:fd.get('f-sfo')||'',client:fd.get('f-client')||'',country:fd.get('f-jcountry')||'',store:fd.get('f-store')||'',target:fd.get('f-target')||'',kit:fd.get('f-kit')||'',links:fd.getAll('f-links'),docs:[1,2,3].map(function(i){ var lk=String(fd.get('f-doc'+i+'-link')||'').trim(); return {status:fd.get('f-doc'+i+'-ok')?'verified':lk?'received':'requested',link:lk}; })};
