@@ -702,6 +702,7 @@ dialog.wide .db{max-height:min(68vh,640px);overflow:auto}
 <dialog id="dlg" aria-labelledby="dlg-title"><form id="dlgf" novalidate></form></dialog>
 <dialog id="cfm" class="cfm" aria-labelledby="cfm-t"><div class="dh"><p class="eyebrow" style="margin:0">Please confirm</p><h2 id="cfm-t"></h2></div><div class="db"><p class="small" id="cfm-d"></p></div><div class="df"><button type="button" class="btn ghost" id="cfm-no">No</button><button type="button" class="btn p" id="cfm-yes">Yes, save</button></div></dialog>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script>
 /*ENGINE*/
 var ENGINE = (function () {
@@ -1065,7 +1066,7 @@ var ENGINE = (function () {
       var dup=null; s.projects.forEach(function(x){ if(x.appleId===f.appleId||(x.sfo&&x.sfo===f.sfo)) dup=x; });
       if(dup) return fail('A job with this Apple ID or SFO already exists: '+dup.store+'.');
       stamp(s); var jn=0; s.projects.forEach(function(x){ if(/^job\d+$/.test(x.id)) jn++; });
-      var np=store('job'+(jn+1),f.store,'new',f.country,{client:f.client,appleId:f.appleId,sfo:f.sfo,target:f.target,createdAt:TODAY,kit:(q.kit==='SDK'||q.kit==='RDK')?q.kit:null});
+      var np=store(q.newId||('job'+(jn+1)),f.store,'new',f.country,{client:f.client,appleId:f.appleId,sfo:f.sfo,target:f.target,createdAt:TODAY,kit:(q.kit==='SDK'||q.kit==='RDK')?q.kit:null});
       (q.docs||[]).forEach(function(dq,i){ var it=np.docs[i]; if(!it||!dq) return; var lk=String(dq.link||'').trim();
         if(dq.status==='received'||dq.status==='verified'){ it.status=dq.status; it.at=TODAY; it.link=lk||null; if(it.k==='logo'&&dq.status==='verified') it.fmt='EPS'; } });
       s.projects.push(np);
@@ -1364,7 +1365,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   }
   /* quiet: set while redrawing after another tab saved, so the two tabs don't keep re-saving to each other. */
   var quiet=false;
-  function save(){ if(quiet) return; try{ localStorage.setItem(KEY,JSON.stringify({state:S,ui:U})); }catch(e){} }
+  function save(){ if(quiet) return; if(CLOUD){ try{ localStorage.setItem(UIKEY,JSON.stringify(U)); }catch(e){} if(S&&S.notes){ S.notes.forEach(function(x){ if(x.read&&x.read.length&&x.id<1e9) READ[x.id]=1; }); readSave(); } return; } try{ localStorage.setItem(KEY,JSON.stringify({state:S,ui:U})); }catch(e){} }
   function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   function fmtD(d){ if(!d) return '—'; if(d==='ND') return 'date not recorded'; var a=d.slice(0,10).split('-'); return a[2]+'/'+a[1]+'/'+a[0]; }
@@ -1424,10 +1425,10 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     var unread=S.notes.filter(function(x){ return (per()==='admin'||x.to.indexOf(per())>=0) && x.read.indexOf(per())<0; }).length;
     var opts=function(side){ return E.PERSONAS.filter(function(x){ return x.side===side; }).map(function(x){ return '<option value="'+x.id+'"'+(x.id===per()?' selected':'')+'>'+esc(x.role)+'</option>'; }).join(''); };
     return '<header class="top"><div class="top-in gut wide">'+
-      '<div class="brand"><img class="logo" src="'+LOGO+'" alt="Whitespace Partners"><span class="bsep" aria-hidden="true"></span><span class="bn">APP CORE Tracking</span><span class="tag">Prototype A.2</span></div>'+
+      '<div class="brand"><img class="logo" src="'+LOGO+'" alt="Whitespace Partners"><span class="bsep" aria-hidden="true"></span><span class="bn">APP CORE Tracking</span><span class="tag">'+(CLOUD?'Beta':'Prototype A.2')+'</span></div>'+
       '<div class="tools"><button class="btn ib" data-ui="bell" aria-label="Notifications, '+unread+' unread" aria-expanded="'+U.bell+'">'+IC.bell+(unread?'<span class="badge">'+unread+'</span>':'')+'</button>'+
-      '<button class="btn" data-ui="try" aria-expanded="'+U.tryOpen+'">Try this</button>'+
-      (U.confirmReset?'<span class="rs">Reset everything? <button class="btn crit sm" data-ui="resetYes">Reset</button><button class="btn ghost sm" data-ui="resetNo">Cancel</button></span>':'<button class="btn ghost" data-ui="reset">Reset</button>')+
+      (CLOUD?'':'<button class="btn" data-ui="try" aria-expanded="'+U.tryOpen+'">Try this</button>')+
+      (CLOUD?'':U.confirmReset?'<span class="rs">Reset everything? <button class="btn crit sm" data-ui="resetYes">Reset</button><button class="btn ghost sm" data-ui="resetNo">Cancel</button></span>':'<button class="btn ghost" data-ui="reset">Reset</button>')+
       '</div></div></header>';
   }
   function nav(){
@@ -2106,8 +2107,10 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },k==='mail'?7000:5000);
   }
   function doAct(action,q){
+    if(CLOUD&&action==='createJob') q.newId='p'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
     var r=E.act(S,per(),action,q);
     if(!r.ok){ toast(r.msg,'err'); return false; }
+    if(CLOUD) cloudSync();
     toast(r.msg,'ok'); if(r.pid){ go('project',r.pid); return true; } render(); return true;
   }
 
@@ -2248,7 +2251,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     if(el.dataset.copy){ var cu=el.dataset.copy; try{ navigator.clipboard.writeText(cu).then(function(){ toast('Review link copied.','ok'); },function(){ toast('Copy failed. Select the link and copy it.','err'); }); }catch(err){ toast('Copy failed. Select the link and copy it.','err'); } return; }
     if(el.dataset.rv){ var oc=el.dataset.rv, nmv=(document.getElementById('rv-name')||{}).value||'', cmv=(document.getElementById('rv-comment')||{}).value||'', tk=reviewToken();
       if(!nmv.trim()){ toast('Add your name.','err'); return; } if(oc!=='approved'&&!cmv.trim()){ toast('Tell us what to change.','err'); return; }
-      confirmThen(oc==='approved'?'Approve this version?':'Request changes?','Your reply goes straight to Whitespace.',function(){ var rr=E.reviewReply(S,tk,oc,nmv,cmv); toast(rr.msg,rr.ok?'ok':'err'); if(rr.ok) save(); render(); }); return; }
+      confirmThen(oc==='approved'?'Approve this version?':'Request changes?','Your reply goes straight to Whitespace.',function(){ if(CLOUD){ CLOUD.sb.rpc('pm_review_reply',{p_token:tk,p_outcome:oc,p_name:nmv,p_comment:cmv}).then(function(res){ var rr=res.error?{ok:false,msg:'Could not send your reply. Please try again.'}:(res.data||{ok:false,msg:'Could not send your reply.'}); toast(rr.msg,rr.ok?'ok':'err'); return reviewLoad(tk); }).then(render).catch(showCrash); return; } var rr=E.reviewReply(S,tk,oc,nmv,cmv); toast(rr.msg,rr.ok?'ok':'err'); if(rr.ok) save(); render(); }); return; }
     if(el.dataset.ed){ pickDate(el); return; }
     if(el.dataset.sort){ var sk=el.dataset.sort; U.sort=U.sort.k===sk?{k:sk,dir:U.sort.dir==='asc'?'desc':'asc'}:{k:sk,dir:sk==='target'?'asc':'desc'}; render(); return; }
     if(el.dataset.go){ var a=el.dataset.go.split('|'); go(a[0],a[1],a[2]); return; }
@@ -2287,10 +2290,111 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   });
   document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&(U.bell)){ U.bell=false; render(); } if((e.key==='Enter'||e.key===' ')&&e.target&&e.target.dataset&&e.target.dataset.day){ e.preventDefault(); U.cal.sel=e.target.dataset.day; render(); } });
 
-  window.addEventListener('hashchange',render);
+  /* ================= Shared data (Supabase) =================
+     Served by Program tracking (/api/pm-config answers): data lives in Supabase and is shared by everyone
+     with the APP CORE Tracking permission; the Apple / Partner review page reads and replies through the
+     pm_review_* database functions. Opened anywhere else (e.g. a local file server) the page keeps the
+     browser-only mode. */
+  var CLOUD=null, REV={}, SNAP={}, LINKS={}, READ={}, RV=null, UIKEY=KEY+'-ui', syncing=Promise.resolve();
+  function readLoad(){ try{ READ=JSON.parse(localStorage.getItem(UIKEY+'-read')||'{}')||{}; }catch(e){ READ={}; } }
+  function readSave(){ try{ localStorage.setItem(UIKEY+'-read',JSON.stringify(READ)); }catch(e){} }
+  function cloudUILoad(){ try{ U=Object.assign(defUI(),JSON.parse(localStorage.getItem(UIKEY)||'null')||{}); }catch(e){ U=defUI(); } U.persona='admin'; U.bell=false; U.confirmReset=false; U.tryOpen=false; }
+  function noteFromRow(r){ var n=Object.assign({},r.data||{}); n.id=r.id; n.to=n.to||['coord']; n.read=READ[r.id]?['admin']:[]; return n; }
+  function cloudLoad(){
+    var sb=CLOUD.sb;
+    return Promise.all([
+      sb.from('pm_projects').select('id,data,rev').order('created_at',{ascending:true}),
+      sb.from('pm_notifications').select('id,data,created_at').order('id',{ascending:false}).limit(200),
+      sb.from('pm_review_links').select('token')
+    ]).then(function(res){
+      var err=res[0].error||res[1].error||res[2].error; if(err) throw err;
+      var st=E.seed(); st.seq=1e9; REV={}; SNAP={}; LINKS={};
+      st.projects=res[0].data.map(function(r){ var p=r.data; p.id=r.id; REV[r.id]=r.rev; SNAP[r.id]=JSON.stringify(p); return p; });
+      st.notes=res[1].data.map(noteFromRow);
+      res[2].data.forEach(function(x){ LINKS[x.token]=1; });
+      S=st;
+    });
+  }
+  function cloudSync(){
+    syncing=syncing.then(function(){
+      var sb=CLOUD.sb, jobs=[];
+      S.projects.forEach(function(p){
+        var js=JSON.stringify(p); if(SNAP[p.id]===js) return;
+        if(REV[p.id]==null) jobs.push(sb.from('pm_projects').insert({id:p.id,data:p}).select('rev').single().then(function(r){ if(r.error) throw r.error; REV[p.id]=r.data.rev; SNAP[p.id]=js; }));
+        else { var rv=REV[p.id]; jobs.push(sb.from('pm_projects').update({data:p,rev:rv+1}).eq('id',p.id).eq('rev',rv).select('rev').then(function(r){ if(r.error) throw r.error; if(!r.data||!r.data.length){ var c=new Error('conflict'); c.conflict=true; throw c; } REV[p.id]=r.data[0].rev; SNAP[p.id]=js; })); }
+      });
+      return Promise.all(jobs).then(function(){
+        var links=[], j2=[];
+        S.projects.forEach(function(p){ p.stages.forEach(function(g){ if(g.n>3) return; g.versions.forEach(function(v){ [['apple',v.token],['partner',v.ptoken]].forEach(function(x){ if(x[1]&&!LINKS[x[1]]){ LINKS[x[1]]=1; links.push({token:x[1],project_id:p.id,stage:g.n,version:v.v,party:x[0]}); } }); }); }); });
+        if(links.length) j2.push(sb.from('pm_review_links').insert(links).then(function(r){ if(r.error) throw r.error; }));
+        S.notes.filter(function(x){ return x.id>=1e9; }).forEach(function(x){ var d=Object.assign({},x); delete d.id; d.read=[]; x.id=-x.id;
+          j2.push(sb.from('pm_notifications').insert({project_id:(x.pid&&REV[x.pid]!=null)?x.pid:null,data:d}).select('id').single().then(function(r){ if(r.error) throw r.error; x.id=r.data.id; })); });
+        return Promise.all(j2);
+      });
+    }).catch(function(err){
+      toast(err&&err.conflict?'Someone else changed this store at the same time. The latest version is loaded: please check it and try again.':'Could not save to the server'+(err&&err.message?' ('+err.message+')':'')+'. The latest saved data is loaded.','err');
+      return cloudLoad().then(function(){ render(); }).catch(showCrash);
+    });
+    return syncing;
+  }
+  function liveRender(){ quiet=true; try{ render(); } finally{ quiet=false; } }
+  function cloudLive(){
+    CLOUD.sb.channel('pm-live')
+      .on('postgres_changes',{event:'*',schema:'public',table:'pm_projects'},function(pl){
+        if(pl.eventType==='DELETE'){ var id=pl.old&&pl.old.id; if(!id) return; S.projects=S.projects.filter(function(p){ return p.id!==id; }); delete REV[id]; delete SNAP[id]; liveRender(); return; }
+        var r=pl.new; if(!r||!r.id||REV[r.id]===r.rev) return;
+        var p=r.data; p.id=r.id; REV[r.id]=r.rev; SNAP[r.id]=JSON.stringify(p);
+        var i=-1; S.projects.forEach(function(x,k){ if(x.id===r.id) i=k; }); if(i>=0) S.projects[i]=p; else S.projects.push(p);
+        liveRender();
+      })
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'pm_notifications'},function(pl){
+        var r=pl.new; if(!r||S.notes.some(function(x){ return x.id===r.id; })) return;
+        S.notes.unshift(noteFromRow(r)); liveRender();
+      })
+      .subscribe();
+  }
+  /* Review page: build a one-store state from what pm_review_get returns, so the same reviewPage() renders it. */
+  function reviewLoad(tok){
+    return CLOUD.sb.rpc('pm_review_get',{p_token:tok}).then(function(res){
+      if(res.error) throw res.error;
+      var d=res.data, st=E.seed(); st.projects=[]; RV={token:tok};
+      if(d){
+        var stages=[1,2,3,4,5,6].map(function(n){ return {n:n,status:'not_started',versions:[],comments:[],items:null}; });
+        stages[d.stage-1].status=d.status;
+        stages[d.stage-1].versions=(d.versions||[]).map(function(x){ var v={v:x.v,sentAt:x.sentAt,link:x.link,links:x.links,note:x.note,pnote:x.pnote,psentAt:x.psentAt,reviews:x.reviews||{}}; if(x.v===d.version){ if(d.party==='apple') v.token=tok; else v.ptoken=tok; } return v; });
+        st.projects=[Object.assign({id:d.project_id,docs:[],extra:[],stages:stages},d.store||{})];
+      }
+      S=st; U=defUI(); U.tryOpen=false;
+    });
+  }
+  function noAccess(email){
+    return '<main class="rv-main gut"><section class="panel rv-card"><div class="pbd"><h1>No access to APP CORE Tracking</h1><p>Your account'+(email?' ('+esc(email)+')':'')+' doesn’t have the APP CORE Tracking permission yet. Ask an Admin to tick it on the Users page.</p><div class="nbtns"><a class="btn" href="/">Back to Program tracking</a></div></div></section></main>';
+  }
+  function boot(){
+    S=E.seed(); U=defUI();
+    app.innerHTML='<main class="rv-main gut"><p class="small">Loading…</p></main>';
+    var tok=reviewToken();
+    fetch('/api/pm-config',{cache:'no-store'}).then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; }).then(function(cfg){
+      if(!cfg||!cfg.url||!cfg.anonKey||!window.supabase){ CLOUD=null; load(); render(); return; }
+      CLOUD={sb:window.supabase.createClient(cfg.url,cfg.anonKey)};
+      if(tok) return reviewLoad(tok).then(render);
+      return CLOUD.sb.auth.getSession().then(function(res){
+        var ses=res.data&&res.data.session;
+        if(!ses){ location.href='/login'; return; }
+        var em=(ses.user.email||'').toLowerCase();
+        return CLOUD.sb.from('app_users').select('is_admin,permissions').eq('email',em).maybeSingle().then(function(u){
+          var row=u.data;
+          if(!row||!(row.is_admin||(row.permissions||[]).indexOf('project_management')>=0)){ app.innerHTML=noAccess(em); return; }
+          CLOUD.email=em; readLoad(); cloudUILoad();
+          return cloudLoad().then(function(){ cloudLive(); render(); });
+        });
+      });
+    }).catch(showCrash);
+  }
+  window.addEventListener('hashchange',function(){ var tk=reviewToken(); if(CLOUD&&tk&&(!RV||RV.token!==tk)){ reviewLoad(tk).then(render).catch(showCrash); return; } if(CLOUD&&!tk&&RV){ location.reload(); return; } render(); });
   window.addEventListener('storage',function(e){ if(e.key!==KEY||!e.newValue) return; try{ var o=JSON.parse(e.newValue); if(!o||!o.state) return; o.state.toasts=[]; var a=JSON.stringify(o.state), b=JSON.stringify(Object.assign({},S,{toasts:[]})); if(a===b) return; S=o.state; quiet=true; try{ render(); } finally{ quiet=false; } }catch(err){} });
   /* Emergency way out: opening the page with #reset clears the saved test data. */
-  if(location.hash==='#reset'){ try{ localStorage.removeItem(KEY); }catch(e){} history.replaceState(null,'',location.pathname+location.search); }
-  load(); render();
+  if(location.hash==='#reset'){ try{ localStorage.removeItem(KEY); localStorage.removeItem(KEY+'-ui'); }catch(e){} history.replaceState(null,'',location.pathname+location.search); }
+  boot();
 })();
 </script>
