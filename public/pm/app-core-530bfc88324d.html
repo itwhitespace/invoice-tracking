@@ -872,8 +872,7 @@ var ENGINE = (function () {
     if(p.hold) return {who:null,hold:true,days:null,workdays:null,list:[]};
     if(done(p)) return {who:null,days:0,workdays:0,list:[]};
     var g=currentStage(p), who='WSPN', list=[];
-    if(g.status==='with_reviewers'){ var lv=last(g); if(!lv.reviews.apple){ who='Apple'; list=['apple']; } else if(!lv.reviews.partner&&lv.ptoken){ who='Partner'; list=['partner']; } else who='WSPN'; }
-    else if(g.n===1&&g.status==='not_started'&&!docsReady(p)){ if(p.docs[0].status==='requested'||p.docs[1].status==='requested'){ who='Partner'; list=['partner']; } }
+    if(g.n===1&&g.status==='not_started'&&!docsReady(p)){ if(p.docs[0].status==='requested'||p.docs[1].status==='requested'){ who='Partner'; list=['partner']; } }
     var s=real(g.since)?g.since.slice(0,10):null;
     return {who:who,list:list,days:s?days(s,TODAY):null,workdays:s?workdays(s,TODAY,p.country):null};
   }
@@ -910,8 +909,8 @@ var ENGINE = (function () {
     notify(s,['coord'],who+' ('+name+') '+(ok?'approved ':'requested changes on ')+nm+' v'+v.v+' for '+p.store+(comment?': “'+comment+'”':''),p.id,g.n,false);
     return {ok:true,msg:ok?'Thank you. Your approval was sent.':'Thank you. Your change request was sent.'};
   }
-  function idkSent(p){ return !!lastSentV(p.stages[1]); }
-  function fdkSent(p){ return !!lastSentV(p.stages[2]); }
+  function idkSent(p){ return closedStage(p.stages[1])||!!lastSentV(p.stages[1]); }
+  function fdkSent(p){ return closedStage(p.stages[2])||!!lastSentV(p.stages[2]); }
   function startDate(p){ var d=p.stages[0].startAt; return real(d)?d:null; }
   /* Due dates count working days only: weekends and the store country's public holidays are skipped. */
   function expIdk(p){ var d=startDate(p); return d?addWorkdays(d,10,p.country):null; }
@@ -948,8 +947,8 @@ var ENGINE = (function () {
         case 'not_started': return g.n===1?(docsReady(p)?'To start':'To start · documents needed'):'Ready to start '+nm;
         case 'in_progress': return g.n===1?'Working on layout':'Working on '+nm;
         case 'internal_review': return ext?(g.n===1?'Working on layout':'Working on '+nm):nm+' in internal review';
-        case 'with_reviewers': return nm+' sent';
-        case 'changes_requested': return nm+' reviewed '+r;
+        case 'with_reviewers': return nm+' to approve';
+        case 'changes_requested': return 'Revising '+nm;
       }
     }
     if(g.n===4){ var c=g.items.filter(function(i){ return i.doneAt; }).length; return 'Handover '+c+'/3'; }
@@ -972,11 +971,13 @@ var ENGINE = (function () {
     function fld(o,k){ return o&&o[k]?{get:function(){ return o[k]; },set:function(d){ o[k]=d; }}:null; }
     function sentRef(g){ var v=lastSentV(g); return v?fld(v,'sentAt'):null; }
     function revRef(g,k){ for(var i=g.versions.length-1;i>=0;i--){ var r=g.versions[i].reviews[k]; if(r) return {get:function(){ return r.at; },set:function(d){ r.at=d; var lv=last(g); if(g.status==='approved'&&lv.reviews.apple&&lv.reviews.partner) g.closedAt=later(lv.reviews.apple.at,lv.reviews.partner.at); }}; } return null; }
+    function okRef(g){ return closedStage(g)&&real(g.closedAt)?{get:function(){ return g.closedAt; },set:function(d){ g.closedAt=d; if(g.n<3&&real(p.stages[g.n].startAt)) p.stages[g.n].startAt=d; }}:null; }
     function doneRef(g){ return g.doneAt?{get:function(){ return g.doneAt; },set:function(d){ g.doneAt=d; g.closedAt=d; }}:null; }
     switch(key){
       case 'created': return {get:function(){ return createdOf(p); },set:function(d){ p.createdAt=d; }};
       case 'target': return {get:function(){ return p.target; },set:function(d){ p.target=d; }};
-      case 'startLayout': return fld(g1,'startAt'); case 'startFdk': return fld(g3,'startAt');
+      case 'startLayout': return fld(g1,'startAt'); case 'startFdk': return fld(g3,'startAt'); case 'startIdk': return fld(p.stages[1],'startAt');
+      case 'okLayout': return okRef(g1); case 'okIdk': return okRef(p.stages[1]); case 'okFdk': return okRef(g3);
       case 'sentLayout': return sentRef(g1); case 'sentIdk': return sentRef(p.stages[1]); case 'sentFdk': return sentRef(g3);
       case 'apLayout': return revRef(g1,'apple'); case 'paLayout': return revRef(g1,'partner');
       case 'apIdk': return revRef(p.stages[1],'apple'); case 'paIdk': return revRef(p.stages[1],'partner');
@@ -991,7 +992,9 @@ var ENGINE = (function () {
     function sent(g){ var v=lastSentV(g); return v?{at:v.sentAt}:null; }
     function rev(g,k){ for (var i=g.versions.length-1;i>=0;i--){ var r=g.versions[i].reviews[k]; if(r) return {at:r.at,outcome:r.outcome}; } return null; }
     function d(x){ return x?{at:x}:null; }
+    function ok(g){ return closedStage(g)&&real(g.closedAt)?{at:g.closedAt}:null; }
     switch(key){
+      case 'startIdk': return d(g2.startAt); case 'okLayout': return ok(g1); case 'okIdk': return ok(g2); case 'okFdk': return ok(g3);
       case 'startLayout': return d(g1.startAt); case 'expIdk': return expIdk(p)?d(expIdk(p)):{at:estIdk(p),est:true}; case 'expFdk': return expFdk(p)?d(expFdk(p)):{at:estFdk(p),est:true};
       case 'sentLayout': return sent(g1); case 'apLayout': return rev(g1,'apple'); case 'paLayout': return rev(g1,'partner');
       case 'sentIdk': return sent(g2); case 'apIdk': return rev(g2,'apple'); case 'paIdk': return rev(g2,'partner');
@@ -1005,7 +1008,7 @@ var ENGINE = (function () {
   /* One Admin runs everything: an action is allowed for Admin when any internal role could do it. */
   var ROLES=['coord','des','dd','bd'];
   function can(s,per,action,pid,n,item){
-    if(per==='admin'){ if(action==='submit'||action==='ddApprove'||action==='ddReturn'||action==='send') return false; return ROLES.some(function(r){ return canAs(s,r,action,pid,n,item); }); }
+    if(per==='admin'){ if(['submit','ddApprove','ddReturn','send','sendReview','sendPartner','confirmStage','recordApprove','recordChanges','chase'].indexOf(action)>=0) return false; return ROLES.some(function(r){ return canAs(s,r,action,pid,n,item); }); }
     return canAs(s,per,action,pid,n,item);
   }
   function canAs(s,per,action,pid,n,item){
@@ -1027,6 +1030,7 @@ var ENGINE = (function () {
       case 'startProject': return per==='coord' && g.n===1 && g.status==='not_started' && docsReady(p);
       case 'setStart': return per==='coord' && g.n===1 && g.status!=='not_started' && g.startAt==='ND';
       case 'start': return (per==='des'||per==='coord') && g.n>=2 && g.n<=3 && g.status==='not_started' && p.stages[g.n-2].status==='approved';
+      case 'approveStage': return per==='coord' && dv && ['in_progress','changes_requested','with_reviewers','internal_review'].indexOf(g.status)>=0;
       case 'sendReview': return per==='coord' && dv && (g.status==='in_progress'||g.status==='changes_requested');
       case 'sendPartner': return per==='coord' && dv && g.status==='with_reviewers' && !!v && !!v.reviews.apple && v.reviews.apple.outcome==='approved' && !v.reviews.partner && !v.ptoken;
       case 'confirmStage': return per==='coord' && dv && g.status==='with_reviewers' && !!v && !!v.reviews.apple && v.reviews.apple.outcome==='approved' && !!v.reviews.partner && v.reviews.partner.outcome==='approved';
@@ -1079,8 +1083,9 @@ var ENGINE = (function () {
     if((action==='ddReturn'||action==='recordChanges'||action==='itemReturn'||action==='submit') && !note) return fail('Add a short note first.');
     if((action==='comment'||action==='updateLatest') && !String(q.text||'').trim()) return fail('Write something first.');
     var dt=String(q.date||TODAY).trim();
-    if((action==='startProject'||action==='setStart'||action==='recordApprove'||action==='recordChanges'||action==='setDate') && (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || isNaN(d2n(dt)) || n2d(d2n(dt))!==dt)) return fail('Enter a valid date.');
-    if((action==='recordApprove'||action==='recordChanges') && dt>TODAY) return fail('A review can’t be dated in the future.');
+    if((action==='startProject'||action==='setStart'||action==='approveStage'||action==='recordApprove'||action==='recordChanges'||action==='setDate') && (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || isNaN(d2n(dt)) || n2d(d2n(dt))!==dt)) return fail('Enter a valid date.');
+    if((action==='recordApprove'||action==='recordChanges'||action==='approveStage') && dt>TODAY) return fail('An approval can’t be dated in the future.');
+    if(action==='approveStage' && real(g.startAt) && dt<g.startAt.slice(0,10)) return fail('The approval date is before this stage started ('+g.startAt.slice(0,10)+').');
     at=stamp(s);
     switch(action){
       case 'startProject': {
@@ -1161,6 +1166,15 @@ var ENGINE = (function () {
         p.stages=stages(); p.latest=null; p.hold=null;
         s.notes=s.notes.filter(function(x){ return x.pid!==p.id; });
         return {ok:true,msg:'Progress cleared for '+p.store+'. It is back to just after the job was created.'};
+      }
+      case 'approveStage': {
+        /* Single-person flow: the Admin records that the stage is approved, with its date. The next stage starts on that date. */
+        g.status='approved'; g.closedAt=dt; g.since=at; nx=p.stages[g.n];
+        nx.status='in_progress'; nx.since=at; if(g.n<3) nx.startAt=dt;
+        var alk=String(q.link||'').trim();
+        if(alk){ p.extra=p.extra||[]; p.extra.push({id:++s.seq,name:nm+' (approved)',link:alk,at:dt}); }
+        notify(s,['des','dd','bd'],nm+' approved for '+p.store+'. '+(g.n===3?'Handover documents are next.':STAGES[g.n]+' has started.'),p.id,g.n,false);
+        return {ok:true,msg:nm+' approved on '+dt+'. '+(g.n===3?'Handover is next.':STAGES[g.n]+' has started.')};
       }
       case 'sendPartner':
         v.ptoken=newToken(); v.pnote=note; v.psentAt=TODAY; g.since=at;
@@ -1287,6 +1301,7 @@ var ENGINE = (function () {
       if(ei) add(ei,2,'due','IDK due',!idkSent(p)&&TODAY>ei);
       if(ef) add(ef,3,'due','FDK due',!fdkSent(p)&&TODAY>ef);
       [0,1,2].forEach(function(i){ var g=p.stages[i], nm=SHORT[i];
+        if(closedStage(g)) add(g.closedAt,g.n,'approved',nm+' approved');
         g.versions.forEach(function(v){
           add(v.sentAt,g.n,'sent',nm+' v'+v.v+' sent');
           ['apple','partner'].forEach(function(k){ var r=v.reviews[k]; if(r) add(r.at,g.n,k,WHO[k]+(r.outcome==='approved'?' approved ':' changes · ')+nm); });
@@ -1432,12 +1447,12 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '</div></div></header>';
   }
   function nav(){
-    var cur=(U.view==='project'||U.view==='stage')?'portfolio':U.view;
+    var cur=(U.view==='project'||U.view==='stage')?'tracker2':U.view;
     var b=function(view,label,count,icon){ return '<button class="nb" data-go="'+view+'"'+(cur===view?' aria-current="page"':'')+'>'+IC[icon]+'<span class="lb">'+label+'</span>'+(count?'<span class="cnt">'+count+'</span>':'')+'</button>'; };
     var t=E.tasksFor(S,per()).length;
     var lg='<div class="nh">Stage colors</div><div class="lg">'+E.SHORT.map(function(s,i){ return '<span class="lgi"><i style="background:var(--g'+(i+1)+')"></i>'+(i+1)+' · '+esc(s)+'</span>'; }).join('')+'</div>';
     if(ext()) return '<nav class="nav" aria-label="Main"><div class="nh">Portal</div>'+b('home','Tracker',t,'home')+lg+'</nav>';
-    return '<nav class="nav" aria-label="Main"><div class="nh">Work</div>'+b('calendar','Calendar',0,'cal')+b('tasks','My tasks',t,'tasks')+b('portfolio','Tracker',0,'grid')+b('tracker2','Tracker V2',0,'grid')+'<div class="nh">Directory</div>'+b('clients','Resellers',0,'users')+lg+'</nav>';
+    return '<nav class="nav" aria-label="Main"><div class="nh">Work</div>'+b('calendar','Calendar',0,'cal')+b('tracker2','Tracker',0,'grid')+'<div class="nh">Directory</div>'+b('clients','Resellers',0,'users')+lg+'</nav>';
   }
   function switcher(screen){
     return '<div class="vtabs" role="group" aria-label="View as">'+MODES[screen].map(function(m){ return '<button data-mode="'+screen+'|'+m+'" aria-pressed="'+(U.modes[screen]===m)+'">'+IC[m]+cap(m)+'</button>'; }).join('')+'</div>';
@@ -1632,7 +1647,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<div><h2>'+title+'</h2><p class="sub">'+sub+'</p></div>'+switcher('home')+toolbar('')+projectsView(list,'home');
   }
   /* ---------- calendar (default page) ---------- */
-  var EV={start:['Start','var(--g2)'],due:['Due date','var(--h-late)'],sent:['Sent','var(--s-cli)'],apple:['Apple review','var(--s-app)'],partner:['Partner review','var(--g8)'],sla:['Reply due (SLA)','var(--h-risk)'],handover:['Handover','var(--g4)'],open:['Store opens','var(--g6)'],target:['Target opening','var(--nav-2)'],sff:['SFF claim','var(--h-done)']};
+  var EV={start:['Start','var(--g2)'],due:['Due date','var(--h-late)'],approved:['Approved','var(--h-done)'],sent:['Sent','var(--s-cli)'],apple:['Apple review','var(--s-app)'],partner:['Partner review','var(--g8)'],sla:['Reply due (SLA)','var(--h-risk)'],handover:['Handover','var(--g4)'],open:['Store opens','var(--g6)'],target:['Target opening','var(--nav-2)'],sff:['SFF claim','var(--h-done)']};
   function shortName(p){ var n=p.store; var i=n.indexOf('@'); return (i>=0?n.slice(i+1):n).replace(/^\s+/,'').slice(0,28); }
   function pad2(x){ return (x<10?'0':'')+x; }
   function vCalendar(){
@@ -1647,13 +1662,13 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       var hol=E.holidaysOn(key,[E.WORK_CAL]);
       cells+='<div class="cal-c'+(wd>=5?' we':'')+(hol.length?' hol':'')+(isT?' today':'')+(c.sel===key?' sel':'')+'" role="button" tabindex="0" data-day="'+key+'" aria-label="'+d+' '+(ev.length?ev.length+' events':'no events')+(hol.length?', public holiday in '+hol.join(' '):'')+'"><span class="cal-d">'+d+'</span>'+(hol.length?'<span class="hl" title="Public holiday: '+hol.map(function(k){ return E.COUNTRIES[k]; }).join(', ')+'">Holiday '+hol.join(' ')+'</span>':'')+ev.slice(0,3).map(function(e){ var p=E.P(S,e.pid); return '<span class="ev'+(e.late?' late':'')+'" style="--ec:'+EV[e.type][1]+'" title="'+esc(p.store+' · '+e.label)+'"><b>'+esc(shortName(p))+'</b> '+esc(e.label)+'</span>'; }).join('')+(ev.length>3?'<span class="ev more">+'+(ev.length-3)+' more</span>':'')+'</div>';
     }
-    var legend='<div class="chips cal-lg">'+Object.keys(EV).map(function(k){ return '<button class="lgb" data-evt="'+k+'" aria-pressed="'+(c.type===k)+'"><i style="background:'+EV[k][1]+'"></i>'+EV[k][0]+'</button>'; }).join('')+'</div>';
+    var legend='<div class="chips cal-lg">'+Object.keys(EV).filter(function(k){ return ['sent','apple','partner','sla'].indexOf(k)<0; }).map(function(k){ return '<button class="lgb" data-evt="'+k+'" aria-pressed="'+(c.type===k)+'"><i style="background:'+EV[k][1]+'"></i>'+EV[k][0]+'</button>'; }).join('')+'</div>';
     var sel=byDay[c.sel]||[];
     var day='<section class="panel"><div class="ph"><h2>'+(c.sel===E.TODAY?'Today · ':'')+fmtD(c.sel)+'</h2><span class="small">'+sel.length+' event'+(sel.length===1?'':'s')+'</span></div>'+(sel.length?sel.map(function(e){ var p=E.P(S,e.pid); return '<div class="pbd" style="border-top:1px solid var(--line-2);grid-template-columns:auto minmax(0,1fr) auto;align-items:center"><i class="evd" style="background:'+EV[e.type][1]+'"></i><div><b>'+esc(p.store)+'</b><div class="small">'+esc(e.label)+(e.late?' · overdue':'')+' · '+esc(EV[e.type][0])+'</div></div><button class="btn sm" data-go="stage|'+p.id+'|'+e.n+'">Open</button></div>'; }).join(''):'<div class="pbd small">Nothing on this day.</div>')+'</section>';
     var soon=E.events(S).filter(function(e){ return (e.type==='due'||e.type==='sla'||e.type==='target')&&(e.date<=E.addWorkdays(E.TODAY,10))&&(e.late||e.date>=E.TODAY)&&(!f.country||E.P(S,e.pid).country===f.country); }).sort(function(a,b){ return a.date<b.date?-1:1; }).slice(0,12);
-    var up='<section class="panel"><div class="ph"><h2>Overdue and coming up</h2><span class="small">Reply due = '+E.SLA+' working day after sending, excluding weekends and public holidays</span></div>'+(soon.length?soon.map(function(e){ var p=E.P(S,e.pid); return '<div class="pbd" style="border-top:1px solid var(--line-2);grid-template-columns:auto minmax(0,1fr) auto;align-items:center"><i class="evd" style="background:'+EV[e.type][1]+'"></i><div><b>'+esc(p.store)+'</b><div class="small">'+esc(e.label)+' · '+fmtD(e.date)+'</div></div>'+(e.late?'<span class="chip crit">Overdue</span>':'<span class="chip plain">'+fmtD(e.date)+'</span>')+'</div>'; }).join(''):'<div class="pbd small">Nothing overdue or due in the next 10 working days.</div>')+'</section>';
+    var up='<section class="panel"><div class="ph"><h2>Overdue and coming up</h2><span class="small">Due dates count working days, excluding weekends and Thai public holidays</span></div>'+(soon.length?soon.map(function(e){ var p=E.P(S,e.pid); return '<div class="pbd" style="border-top:1px solid var(--line-2);grid-template-columns:auto minmax(0,1fr) auto;align-items:center"><i class="evd" style="background:'+EV[e.type][1]+'"></i><div><b>'+esc(p.store)+'</b><div class="small">'+esc(e.label)+' · '+fmtD(e.date)+'</div></div>'+(e.late?'<span class="chip crit">Overdue</span>':'<span class="chip plain">'+fmtD(e.date)+'</span>')+'</div>'; }).join(''):'<div class="pbd small">Nothing overdue or due in the next 10 working days.</div>')+'</section>';
     var co='<label for="f-country">Country <select id="f-country"><option value="">All</option>'+usedCountries().map(function(k){ return '<option value="'+k+'"'+(f.country===k?' selected':'')+'>'+E.COUNTRIES[k]+'</option>'; }).join('')+'</select></label>';
-    return head('Spec W1 · Calendar','Calendar','Every dated step of every store in one place. Weekends and public holidays are marked and don’t count toward the reply SLA: starts, due dates, sends, replies, handover and openings. The IDK due date shows once the Coordinator has entered a start date, and the FDK due date once the IDK is approved.',createBtn())+'<div class="tb cal-bar">'+h+toolbar(co)+'</div>'+legend+'<div class="cal"><div class="cal-g">'+days+cells+'</div></div><div class="cols">'+day+up+'</div>';
+    return head('Spec W1 · Calendar','Calendar','Every dated step of every store in one place. Starts, due dates, approvals, handover and openings. Weekends and Thai public holidays are marked and don’t count as working days. The IDK due date shows once the Coordinator has entered a start date, and the FDK due date once the IDK is approved.',createBtn())+'<div class="tb cal-bar">'+h+toolbar(co)+'</div>'+legend+'<div class="cal"><div class="cal-g">'+days+cells+'</div></div><div class="cols">'+day+up+'</div>';
   }
   /* ================= Tracker V2: same data and actions as Tracker, redesigned table ================= */
   var T2STAGE=['Layout','IDK','FDK','Handover','Opens','SFF'];
@@ -1695,7 +1710,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<td>'+t2Health(p)+'</td>'+
       '<td><button type="button" class="xb" data-t2="x|'+p.id+'" aria-expanded="'+open+'" aria-label="'+(open?'Hide':'Show')+' all dates for '+esc(p.store)+'">'+IC.chev+'</button></td></tr>';
     if(!open) return row;
-    var cards=[[1,'1 · Layout',[['startLayout','Start'],['sentLayout','Sent'],['apLayout','Apple'],['paLayout','Partner']]],[2,'2 · IDK',[['sentIdk','Sent'],['apIdk','Apple'],['paIdk','Partner']]],[3,'3 · FDK',[['startFdk','Start'],['sentFdk','Sent'],['apFdk','Apple'],['paFdk','Partner']]],[4,'4 · Handover',[['onePage','1-page'],['constr','Schedule'],['install','Install']]],[5,'5 · Open & Claim',[['opens','Opens'],['sff','SFF']]],[6,'Portal',null]];
+    var cards=[[1,'1 · Layout',[['startLayout','Start'],['okLayout','Approved']]],[2,'2 · IDK',[['startIdk','Start'],['expIdk','Due'],['okIdk','Approved']]],[3,'3 · FDK',[['startFdk','Start'],['expFdk','Due'],['okFdk','Approved']]],[4,'4 · Handover',[['onePage','1-page'],['constr','Schedule'],['install','Install']]],[5,'5 · Open & Claim',[['opens','Opens'],['sff','SFF']]],[6,'Portal',null]];
     var xs=cards.map(function(c){
       var cur=!dn&&(c[0]===g.n||(c[0]===5&&g.n===6)), body;
       if(c[2]) body=c[2].map(function(k){ var m=E.mval(p,k[0]); var v=m?((m.outcome==='changes'?'<span class="cr" title="Changes requested">↺</span> ':'')+t2Date(p,k[0],m.at)):'<span class="t2nil">–</span>'; return '<div class="kv2"><span>'+k[1]+'</span><span>'+v+'</span></div>'; }).join('');
@@ -1780,13 +1795,13 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
         if(g.n<=3) return p.stages[g.n-2].status==='approved'?(X?'Whitespace will start '+sn+'.':'Ready to start.'):'Starts when '+E.STAGES[g.n-2]+' is approved.';
         return 'Starts when '+E.STAGES[g.n-2]+' is '+(g.n===4?'approved':'done')+'.';
       case 'in_progress':
-        if(g.n<=3) return X?'Whitespace is working on '+sn+'.':(g.n===1&&!E.real(g.startAt)?'The start date was never recorded. ':'')+'Next: send '+E.SHORT[g.n-1]+' v'+(g.versions.length+1)+' to Apple for review.';
+        if(g.n<=3) return X?'Whitespace is working on '+sn+'.':(g.n===1&&!E.real(g.startAt)?'The start date was never recorded. ':'')+'Next: approve '+E.SHORT[g.n-1]+' when it is done.';
         if(g.n===4){ var left=g.items.filter(function(i){ return !i.doneAt; }).length; return X?'Whitespace is issuing '+left+' handover document'+(left>1?'s':'')+'.':'Next: issue '+left+' handover document'+(left>1?'s':'')+'.'; }
         if(g.n===5) return X?'Waiting for the store to open.':'Next: record the store opening.';
         return X?'Whitespace will file the SFF claim.':'Next: record the SFF claim.';
-      case 'internal_review': return X?'Whitespace is reviewing the next version internally.':v.internal==='pending'?'Next: internal review of v'+v.v+'.':'Approved internally. Next: send v'+v.v+' to Apple and the Partner.';
-      case 'changes_requested': var by=lastChanger(g); return X?'Whitespace is revising after the change request.':(by?E.WHO[by]+' requested changes. ':'Changes requested. ')+'Next: send '+E.SHORT[g.n-1]+' v'+(g.versions.length+1)+' to Apple for review.';
-      case 'with_reviewers': if(!X&&v&&v.token){ var nxs=(g.n<3?E.STAGES[g.n]:'Handover'); if(!v.reviews.apple) return 'Step 1 of 3 · Sent to Apple. Waiting for their reply on v'+v.v+' (due within '+E.SLA+' working day). Share the review link below.'; if(!v.reviews.partner) return v.ptoken?'Step 2 of 3 · Apple approved. Sent to the Partner, waiting for their reply. Share the Partner link below.':'Step 2 of 3 · Apple approved v'+v.v+'. Next: send it to the Partner for approval.'; return 'Step 3 of 3 · Apple and the Partner approved v'+v.v+'. Confirm to close '+E.STAGES[g.n-1]+' and start '+nxs+'.'; }
+      case 'internal_review': return X?'Whitespace is reviewing the next version internally.':v.internal==='pending'?'Next: internal review of v'+v.v+'.':'Next: approve '+E.SHORT[g.n-1]+' when it is done.';
+      case 'changes_requested': var by=lastChanger(g); return X?'Whitespace is revising after the change request.':'Next: approve '+E.SHORT[g.n-1]+' when it is done.';
+      case 'with_reviewers': if(!X) return 'Next: approve '+E.SHORT[g.n-1]+' when it is done.'; if(!X&&v&&v.token){ var nxs=(g.n<3?E.STAGES[g.n]:'Handover'); if(!v.reviews.apple) return 'Step 1 of 3 · Sent to Apple. Waiting for their reply on v'+v.v+' (due within '+E.SLA+' working day). Share the review link below.'; if(!v.reviews.partner) return v.ptoken?'Step 2 of 3 · Apple approved. Sent to the Partner, waiting for their reply. Share the Partner link below.':'Step 2 of 3 · Apple approved v'+v.v+'. Next: send it to the Partner for approval.'; return 'Step 3 of 3 · Apple and the Partner approved v'+v.v+'. Confirm to close '+E.STAGES[g.n-1]+' and start '+nxs+'.'; }
         var pe=E.pend(g); if(pe.indexOf(k)>=0) return 'Waiting on you to review v'+v.v+'.'; var w=E.waitingOn(p); return 'Waiting on '+pe.map(function(x){ return E.WHO[x]; }).join(' and ')+' to review v'+v.v+(w.workdays!==null&&w.workdays>E.SLA?'. Overdue: the reply was due within '+E.SLA+' working day.':'. Reply is due within '+E.SLA+' working day of sending. Weekends and Thai public holidays don’t count.')+' Record each reply here.';
       case 'approved': return 'Approved '+fmtD(g.closedAt)+' by Apple and the Partner.';
       case 'done': return 'Done '+fmtD(g.closedAt)+'.';
@@ -1819,8 +1834,8 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<h3 class="dsub">Other documents</h3>'+(ex?'<div class="docs">'+ex+'</div>':'<p class="small">None yet. Press + Add to keep a Google Drive link here.</p>')+'</div></section>';
   }
   function milestonesPanel(p){
-    var groups=[['Layout',['startLayout','expIdk','sentLayout','apLayout','paLayout']],['IDK',['sentIdk','apIdk','paIdk']],['FDK',['startFdk','sentFdk','apFdk','paFdk']],['Handover',['onePage','constr','install']],['Open & claim',['opens','sff']]];
-    var lab={}; COLS.forEach(function(c){ lab[c[0]]=colName(c); });
+    var groups=[['Layout',['startLayout','okLayout']],['IDK',['startIdk','expIdk','okIdk']],['FDK',['startFdk','expFdk','okFdk']],['Handover',['onePage','constr','install']],['Open & claim',['opens','sff']]];
+    var lab={}; COLS.forEach(function(c){ lab[c[0]]=colName(c); }); lab.startIdk='Start IDK'; lab.okLayout='Layout approved'; lab.okIdk='IDK approved'; lab.okFdk='FDK approved'; lab.expIdk='IDK due'; lab.expFdk='FDK due';
     return '<section class="panel"><div class="ph"><h2>Milestones</h2><span class="small">The tracker’s date columns for this store</span></div><div class="pbd"><div class="mg">'+groups.map(function(g){
       return '<div><h3>'+esc(g[0])+'</h3><dl class="kv">'+g[1].map(function(k){ var m=E.mval(p,k); return '<dt>'+esc(lab[k])+'</dt><dd>'+(m?(m.outcome==='changes'?'↺ ':'')+esc(m.at==='ND'?'✓ date not recorded':fmtD(m.at))+(m.outcome==='changes'?' <span class="small">changes requested</span>':'')+(m.est?' <span class="small">estimate</span>':''):'<span class="small">—</span>')+'</dd>'; }).join('')+'</dl></div>';
     }).join('')+'</div></div></section>';
@@ -1905,13 +1920,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     A('startProject','Start Layout','p',null,1); A('setStart','Enter the start date','p');
     A('start','Start '+sn,'p');
     var pre='';
-    A('sendReview','Send '+sn+' v'+(g.versions.length+1)+' to Apple','p');
-    if(v&&g.status==='with_reviewers'){
-      var ap=v.reviews.apple, pa=v.reviews.partner;
-      if(!ap){ if(v.token) pre=linkBox(p,g,v,'apple'); }
-      else if(!pa){ pre=partyReply(v,'apple')+(v.ptoken?linkBox(p,g,v,'partner'):''); A('sendPartner','Send to Partner for approval','p'); }
-      else { pre=appleReply(v); A('confirmStage','Confirm & start '+(g.n<3?E.SHORT[g.n]:'Handover'),'p'); }
-    } else if(v&&g.status==='changes_requested') pre=appleReply(v);
+    A('approveStage','Approve '+sn,'p');
     if(g.n===4&&g.items) g.items.forEach(function(i){ if(!i.doneAt) A('issueDoc','Issue '+i.name,'p',i.i); });
     A('recordOpen','Record store opening','p'); A('recordSff','Record SFF claim','p');
     if(!b.length&&g.n===1&&g.status==='not_started') return '<span class="small">Check the Store Brief and CAD file in Store documents first.</span>';
@@ -1921,7 +1930,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   /* Key dates with the tracker's colours and a countdown. */
   function dayDiff(d){ var x=d.split('-'), t=E.TODAY.split('-'); return Math.round((Date.UTC(+x[0],x[1]-1,+x[2])-Date.UTC(+t[0],t[1]-1,+t[2]))/864e5); }
   function keyDates(p){
-    var K=[['IDK due','expIdk','sentIdk','IDK sent'],['FDK due','expFdk','sentFdk','FDK sent'],['Target opening','target',null,'Store opened']];
+    var K=[['IDK due','expIdk','okIdk','IDK approved'],['FDK due','expFdk','okFdk','FDK approved'],['Target opening','target',null,'Store opened']];
     return '<div class="kds"><h3 class="dsub" style="margin:2px 0 4px;padding-top:0;border-top:0">Key dates</h3>'+K.map(function(k){
       var m=k[1]==='target'?(p.target?{at:p.target}:null):E.mval(p,k[1]);
       var fin=k[1]==='target'?p.stages[4].status==='done':!!E.mval(p,k[2]);
@@ -1937,7 +1946,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   }
   function vProject(p){
     var X=ext(), g=E.currentStage(p), dn=E.done(p);
-    var h='<div class="crumb">'+(X?'<button data-go="home">Tracker</button>':'<button data-go="portfolio">Tracker</button>')+'<span>›</span><span>'+esc(cname(p))+'</span><span>›</span><span>'+esc(rname(p))+'</span></div>'+
+    var h='<div class="crumb">'+(X?'<button data-go="home">Tracker</button>':'<button data-go="tracker2">Tracker</button>')+'<span>›</span><span>'+esc(cname(p))+'</span><span>›</span><span>'+esc(rname(p))+'</span></div>'+
       band(esc(cname(p))+' · '+esc(rname(p))+(p.kit?' · '+esc(p.kit):''),esc(p.store),'',(X?'':hChip(p))+'<span class="chip plain">Now: '+esc(E.nowLabel(p,X))+'</span><span class="chip plain">Waiting on '+esc(waitLabel(p))+'</span>','var(--nav-2)','');
     h+=track(p);
     var fl=flags(p);
@@ -1979,7 +1988,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   function actionsHTML(p,g){
     var b=[], v=E.last(g);
     function A(action,label,cls,item){ if(E.can(S,per(),action,p.id,g.n,item)) b.push('<button class="btn '+(cls||'')+'" data-act="'+action+'" data-pid="'+p.id+'" data-n="'+g.n+'"'+(item?(typeof item==='string'?' data-party="'+item+'"':' data-item="'+item+'"'):'')+'>'+esc(label)+'</button>'); }
-    A('startProject','Start the project','p'); A('setStart','Enter the start date','p'); A('sendReview','Send '+E.SHORT[g.n-1]+' v'+(g.versions.length+1)+' to Apple','p');
+    A('startProject','Start the project','p'); A('setStart','Enter the start date','p'); A('approveStage','Approve '+E.SHORT[g.n-1],'p');
     A('start','Start '+E.SHORT[g.n-1],'p');
     A('submit','Submit v'+(g.versions.length+1),'p');
     if(v){ A('ddApprove','Approve v'+v.v,'p'); A('ddReturn','Return to Designer'); A('send','Send v'+v.v+' to Apple and Partner','p'); ['apple','partner'].forEach(function(k){ A('recordApprove',E.WHO[k]+' approved','p',k); A('recordChanges',E.WHO[k]+' requested changes','',k); }); }
@@ -2026,7 +2035,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   function vStage(p,g){
     var X=ext(), nm=E.STAGES[g.n-1];
     var right=stChip(g)+(g.n<=3&&E.rounds(g)?'<span class="chip plain num">Review rounds '+E.rounds(g)+'</span>':'')+(E.expIdk(p)?'<span class="chip plain">IDK due '+fmtD(E.expIdk(p))+'</span>':'')+(E.expFdk(p)?'<span class="chip plain">FDK due '+fmtD(E.expFdk(p))+'</span>':'');
-    var h='<div class="crumb">'+(X?'<button data-go="home">Tracker</button>':'<button data-go="portfolio">Tracker</button>')+'<span>›</span><button data-go="project|'+p.id+'">'+esc(p.store)+'</button></div>'+band(g.n<=3?'Spec W6 · Stage page':'Spec W6 · Milestone stage','Stage '+g.n+' · '+esc(nm),null,right,'var(--g'+g.n+')');
+    var h='<div class="crumb">'+(X?'<button data-go="home">Tracker</button>':'<button data-go="tracker2">Tracker</button>')+'<span>›</span><button data-go="project|'+p.id+'">'+esc(p.store)+'</button></div>'+band(g.n<=3?'Spec W6 · Stage page':'Spec W6 · Milestone stage','Stage '+g.n+' · '+esc(nm),null,right,'var(--g'+g.n+')');
     h+=chainHTML(p,g)+actionsHTML(p,g);
     if(g.n<=3){
       if(g.status!=='not_started') h+=reviewCards(p,g)+'<section class="panel"><div class="ph"><h2>Versions</h2><span class="small">'+(X?'Sent work only':'Newest first · drafts stay in the internal working folder')+'</span></div>'+versionsHTML(p,g)+'</section>';
@@ -2084,11 +2093,11 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     var ae=document.activeElement, keepQ=!!ae&&ae.id==='q', caret=keepQ?ae.selectionStart:0;
     var p=U.pid?E.P(S,U.pid):null;
     if(U.view==='home') U.view='calendar';
-    if(U.view==='approvals') U.view='tasks';
+    if(U.view==='approvals'||U.view==='tasks'||U.view==='portfolio') U.view='tracker2'; /* My tasks and the old Tracker were removed */
     if((U.view==='project'||U.view==='stage') && (!p||!E.sees(S,per(),p))){ U.view=homeOf(per()); p=null; }
     var g=(U.view==='stage'&&p)?p.stages[(U.n||1)-1]:null;
     if(U.view==='stage'&&!g){ U.view='project'; }
-    var body=U.view==='calendar'?vCalendar():U.view==='tasks'?vTasks():U.view==='portfolio'?vPortfolio():U.view==='clients'?vClients():U.view==='tracker2'?vTracker2():U.view==='approvals'?vApprovals():U.view==='home'?vHome():U.view==='project'?vProject(p):vStage(p,g);
+    var body=U.view==='calendar'?vCalendar():U.view==='clients'?vClients():U.view==='tracker2'?vTracker2():U.view==='approvals'?vApprovals():U.view==='home'?vHome():U.view==='project'?vProject(p):vStage(p,g);
     E.markSeen(S,per()+':'+U.view+(U.view==='stage'?':'+p.id+':'+g.n:''));
     document.body.classList.toggle('try-open',!!U.tryOpen);
     app.innerHTML=top()+'<div class="shell gut wide">'+nav()+'<main id="main">'+body+'</main></div>'+(U.tryOpen?tryHTML():'')+(U.bell?bellHTML():'');
@@ -2160,6 +2169,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       case 'setKit': t='SDK or RDK'; b='<label class="fld" for="f-kit">Kit type<select id="f-kit" name="f-kit" data-req><option value="">Choose</option>'+['SDK','RDK'].map(function(o){ return '<option value="'+o+'"'+(p.kit===o?' selected':'')+'>'+esc(E.KITS[o])+'</option>'; }).join('')+'</select></label>'+hint('RDK includes a render. SDK does not. Shown in the SDK or RDK column of the tracker.'); ok='Save'; break;
       case 'startProject': t='Start the project'; b=fldDate('f-date','Project start date',E.TODAY)+hint('This is the first day of the project. IDK is due 2 weeks later. FDK is due 1 week after the IDK is approved. The Designer then works on the layout.'); ok='Start project'; break;
       case 'setStart': t='Enter the start date'; b=fldDate('f-date','Project start date',E.TODAY)+hint('The tracker has no start date for this store. IDK is due 2 weeks after it.'); ok='Save start date'; break;
+      case 'approveStage': t='Approve '+nm; b=fldDate('f-date','Approval date',E.TODAY)+fld('f-link','Approved file link (optional)','input','',false,'https://drive.google.com/...')+hint(g.n<3?'This closes '+nm+' and starts '+E.STAGES[g.n]+' on the approval date.'+(g.n===2?' FDK is due 5 working days after it.':''):'This closes '+nm+'. Handover documents are next.')+hint('A link you add is kept in Store documents.'); ok='Approve'; break;
       case 'recordApprove': if(item==='partner'){ t='Approve '+nm+' v'+v.v+' and start '+(g.n<3?E.STAGES[g.n]:'Handover'); b=fldDate('f-date','Approval date',E.TODAY)+fld('f-note','Note (optional)','textarea','')+hint('Apple has approved. This closes '+nm+' and starts the next stage today.'); ok='Approve & start'; break; }
         t='Record: '+E.WHO[item]+' approved '+nm+' v'+v.v; b=fldDate('f-date','Date of their reply',E.TODAY)+fld('f-note','Note (optional)','textarea','')+hint('When both Apple and the Partner have approved, the stage closes and the next one is ready.'); ok='Record approval'; break;
       case 'recordChanges': t=(item==='partner'?'Request changes on ':'Record: Apple requested changes on ')+nm+' v'+v.v; b=fldDate('f-date','Date of their reply',E.TODAY)+fld('f-note','What they asked to change','textarea','',true)+'<div class="strip">This is review round '+(E.rounds(g)+1)+'. The next version goes back to both Apple and the Partner. An approval on v'+v.v+' does not carry over.</div>'; ok='Record change request'; break;
