@@ -295,6 +295,13 @@ dialog.cfm{width:min(400px,calc(100vw - 32px))}
 .fld{display:grid;gap:6px;font-size:13px;font-weight:600}
 .fld input,.fld textarea{width:100%;font-weight:400}
 .fld textarea{min-height:90px;resize:vertical}
+.rt{border:0;padding:0;margin:0;display:grid;gap:8px;text-align:left}
+.rt legend{font-size:13px;font-weight:600;padding:0;margin-bottom:6px}
+.rt-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;text-align:left}
+.rt-opt input{width:auto;flex:none;margin:2px 0 0;accent-color:var(--accent)}
+.rt-opt span{display:grid;gap:2px;font-size:13.5px}
+.rt-opt small{font-size:12.5px;color:var(--muted);font-weight:400}
+.rt-opt:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .hint{font-size:12.5px;color:var(--muted)}
 .radio{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-weight:400}
 .radio:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
@@ -484,6 +491,90 @@ button.tile{cursor:pointer}
 .t2card{background:var(--v2-card);border:1px solid var(--v2-line);border-radius:12px;overflow:hidden}
 .t2bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px;border-bottom:1px solid var(--v2-line)}
 .t2bar .sp-flex{flex:1}
+/* ===== Calendar redesign (c2) ===== */
+.c2rules{display:flex;flex-wrap:wrap;gap:8px}
+.c2rule{display:inline-flex;align-items:center;gap:8px;background:var(--v2-card);border:1px solid var(--v2-line);border-radius:8px;padding:7px 12px;font-size:13px;color:var(--v2-ink2)}
+.c2rule i{width:10px;height:10px;border-radius:3px;flex:none}
+.c2main{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.c2card{flex:1 1 620px;min-width:0;background:var(--v2-card);border:1px solid var(--v2-line);border-radius:12px;overflow:hidden}
+.c2side{flex:0 1 340px;min-width:300px;max-width:380px;display:flex;flex-direction:column;gap:16px}
+@media (max-width:1240px){ .c2side{flex:1 1 100%;max-width:none;flex-direction:row;flex-wrap:wrap} .c2side>*{flex:1 1 300px} }
+.c2bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px;border-bottom:1px solid var(--v2-line)}
+.c2bar .sp-flex{flex:1}
+.c2bar .search.s2{flex:0 1 260px;min-width:180px}
+.c2bar .search.s2 input{border-radius:8px;min-height:38px;width:100%}
+.c2nav{display:flex;align-items:center;gap:8px}
+.c2ib{width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--v2-line);border-radius:8px;background:var(--v2-card);color:var(--v2-ink);cursor:pointer;padding:0}
+.c2ib svg{width:18px;height:18px}
+.c2ib:hover{background:var(--v2-hover)}
+.c2t{font-size:20px;font-weight:700;margin:0 6px;min-width:9.5ch;color:var(--v2-ink);white-space:nowrap}
+.c2show{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--v2-line)}
+.c2lab{font:600 11px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--v2-mute);margin-right:4px}
+.c2f{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--v2-line);background:var(--v2-card);border-radius:999px;padding:6px 10px;font:600 12.5px/1 'IBM Plex Sans','IBM Plex Sans Thai',sans-serif;color:var(--v2-ink);cursor:pointer}
+.c2f i{width:8px;height:8px;border-radius:50%;background:var(--ec);flex:none}
+.c2f .n{font:500 11.5px/1 var(--f-mono);color:var(--v2-mute)}
+.c2f[aria-pressed="false"]{background:var(--v2-chip);color:var(--v2-mute);text-decoration:line-through}
+.c2f[aria-pressed="false"] i{background:#A3A9B6}
+.c2all{border:0;background:none;color:var(--v2-pri);font:600 12.5px/1 'IBM Plex Sans',sans-serif;cursor:pointer;padding:6px}
+.c2wrap{overflow-x:auto}
+.c2g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));min-width:760px}
+.c2dn{background:var(--v2-head);font:600 11px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--v2-ink2);padding:10px;border-bottom:1px solid var(--v2-line)}
+.c2dn.we{color:#6B7285}
+.c2c{min-height:124px;padding:6px;border-right:1px solid var(--v2-row);border-bottom:1px solid var(--v2-row);display:flex;flex-direction:column;gap:3px;min-width:0;cursor:pointer;background:var(--v2-card)}
+.c2g>.c2c:nth-child(7n){border-right:0}
+.c2c.off{background:#FAFAFC}
+.c2c.off .c2d{color:var(--v2-mute)}
+.c2c.out>*{opacity:.45}
+.c2c:hover{background:var(--v2-hover)}
+.c2c.sel{background:#EEF3FF;box-shadow:inset 0 0 0 2px var(--v2-pri)}
+.c2d{all:unset;box-sizing:border-box;cursor:pointer;font:600 12.5px/1 var(--f-mono);min-width:26px;height:26px;padding:0 4px;border-radius:999px;display:grid;place-items:center;color:var(--v2-ink);align-self:flex-start}
+.c2d:focus-visible,.c2more:focus-visible,.c2st:focus-visible,.c2an:focus-visible,.c2lh:focus-visible{outline:2px solid var(--v2-pri);outline-offset:1px}
+.c2c.today .c2d{background:var(--v2-pri);color:#fff}
+.c2hol{align-self:flex-start;font-size:10.5px;font-weight:600;background:#FDF1E3;color:#8A4B08;border-radius:999px;padding:2px 7px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c2ev{display:block;font-size:11px;line-height:1.35;padding:3px 6px;border-radius:5px;border-left:3px solid var(--ec);background:color-mix(in srgb,var(--ec) 8%,transparent);color:var(--v2-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c2ev b{font-weight:700}
+.c2ev.late{background:#FDE8EA;color:#A11D2E}
+.c2more{all:unset;cursor:pointer;font-size:11px;font-weight:600;color:var(--v2-pri);padding:2px 6px;border-radius:4px;align-self:flex-start}
+.c2more:hover{text-decoration:underline}
+.c2g.week .c2c{min-height:340px}
+.c2list{display:flex;flex-direction:column}
+.c2li{display:grid;grid-template-columns:120px minmax(0,1fr);gap:12px;padding:10px 14px;border-bottom:1px solid var(--v2-row)}
+.c2li.sel{background:#EEF3FF}
+.c2lh{all:unset;cursor:pointer;display:flex;align-items:baseline;gap:8px;color:var(--v2-ink);border-radius:6px;align-self:start}
+.c2lh b{font-size:20px}
+.c2lh span{font-size:12.5px;color:var(--v2-mute)}
+.c2lr{display:flex;flex-direction:column;gap:4px;min-width:0}
+.c2lr .c2ev{font-size:12.5px;padding:5px 8px}
+.c2box{background:var(--v2-card);border:1px solid var(--v2-line);border-radius:12px;overflow:hidden}
+.c2bh{padding:14px 16px;border-bottom:1px solid var(--v2-row)}
+.c2wd{font-size:12.5px;color:var(--v2-mute)}
+.c2date{font-size:20px;font-weight:700;margin:2px 0;display:flex;align-items:center;gap:8px;color:var(--v2-ink)}
+.c2h{font-size:15px;font-weight:700;margin:0;color:var(--v2-ink)}
+.c2tag{font:700 10.5px/1 var(--f-mono);text-transform:uppercase;letter-spacing:.05em;background:var(--v2-pri);color:#fff;border-radius:999px;padding:4px 8px}
+.c2sum{font-size:13px;color:var(--v2-ink2)}
+.c2grp{padding:12px 16px;border-top:1px solid var(--v2-row)}
+.c2bh+.c2grp{border-top:0}
+.c2gh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px}
+.c2gh span{font-size:12px;color:var(--v2-mute)}
+.c2st,.c2an{all:unset;cursor:pointer;color:var(--v2-ink);border-radius:4px}
+.c2st{font-weight:700;font-size:14px}
+.c2st:hover,.c2an:hover{color:var(--v2-pri);text-decoration:underline}
+.c2row{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:10px;align-items:center;padding:5px 0;font-size:13px;color:var(--v2-ink)}
+.c2row i{width:8px;height:8px;border-radius:50%;background:var(--ec)}
+.c2row small{color:var(--v2-mute);font-size:11.5px;white-space:nowrap}
+.c2od{color:#A11D2E;font-size:11.5px}
+.c2att{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid var(--v2-row);font-size:13px}
+.c2bh+.c2att{border-top:0}
+.c2an{line-height:1.35}
+.c2an b{font-weight:700}
+.c2ad{font:500 12px/1 var(--f-mono);color:var(--v2-ink2);white-space:nowrap}
+.c2bad{font-size:11px;font-weight:700;border-radius:999px;padding:3px 8px;white-space:nowrap}
+.c2bad.od{background:#FDE8EA;color:#A11D2E}
+.c2bad.ds{background:#FDF1E3;color:#8A4B08}
+.c2none{padding:16px;font-size:13px;color:var(--v2-mute)}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .c2 .c2c.off{background:var(--surface-2)} :root:not([data-theme="light"]) .c2 .c2c.sel,:root:not([data-theme="light"]) .c2 .c2li.sel{background:color-mix(in srgb,var(--v2-pri) 16%,var(--v2-card))} :root:not([data-theme="light"]) .c2 .c2dn.we{color:var(--v2-mute)} }
+:root[data-theme="dark"] .c2 .c2c.off{background:var(--surface-2)}
+:root[data-theme="dark"] .c2 .c2c.sel,:root[data-theme="dark"] .c2 .c2li.sel{background:color-mix(in srgb,var(--v2-pri) 16%,var(--v2-card))}
 .seg2{display:inline-flex;background:var(--v2-chip);border-radius:8px;padding:3px;gap:2px}
 .seg2 button{border:0;background:transparent;padding:0 14px;min-height:34px;border-radius:6px;font:600 13.5px/1 inherit;font-family:inherit;color:var(--v2-ink2);cursor:pointer}
 .seg2 button[aria-pressed="true"]{background:var(--v2-card);color:var(--v2-ink);box-shadow:0 1px 2px rgba(16,24,40,.12)}
@@ -555,6 +646,11 @@ table.t2{border-collapse:separate;border-spacing:0;width:100%;min-width:1738px;t
 .xch{display:flex;align-items:center;gap:8px;font:700 13px/1.2 'IBM Plex Sans',sans-serif}
 .xch i{width:10px;height:10px;border-radius:2px;background:var(--sc)}
 .kv2{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px}
+.kv2.adds{justify-content:flex-start;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:8px;border-top:1px dashed var(--v2-line)}
+.t2add{all:unset;cursor:pointer;font:600 12px/1 'IBM Plex Sans',sans-serif;color:var(--v2-pri);background:color-mix(in srgb,var(--v2-pri) 9%,transparent);border-radius:6px;padding:6px 8px}
+.t2add:hover{background:color-mix(in srgb,var(--v2-pri) 16%,transparent)}
+.t2add.rev{color:var(--d-risk);background:color-mix(in srgb,var(--d-risk) 10%,transparent)}
+.t2add:focus-visible{outline:2px solid var(--v2-pri);outline-offset:2px}
 .kv2>span:first-child{color:var(--v2-mute)}
 .xfoot{margin-top:12px}
 .t2empty{padding:40px 16px;text-align:center;color:var(--v2-ink2)}
@@ -875,7 +971,8 @@ var ENGINE = (function () {
     if(p.hold) return {who:null,hold:true,days:null,workdays:null,list:[]};
     if(done(p)) return {who:null,days:0,workdays:0,list:[]};
     var g=currentStage(p), who='WSPN', list=[];
-    if(g.n===1&&g.status==='not_started'&&!docsReady(p)){ if(p.docs[0].status==='requested'||p.docs[1].status==='requested'){ who='Partner'; list=['partner']; } }
+    if(g.status==='with_reviewers'){ var lv=last(g); if(lv&&!lv.reviews.apple){ who='Apple'; list=['apple']; } else if(lv&&!lv.reviews.partner&&lv.psentAt){ who='Partner'; list=['partner']; } }
+    else if(g.n===1&&g.status==='not_started'&&!docsReady(p)){ if(p.docs[0].status==='requested'||p.docs[1].status==='requested'){ who='Partner'; list=['partner']; } }
     var s=real(g.since)?g.since.slice(0,10):null;
     return {who:who,list:list,days:s?days(s,TODAY):null,workdays:s?workdays(s,TODAY,p.country):null};
   }
@@ -883,7 +980,7 @@ var ENGINE = (function () {
   function dueState(p,key){
     if(p.hold||done(p)) return null;
     var d=null, fin=false;
-    if(key==='expLayout'){ d=expLayout(p); fin=closedStage(p.stages[0]); }
+    if(key==='expLayout'){ d=expLayout(p); fin=closedStage(p.stages[0])||!!lastSentV(p.stages[0]); }
     else if(key==='expIdk'){ d=expIdk(p); fin=idkSent(p); }
     else if(key==='expFdk'){ d=expFdk(p); fin=fdkSent(p); }
     else if(key==='target'){ d=p.target; fin=p.stages[4].status==='done'; }
@@ -927,12 +1024,11 @@ var ENGINE = (function () {
   function health(p){
     if(p.hold) return 'on_hold';
     if(done(p)) return 'completed';
-    var g=currentStage(p), w=waitingOn(p), ei=expIdk(p), ef=expFdk(p), el=expLayout(p), ld=closedStage(p.stages[0]);
+    var g=currentStage(p), w=waitingOn(p), ei=expIdk(p), ef=expFdk(p), el=expLayout(p), ld=closedStage(p.stages[0])||!!lastSentV(p.stages[0]);
     if(!ld && TODAY>el) return 'delayed';
     if(ei && !idkSent(p) && TODAY>ei) return 'delayed';
     if(ef && !fdkSent(p) && TODAY>ef) return 'delayed';
     if(p.target && TODAY>p.target && p.stages[4].status!=='done') return 'delayed';
-    if(w.who && w.who!=='WSPN' && w.workdays!==null && w.workdays>SLA) return 'at_risk';
     if(!ld && workdays(TODAY,el,p.country)<=3) return 'at_risk';
     if(ei && !idkSent(p) && workdays(TODAY,ei,p.country)<=3) return 'at_risk';
     if(ef && !fdkSent(p) && workdays(TODAY,ef,p.country)<=3) return 'at_risk';
@@ -955,8 +1051,8 @@ var ENGINE = (function () {
         case 'not_started': return g.n===1?(docsReady(p)?'To start':'To start · documents needed'):'Ready to start '+nm;
         case 'in_progress': return g.n===1?'Working on layout':'Working on '+nm;
         case 'internal_review': return ext?(g.n===1?'Working on layout':'Working on '+nm):nm+' in internal review';
-        case 'with_reviewers': return nm+' to approve';
-        case 'changes_requested': return 'Revising '+nm;
+        case 'with_reviewers': { var lw=last(g); if(!lw||!lw.reviews.apple) return 'Apple reviewing v'+(lw?lw.v:1); return lw.psentAt?'Partner reviewing v'+lw.v:'Apple approved · send to Partner'; }
+        case 'changes_requested': { var lr=last(g); return 'Revising · v'+(lr?lr.v+1:1)+' to '+(lr&&lr.nextTo==='partner'?'Partner':'Apple'); }
       }
     }
     if(g.n===4){ var c=g.items.filter(function(i){ return i.doneAt; }).length; return 'Handover '+c+'/3'; }
@@ -974,7 +1070,16 @@ var ENGINE = (function () {
     }
   }
   /* The stored date behind an editable tracker cell: returns {get,set}, or null when the cell has no recorded event to change. */
+  function verRef(p,key){
+    var m=/^v([sapt])\|(\d)\|(\d+)$/.exec(key||''); if(!m) return null;
+    var g=p.stages[+m[2]-1], v=g&&g.versions[+m[3]]; if(!v) return null;
+    var fix=function(){ if(g.status==='approved'&&v===last(g)&&v.reviews.apple&&v.reviews.partner){ g.closedAt=later(v.reviews.apple.at,v.reviews.partner.at); if(g.n<3&&real(p.stages[g.n].startAt)) p.stages[g.n].startAt=g.closedAt; } };
+    if(m[1]==='t') return real(v.psentAt)?{v:v,get:function(){ return v.psentAt; },set:function(d){ v.psentAt=d; }}:null;
+    if(m[1]==='s') return real(v.sentAt)?{v:v,get:function(){ return v.sentAt; },set:function(d){ v.sentAt=d; }}:null;
+    var r=v.reviews[m[1]==='a'?'apple':'partner']; return r&&real(r.at)?{v:v,r:r,get:function(){ return r.at; },set:function(d){ r.at=d; fix(); }}:null;
+  }
   function dateRef(p,key){
+    if(/^v[sapt]\|/.test(key||'')) return verRef(p,key);
     var g1=p.stages[0],g3=p.stages[2],h=p.stages[3];
     function fld(o,k){ return o&&o[k]?{get:function(){ return o[k]; },set:function(d){ o[k]=d; }}:null; }
     function sentRef(g){ var v=lastSentV(g); return v?fld(v,'sentAt'):null; }
@@ -996,6 +1101,7 @@ var ENGINE = (function () {
     return null;
   }
   function mval(p,key){
+    if(/^v[sapt]\|/.test(key||'')){ var vr=verRef(p,key); return vr?{at:vr.get(),outcome:vr.r?vr.r.outcome:null,note:vr.r?vr.r.note:''}:null; }
     var g1=p.stages[0],g2=p.stages[1],g3=p.stages[2],h=p.stages[3];
     function sent(g){ var v=lastSentV(g); return v?{at:v.sentAt}:null; }
     function rev(g,k){ for (var i=g.versions.length-1;i>=0;i--){ var r=g.versions[i].reviews[k]; if(r) return {at:r.at,outcome:r.outcome}; } return null; }
@@ -1022,6 +1128,7 @@ var ENGINE = (function () {
   function canAs(s,per,action,pid,n,item){
     if(action==='createJob') return per==='coord';
     var p=P_(s,pid); if(!p||!sees(s,per,p)) return false;
+    if(action==='deleteJob') return per==='coord';
     var k=extKind(per);
     if(action==='updateLatest'||action==='setKit'||action==='addDoc'||action==='editStore'||action==='resetProgress') return per==='coord';
     if(action==='setDate') return per==='coord' && !!dateRef(p,item);
@@ -1038,6 +1145,19 @@ var ENGINE = (function () {
       case 'startProject': return per==='coord' && g.n===1 && g.status==='not_started' && docsReady(p);
       case 'setStart': return per==='coord' && g.n===1 && g.status!=='not_started' && g.startAt==='ND';
       case 'start': return (per==='des'||per==='coord') && g.n>=2 && g.n<=3 && g.status==='not_started' && p.stages[g.n-2].status==='approved';
+      case 'logStep': {
+        if(per!=='coord'||!dv) return false;
+        var open=['in_progress','changes_requested','internal_review'].indexOf(g.status)>=0;
+        var toP=g.status==='changes_requested'&&!!v&&v.nextTo==='partner';
+        if(item==='sent') return open;
+        if(item==='partner-sent'&&toP) return true;
+        if(g.status!=='with_reviewers'||!v) return false;
+        if(item==='apple-ok'||item==='apple-rev') return !v.reviews.apple;
+        var apOk=!!v.reviews.apple&&v.reviews.apple.outcome==='approved'&&!v.reviews.partner;
+        if(item==='partner-sent') return apOk&&!v.psentAt;
+        if(item==='partner-ok'||item==='partner-rev') return apOk&&!!v.psentAt;
+        return false;
+      }
       case 'approveStage': return per==='coord' && dv && ['in_progress','changes_requested','with_reviewers','internal_review'].indexOf(g.status)>=0;
       case 'sendReview': return per==='coord' && dv && (g.status==='in_progress'||g.status==='changes_requested');
       case 'sendPartner': return per==='coord' && dv && g.status==='with_reviewers' && !!v && !!v.reviews.apple && v.reviews.apple.outcome==='approved' && !v.reviews.partner && !v.ptoken;
@@ -1085,14 +1205,25 @@ var ENGINE = (function () {
       notify(s,['bd','des'],'Job created for '+f.store+' ('+COUNTRIES[f.country]+', target opening '+f.target+')',np.id,1,false);
       return {ok:true,msg:'Job created for '+f.store+'. '+(docsReady(np)?'Store Brief and CAD file are in. Next: start the project with a start date.':'Next: add and check the Store Brief and CAD file, then start the project.'),pid:np.id};
     }
+    if(action==='deleteJob'){
+      var dp=P_(s,q.pid), dn=dp.store;
+      s.projects=s.projects.filter(function(x){ return x.id!==q.pid; });
+      s.notes=s.notes.filter(function(x){ return x.pid!==q.pid; });
+      return {ok:true,msg:'Deleted '+dn+'.',deleted:true};
+    }
     var p=P_(s,q.pid), isDoc=action==='itemUpload'||action==='itemVerify'||action==='itemReturn';
     var g=(action==='updateLatest'||isDoc)?null:p.stages[q.n-1], v=g?last(g):null, nm=g?STAGES[g.n-1]:'', k=extKind(per);
     var note=String(q.note==null?'':q.note).trim(), it=isDoc?p.docs[q.item-1]:null, at, nx;
     if((action==='ddReturn'||action==='recordChanges'||action==='itemReturn'||action==='submit') && !note) return fail('Add a short note first.');
     if((action==='comment'||action==='updateLatest') && !String(q.text||'').trim()) return fail('Write something first.');
     var dt=String(q.date||TODAY).trim();
-    if((action==='startProject'||action==='setStart'||action==='approveStage'||action==='recordApprove'||action==='recordChanges'||action==='setDate') && (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || isNaN(d2n(dt)) || n2d(d2n(dt))!==dt)) return fail('Enter a valid date.');
+    if((action==='startProject'||action==='setStart'||action==='approveStage'||action==='logStep'||action==='recordApprove'||action==='recordChanges'||action==='setDate') && (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || isNaN(d2n(dt)) || n2d(d2n(dt))!==dt)) return fail('Enter a valid date.');
     if((action==='recordApprove'||action==='recordChanges'||action==='approveStage') && dt>TODAY) return fail('An approval can’t be dated in the future.');
+    if(action==='logStep'){
+      if(dt>TODAY) return fail('This date can\u2019t be in the future.');
+      if(q.item==='sent'){ if(real(g.startAt)&&dt<g.startAt.slice(0,10)) return fail('The sent date is before this stage started ('+g.startAt.slice(0,10)+').'); var pv=lastSentV(g); if(pv){ var pr=pv.reviews.partner||pv.reviews.apple; if(pr&&real(pr.at)&&dt<pr.at.slice(0,10)) return fail('The sent date is before the last revise ('+pr.at.slice(0,10)+').'); } }
+      else { if(real(v.sentAt)&&dt<v.sentAt.slice(0,10)) return fail('This date is before Apple sent ('+v.sentAt.slice(0,10)+').'); if(q.item.indexOf('partner')===0&&real(v.reviews.apple.at)&&dt<v.reviews.apple.at.slice(0,10)) return fail('This date is before Apple approved ('+v.reviews.apple.at.slice(0,10)+').'); if(q.item==='partner-sent'&&g.status==='changes_requested'&&v.reviews.partner&&real(v.reviews.partner.at)&&dt<v.reviews.partner.at.slice(0,10)) return fail('This date is before the Partner revise ('+v.reviews.partner.at.slice(0,10)+').'); if(q.item!=='partner-sent'&&q.item.indexOf('partner')===0&&real(v.psentAt)&&dt<v.psentAt.slice(0,10)) return fail('This date is before Partner sent ('+v.psentAt.slice(0,10)+').'); }
+    }
     if(action==='approveStage' && real(g.startAt) && dt<g.startAt.slice(0,10)) return fail('The approval date is before this stage started ('+g.startAt.slice(0,10)+').');
     at=stamp(s);
     switch(action){
@@ -1174,6 +1305,34 @@ var ENGINE = (function () {
         p.stages=stages(); p.latest=null; p.hold=null;
         s.notes=s.notes.filter(function(x){ return x.pid!==p.id; });
         return {ok:true,msg:'Progress cleared for '+p.store+'. It is back to just after the job was created.'};
+      }
+      case 'logStep': {
+        /* Admin records each review step by date: Apple sent → Apple approve / revise → Partner approve / revise. Partner approve closes the stage. */
+        var it2=q.item;
+        if(it2==='sent'){
+          var lv2=last(g);
+          if(lv2&&!lv2.sentAt&&!lv2.reviews.apple&&!lv2.reviews.partner){ lv2.sentAt=dt; }
+          else { lv2=V(g.versions.length+1,dt,null,null,{at:at,by:'admin'}); g.versions.push(lv2); }
+          g.status='with_reviewers'; g.since=at;
+          return {ok:true,msg:nm+' v'+lv2.v+' sent to Apple on '+dt+'.'};
+        }
+        if(it2==='partner-sent'&&g.status==='changes_requested'){
+          /* Partner-only round: the new version keeps Apple's approval of the previous one. */
+          var nv3=V(v.v+1,null,Object.assign({},v.reviews.apple,{carried:true}),null,{at:at,by:'admin',psentAt:dt});
+          g.versions.push(nv3); g.status='with_reviewers'; g.since=at;
+          return {ok:true,msg:nm+' v'+nv3.v+' sent to the Partner on '+dt+'. Apple’s approval of v'+v.v+' still counts.'};
+        }
+        if(it2==='partner-sent'){ v.psentAt=dt; g.since=at; return {ok:true,msg:nm+' v'+v.v+' sent to the Partner on '+dt+'.'}; }
+        var who3=it2.indexOf('apple')===0?'apple':'partner', okr=/-ok$/.test(it2);
+        v.reviews[who3]=R(okr?'approved':'changes',dt,note); v.reviews[who3].via='admin';
+        if(!okr){ g.status='changes_requested'; g.since=at; if(who3==='partner') v.nextTo=q.route==='partner'?'partner':'apple';
+          notify(s,['des','dd'],who2(who3)+' asked to revise '+nm+' v'+v.v+(note?': '+note:''),p.id,g.n,false);
+          return {ok:true,msg:who2(who3)+' revise recorded on '+dt+'. Record the next “'+(v.nextTo==='partner'?'Partner sent':'Apple sent')+'” when v'+(v.v+1)+' goes out.'}; }
+        if(who3==='apple') return {ok:true,msg:'Apple approved v'+v.v+' on '+dt+'. Next: Partner sent.'};
+        g.status='approved'; g.closedAt=later(v.reviews.apple.at,dt); g.since=at; nx=p.stages[g.n];
+        nx.status='in_progress'; nx.since=at; if(g.n<3) nx.startAt=g.closedAt;
+        notify(s,['des','dd','bd'],nm+' approved by Apple and the Partner for '+p.store+'. '+(g.n===3?'Handover documents are next.':STAGES[g.n]+' has started.'),p.id,g.n,false);
+        return {ok:true,msg:'Partner approved on '+dt+'. '+nm+' is approved. '+(g.n===3?'Handover is next.':STAGES[g.n]+' has started.')};
       }
       case 'approveStage': {
         /* Single-person flow: the Admin records that the stage is approved, with its date. The next stage starts on that date. */
@@ -1306,15 +1465,14 @@ var ENGINE = (function () {
       function add(date,n,type,label,late){ if(real(date)) out.push({date:date.slice(0,10),pid:p.id,n:n,type:type,label:label,late:!!late}); }
       var g1=p.stages[0],g2=p.stages[1],g3=p.stages[2], ei=expIdk(p), ef=expFdk(p);
       add(g1.startAt,1,'start','Project start'); add(g2.startAt,2,'start','Start IDK'); add(g3.startAt,3,'start','Start FDK');
-      add(expLayout(p),1,'due','Layout due',!closedStage(g1)&&TODAY>expLayout(p));
+      add(expLayout(p),1,'due','Layout due',!closedStage(g1)&&!lastSentV(g1)&&TODAY>expLayout(p));
       if(ei) add(ei,2,'due','IDK due',!idkSent(p)&&TODAY>ei);
       if(ef) add(ef,3,'due','FDK due',!fdkSent(p)&&TODAY>ef);
       [0,1,2].forEach(function(i){ var g=p.stages[i], nm=SHORT[i];
         if(closedStage(g)) add(g.closedAt,g.n,'approved',nm+' approved');
         g.versions.forEach(function(v){
-          add(v.sentAt,g.n,'sent',nm+' v'+v.v+' sent');
-          ['apple','partner'].forEach(function(k){ var r=v.reviews[k]; if(r) add(r.at,g.n,k,WHO[k]+(r.outcome==='approved'?' approved ':' changes · ')+nm); });
-          if(v===last(g) && g.status==='with_reviewers' && real(v.sentAt)){ var dd=addWorkdays(v.sentAt,SLA,p.country); add(dd,g.n,'sla','Reply due: '+pend(g).map(function(k){ return WHO[k]; }).join(' + ')+' · '+nm,TODAY>dd); }
+          add(v.sentAt,g.n,'sent',nm+' v'+v.v+' sent to Apple'); add(v.psentAt,g.n,'sent',nm+' v'+v.v+' sent to Partner');
+          ['apple','partner'].forEach(function(k){ var r=v.reviews[k]; if(r&&!r.carried) add(r.at,g.n,k,WHO[k]+(r.outcome==='approved'?' approved ':' revise · ')+nm); });
         });
       });
       p.stages[3].items.forEach(function(it){ add(it.doneAt,4,'handover',it.name+' issued'); });
@@ -1452,7 +1610,6 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<div class="brand"><img class="logo" src="'+LOGO+'" alt="Whitespace Partners"><span class="bsep" aria-hidden="true"></span><span class="bn">APP CORE Tracking</span><span class="tag">'+(CLOUD?'Beta':'Prototype A.2')+'</span></div>'+
       '<div class="tools"><button class="btn ib" data-ui="bell" aria-label="Notifications, '+unread+' unread" aria-expanded="'+U.bell+'">'+IC.bell+(unread?'<span class="badge">'+unread+'</span>':'')+'</button>'+
       (CLOUD?'':'<button class="btn" data-ui="try" aria-expanded="'+U.tryOpen+'">Try this</button>')+
-      (CLOUD?'':U.confirmReset?'<span class="rs">Reset everything? <button class="btn crit sm" data-ui="resetYes">Reset</button><button class="btn ghost sm" data-ui="resetNo">Cancel</button></span>':'<button class="btn ghost" data-ui="reset">Reset</button>')+
       '</div></div></header>';
   }
   function nav(){
@@ -1656,28 +1813,79 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<div><h2>'+title+'</h2><p class="sub">'+sub+'</p></div>'+switcher('home')+toolbar('')+projectsView(list,'home');
   }
   /* ---------- calendar (default page) ---------- */
-  var EV={start:['Start','var(--g2)'],due:['Due date','var(--h-late)'],approved:['Approved','var(--h-done)'],sent:['Sent','var(--s-cli)'],apple:['Apple review','var(--s-app)'],partner:['Partner review','var(--g8)'],sla:['Reply due (SLA)','var(--h-risk)'],handover:['Handover','var(--g4)'],open:['Store opens','var(--g6)'],target:['Target opening','var(--nav-2)'],sff:['SFF claim','var(--h-done)']};
+  var EV={start:['Start','var(--g2)'],due:['Due date','var(--h-late)'],approved:['Stage approved','var(--h-done)'],sent:['Sent','var(--s-cli)'],apple:['Apple review','var(--s-app)'],partner:['Partner review','var(--g8)'],sla:['Reply due (SLA)','var(--h-risk)'],handover:['Handover','var(--g4)'],open:['Store opens','var(--g6)'],target:['Target opening','var(--nav-2)'],sff:['SFF claim','var(--h-done)']};
   function shortName(p){ var n=p.store; var i=n.indexOf('@'); return (i>=0?n.slice(i+1):n).replace(/^\s+/,'').slice(0,28); }
   function pad2(x){ return (x<10?'0':'')+x; }
+  /* ================= Calendar (redesign): same events as before, Tracker look ================= */
+  var EV2={start:['Start','#2F6FDE'],due:['Due date','#DC2F45'],approved:['Stage approved','#16A34A'],sent:['Sent','#E07B0B'],apple:['Apple review','#5B6B8C'],partner:['Partner review','#C8478F'],handover:['Handover','#14967F'],open:['Store opens','#2E9E4F'],target:['Target opening','#171A33'],sff:['SFF claim','#0B6E44']};
+  var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'], WDAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  /* Display names only. Which days are holidays still comes from the engine (HOL, HOLX, substitute days). */
+  var HOLNAME={'01-01':'New Year’s Day','04-06':'Chakri Day','04-13':'Songkran','04-14':'Songkran','04-15':'Songkran','05-01':'Labour Day','05-04':'Coronation Day','06-03':'Queen’s Birthday','07-28':'King’s Birthday','08-12':'Mother’s Day','10-13':'King Bhumibol Memorial Day','10-23':'Chulalongkorn Day','12-05':'Father’s Day','12-10':'Constitution Day','12-31':'New Year’s Eve'};
+  var HOLNAMEX={'2026-01-02':'Special holiday','2026-03-03':'Makha Bucha','2026-06-01':'Visakha Bucha (substitute)','2026-07-29':'Asanha Bucha','2027-02-22':'Makha Bucha (substitute)','2027-05-20':'Visakha Bucha','2027-07-19':'Asanha Bucha'};
+  function holName(k){ return HOLNAMEX[k]||HOLNAME[k.slice(5)]||'Substitute holiday'; }
+  function dOf(k){ return new Date(Date.UTC(+k.slice(0,4),+k.slice(5,7)-1,+k.slice(8,10))); }
+  function kOf(x){ return x.getUTCFullYear()+'-'+pad2(x.getUTCMonth()+1)+'-'+pad2(x.getUTCDate()); }
+  function addDays(k,n){ var x=dOf(k); x.setUTCDate(x.getUTCDate()+n); return kOf(x); }
+  function wdOf(k){ return (dOf(k).getUTCDay()+6)%7; }
+  function longDate(k){ return WDAYS[wdOf(k)]+' '+(+k.slice(8,10))+' '+MONTHS[+k.slice(5,7)-1]+' '+k.slice(0,4); }
+  function calChip(e){ var p=E.P(S,e.pid), t=EV2[e.type]; return '<span class="c2ev'+(e.type==='due'&&e.late?' late':'')+'" style="--ec:'+t[1]+'" title="'+esc(p.store+' · '+e.label+(e.type==='due'&&e.late?' · overdue':'')+' · '+t[0])+'"><b>'+esc(shortName(p))+'</b> '+esc(e.label)+'</span>'; }
+  function calCell(k,ev,out,max){
+    var c=U.cal, hol=E.holidaysOn(k,[E.WORK_CAL]).length>0, we=wdOf(k)>=5, sel=c.sel===k, list=max?ev.slice(0,max):ev;
+    return '<div class="c2c'+(out?' out':'')+(we||hol?' off':'')+(k===E.TODAY?' today':'')+(sel?' sel':'')+'" data-day="'+k+'">'+
+      '<button type="button" class="c2d" data-day="'+k+'" aria-pressed="'+sel+'" aria-label="'+esc(longDate(k)+(k===E.TODAY?', today':'')+', '+(ev.length?ev.length+' event'+(ev.length===1?'':'s'):'no events')+(hol?', '+holName(k):''))+'">'+(+k.slice(8,10))+'</button>'+
+      (hol?'<span class="c2hol" title="'+esc(holName(k))+'">'+esc(holName(k))+'</span>':'')+
+      list.map(calChip).join('')+(max&&ev.length>max?'<button type="button" class="c2more" data-day="'+k+'">+'+(ev.length-max)+' more</button>':'')+'</div>';
+  }
+  function dueKey(e){ return e.n===1?'expLayout':e.n===2?'expIdk':'expFdk'; }
   function vCalendar(){
-    var c=U.cal, f=U.filt, all=E.events(S).filter(function(e){ var p=E.P(S,e.pid); return (!f.country||p.country===f.country)&&(!c.type||e.type===c.type)&&qmatch(p.store); });
-    var first=new Date(Date.UTC(c.y,c.m,1)), lead=(first.getUTCDay()+6)%7, dim=new Date(Date.UTC(c.y,c.m+1,0)).getUTCDate();
-    var byDay={}; all.forEach(function(e){ (byDay[e.date]=byDay[e.date]||[]).push(e); });
-    var h='<div class="cal-h"><div class="wf-row" style="gap:8px"><button class="btn" data-cal="prev" aria-label="Previous month">‹</button><h2 class="cal-t">'+['January','February','March','April','May','June','July','August','September','October','November','December'][c.m]+' '+c.y+'</h2><button class="btn" data-cal="next" aria-label="Next month">›</button><button class="btn ghost" data-cal="today">Today</button></div></div>';
-    var cells='', days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(function(d){ return '<div class="cal-dn">'+d+'</div>'; }).join('');
-    for(var i=0;i<lead;i++) cells+='<div class="cal-c off"></div>';
-    for(var d=1;d<=dim;d++){
-      var key=c.y+'-'+pad2(c.m+1)+'-'+pad2(d), ev=byDay[key]||[], wd=(lead+d-1)%7, isT=key===E.TODAY;
-      var hol=E.holidaysOn(key,[E.WORK_CAL]);
-      cells+='<div class="cal-c'+(wd>=5?' we':'')+(hol.length?' hol':'')+(isT?' today':'')+(c.sel===key?' sel':'')+'" role="button" tabindex="0" data-day="'+key+'" aria-label="'+d+' '+(ev.length?ev.length+' events':'no events')+(hol.length?', public holiday in '+hol.join(' '):'')+'"><span class="cal-d">'+d+'</span>'+(hol.length?'<span class="hl" title="Public holiday: '+hol.map(function(k){ return E.COUNTRIES[k]; }).join(', ')+'">Holiday '+hol.join(' ')+'</span>':'')+ev.slice(0,3).map(function(e){ var p=E.P(S,e.pid); return '<span class="ev'+(e.late?' late':'')+'" style="--ec:'+EV[e.type][1]+'" title="'+esc(p.store+' · '+e.label)+'"><b>'+esc(shortName(p))+'</b> '+esc(e.label)+'</span>'; }).join('')+(ev.length>3?'<span class="ev more">+'+(ev.length-3)+' more</span>':'')+'</div>';
+    var c=U.cal, f=U.filt; if(!Array.isArray(c.hide)) c.hide=[]; if(['month','week','list'].indexOf(c.mode)<0) c.mode='month';
+    var base=E.events(S).filter(function(e){ var p=E.P(S,e.pid); return p&&EV2[e.type]&&(!f.country||p.country===f.country)&&qmatch(p.store); });
+    var shown=base.filter(function(e){ return c.hide.indexOf(e.type)<0; });
+    var byDay={}; shown.forEach(function(e){ (byDay[e.date]=byDay[e.date]||[]).push(e); });
+    var mk=c.y+'-'+pad2(c.m+1), first=mk+'-01', inRange, title, body, unit=c.mode==='week'?'week':'month';
+    var heads='<div class="c2dn">Mon</div><div class="c2dn">Tue</div><div class="c2dn">Wed</div><div class="c2dn">Thu</div><div class="c2dn">Fri</div><div class="c2dn we">Sat</div><div class="c2dn we">Sun</div>';
+    if(c.mode==='week'){
+      var mon=addDays(c.sel,-wdOf(c.sel)), wk=[0,1,2,3,4,5,6].map(function(i){ return addDays(mon,i); });
+      inRange=function(k){ return k>=wk[0]&&k<=wk[6]; };
+      var a1=dOf(wk[0]), a2=dOf(wk[6]);
+      title=a1.getUTCDate()+(a1.getUTCMonth()!==a2.getUTCMonth()?' '+MONTHS[a1.getUTCMonth()].slice(0,3):'')+' – '+a2.getUTCDate()+' '+MONTHS[a2.getUTCMonth()].slice(0,3)+' '+a2.getUTCFullYear();
+      body='<div class="c2wrap"><div class="c2g week">'+heads+wk.map(function(k){ return calCell(k,byDay[k]||[],false,0); }).join('')+'</div></div>';
+    } else {
+      inRange=function(k){ return k.slice(0,7)===mk; };
+      title=MONTHS[c.m]+' '+c.y;
+      if(c.mode==='list'){
+        var dk=Object.keys(byDay).filter(inRange).sort();
+        body=dk.length?'<div class="c2list">'+dk.map(function(k){ var hol=E.holidaysOn(k,[E.WORK_CAL]).length>0;
+          return '<div class="c2li'+(c.sel===k?' sel':'')+'"><button type="button" class="c2lh" data-day="'+k+'"><b>'+(+k.slice(8,10))+'</b><span>'+WDAYS[wdOf(k)].slice(0,3)+(k===E.TODAY?' · Today':'')+(hol?' · '+esc(holName(k)):'')+'</span></button><div class="c2lr">'+byDay[k].map(calChip).join('')+'</div></div>'; }).join('')+'</div>'
+          :'<div class="c2none">Nothing scheduled in '+MONTHS[c.m]+' '+c.y+' for the selected filters.</div>';
+      } else {
+        var lead=wdOf(first), dim=new Date(Date.UTC(c.y,c.m+1,0)).getUTCDate(), start=addDays(first,-lead), n=Math.ceil((lead+dim)/7)*7, cells='';
+        for(var i=0;i<n;i++){ var k=addDays(start,i); cells+=calCell(k,byDay[k]||[],k.slice(0,7)!==mk,3); }
+        body='<div class="c2wrap"><div class="c2g">'+heads+cells+'</div></div>';
+      }
     }
-    var legend='<div class="chips cal-lg">'+Object.keys(EV).filter(function(k){ return ['sent','apple','partner','sla'].indexOf(k)<0; }).map(function(k){ return '<button class="lgb" data-evt="'+k+'" aria-pressed="'+(c.type===k)+'"><i style="background:'+EV[k][1]+'"></i>'+EV[k][0]+'</button>'; }).join('')+'</div>';
-    var sel=byDay[c.sel]||[];
-    var day='<section class="panel"><div class="ph"><h2>'+(c.sel===E.TODAY?'Today · ':'')+fmtD(c.sel)+'</h2><span class="small">'+sel.length+' event'+(sel.length===1?'':'s')+'</span></div>'+(sel.length?sel.map(function(e){ var p=E.P(S,e.pid); return '<div class="pbd" style="border-top:1px solid var(--line-2);grid-template-columns:auto minmax(0,1fr) auto;align-items:center"><i class="evd" style="background:'+EV[e.type][1]+'"></i><div><b>'+esc(p.store)+'</b><div class="small">'+esc(e.label)+(e.late?' · overdue':'')+' · '+esc(EV[e.type][0])+'</div></div><button class="btn sm" data-go="stage|'+p.id+'|'+e.n+'">Open</button></div>'; }).join(''):'<div class="pbd small">Nothing on this day.</div>')+'</section>';
-    var soon=E.events(S).filter(function(e){ return (e.type==='due'||e.type==='sla'||e.type==='target')&&(e.date<=E.addWorkdays(E.TODAY,10))&&(e.late||e.date>=E.TODAY)&&(!f.country||E.P(S,e.pid).country===f.country); }).sort(function(a,b){ return a.date<b.date?-1:1; }).slice(0,12);
-    var up='<section class="panel"><div class="ph"><h2>Overdue and coming up</h2><span class="small">Due dates count working days, excluding weekends and Thai public holidays</span></div>'+(soon.length?soon.map(function(e){ var p=E.P(S,e.pid); return '<div class="pbd" style="border-top:1px solid var(--line-2);grid-template-columns:auto minmax(0,1fr) auto;align-items:center"><i class="evd" style="background:'+EV[e.type][1]+'"></i><div><b>'+esc(p.store)+'</b><div class="small">'+esc(e.label)+' · '+fmtD(e.date)+'</div></div>'+(e.late?'<span class="chip crit">Overdue</span>':'<span class="chip plain">'+fmtD(e.date)+'</span>')+'</div>'; }).join(''):'<div class="pbd small">Nothing overdue or due in the next 10 working days.</div>')+'</section>';
-    var co='<label for="f-country">Country <select id="f-country"><option value="">All</option>'+usedCountries().map(function(k){ return '<option value="'+k+'"'+(f.country===k?' selected':'')+'>'+E.COUNTRIES[k]+'</option>'; }).join('')+'</select></label>';
-    return head('Spec W1 · Calendar','Calendar','Every dated step of every store in one place. Starts, due dates, approvals, handover and openings. Weekends and Thai public holidays are marked and don’t count as working days. Due dates: Layout = Created + 1 working week, IDK + 2, FDK + 3.',createBtn())+'<div class="tb cal-bar">'+h+toolbar(co)+'</div>'+legend+'<div class="cal"><div class="cal-g">'+days+cells+'</div></div><div class="cols">'+day+up+'</div>';
+    var cnt={}; base.forEach(function(e){ if(inRange(e.date)) cnt[e.type]=(cnt[e.type]||0)+1; });
+    var IC2={l:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',r:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>'};
+    var co='<label class="sel2" for="f-country">Country <select id="f-country"><option value="">All</option>'+usedCountries().map(function(k){ return '<option value="'+k+'"'+(f.country===k?' selected':'')+'>'+E.COUNTRIES[k]+'</option>'; }).join('')+'</select></label>';
+    var bar='<div class="c2bar"><div class="c2nav"><button type="button" class="c2ib" data-cal="prev" aria-label="Previous '+unit+'">'+IC2.l+'</button><button type="button" class="c2ib" data-cal="next" aria-label="Next '+unit+'">'+IC2.r+'</button><h2 class="c2t" aria-live="polite">'+title+'</h2><button type="button" class="btn sm2" data-cal="today">Today</button></div>'+
+      '<div class="seg2" role="group" aria-label="Calendar view">'+[['month','Month'],['week','Week'],['list','List']].map(function(m){ return '<button type="button" data-calm="'+m[0]+'" aria-pressed="'+(c.mode===m[0])+'">'+m[1]+'</button>'; }).join('')+'</div>'+
+      '<span class="sp-flex"></span><label class="search s2"><span style="position:absolute;left:-9999px">Search stores</span>'+IC.search+'<input id="q" type="search" placeholder="Search stores" value="'+esc(f.q||'')+'" autocomplete="off"></label>'+co+'</div>';
+    var show='<div class="c2show" role="group" aria-label="Event types"><span class="c2lab">Show</span>'+Object.keys(EV2).map(function(k){ var on=c.hide.indexOf(k)<0; return '<button type="button" class="c2f" data-evt="'+k+'" aria-pressed="'+on+'" style="--ec:'+EV2[k][1]+'" title="'+(on?'Hide ':'Show ')+EV2[k][0]+'"><i></i>'+EV2[k][0]+'<span class="n">'+(cnt[k]||0)+'</span></button>'; }).join('')+(c.hide.length?'<button type="button" class="c2all" data-evt="all">Show all</button>':'')+'</div>';
+    /* right panel 1: everything on the selected day, grouped by store */
+    var sel=byDay[c.sel]||[], grp={}, order=[];
+    sel.forEach(function(e){ if(!grp[e.pid]){ grp[e.pid]=[]; order.push(e.pid); } grp[e.pid].push(e); });
+    var dayBox='<section class="c2box" aria-labelledby="c2-day"><div class="c2bh"><div class="c2wd">'+WDAYS[wdOf(c.sel)]+'</div><h2 class="c2date" id="c2-day">'+(+c.sel.slice(8,10))+' '+MONTHS[+c.sel.slice(5,7)-1]+' '+c.sel.slice(0,4)+(c.sel===E.TODAY?'<span class="c2tag">Today</span>':'')+'</h2><div class="c2sum">'+sel.length+' item'+(sel.length===1?'':'s')+' · '+order.length+' store'+(order.length===1?'':'s')+(E.holidaysOn(c.sel,[E.WORK_CAL]).length?' · '+esc(holName(c.sel)):'')+'</div></div>'+
+      (order.length?order.map(function(pid){ var p=E.P(S,pid), xs=grp[pid]; return '<div class="c2grp"><div class="c2gh"><button type="button" class="c2st" data-go="project|'+pid+'">'+esc(p.store)+'</button><span>'+xs.length+' item'+(xs.length===1?'':'s')+'</span></div>'+xs.map(function(e){ return '<div class="c2row" style="--ec:'+EV2[e.type][1]+'"><i aria-hidden="true"></i><span>'+esc(e.label)+(e.type==='due'&&e.late?' <b class="c2od">overdue</b>':'')+'</span><small>'+EV2[e.type][0]+'</small></div>'; }).join('')+'</div>'; }).join('')
+      :'<div class="c2none">Nothing scheduled on this day.</div>')+'</section>';
+    /* right panel 2: due dates that are overdue, or due in the next 7 days, and not done yet */
+    var wkEnd=addDays(E.TODAY,7);
+    var att=E.events(S).filter(function(e){ var p=E.P(S,e.pid); if(!p||e.type!=='due'||(f.country&&p.country!==f.country)) return false; var ds=E.dueState(p,dueKey(e)); return ds==='late'||(!!ds&&e.date>=E.TODAY&&e.date<=wkEnd); }).sort(function(x,y){ return x.date<y.date?-1:x.date>y.date?1:0; });
+    var attBox='<section class="c2box" aria-labelledby="c2-att"><div class="c2bh"><h2 class="c2h" id="c2-att">Needs attention</h2></div>'+
+      (att.length?att.map(function(e){ var p=E.P(S,e.pid), late=E.dueState(p,dueKey(e))==='late'; return '<div class="c2att"><span class="c2bad '+(late?'od':'ds')+'">'+(late?'Overdue':'Due soon')+'</span><button type="button" class="c2an" data-go="project|'+p.id+'"><b>'+esc(p.store)+'</b> '+esc(e.label)+'</button><span class="c2ad">'+fmtD(e.date)+'</span></div>'; }).join('')
+      :'<div class="c2none">Nothing overdue or due in the next 7 days.</div>')+'</section>';
+    var rules='<div class="c2rules" aria-label="Due date rules"><span class="c2rule"><i style="background:var(--s1)"></i>Layout due = Created + 1 working week</span><span class="c2rule"><i style="background:var(--s2)"></i>IDK due = + 2 weeks</span><span class="c2rule"><i style="background:var(--s3)"></i>FDK due = + 3 weeks</span></div>';
+    return '<div class="v2 c2"><div class="v2-head"><div><p class="v2-eye">SPEC W1 · CALENDAR</p><h1>Calendar</h1><p class="v2-sub">Every dated step of every store. Weekends and Thai public holidays are shaded and don’t count as working days.</p></div><div class="v2-acts">'+createBtn()+'</div></div>'+rules+
+      '<div class="c2main"><section class="c2card" aria-label="Calendar">'+bar+show+body+'</section><aside class="c2side">'+dayBox+attBox+'</aside></div></div>';
   }
   /* ================= Tracker V2: same data and actions as Tracker, redesigned table ================= */
   var T2STAGE=['Layout','IDK','FDK','Handover','Opens','SFF'];
@@ -1699,6 +1907,22 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   }
   function t2Health(p){ var h=E.health(p); return '<span class="hp hp-'+h+'">'+E.HEALTH[h]+'</span>'; }
   function t2Doc(state,label,tip){ var x=state==='verified'?['ok','✓']:state==='received'?['chk','◐']:['todo','○']; return '<span class="dk2 '+x[0]+'" title="'+esc(tip)+'">'+x[1]+' '+label+'</span>'; }
+  function stageRows(p,n){
+    var g=p.stages[n-1], K=['Layout','Idk','Fdk'][n-1], rows=[['exp'+K,'Due'],['start'+K,'Start']];
+    g.versions.forEach(function(v,i){
+      if(!E.real(v.sentAt)&&!E.real(v.psentAt)) return;
+      if(E.real(v.sentAt)) rows.push(['vs|'+n+'|'+i,'Apple sent v'+v.v]);
+      if(v.reviews.apple&&!v.reviews.apple.carried) rows.push(['va|'+n+'|'+i,v.reviews.apple.outcome==='approved'?'Apple approve':'Apple revise']);
+      if(E.real(v.psentAt)) rows.push(['vt|'+n+'|'+i,'Partner sent v'+v.v]);
+      if(v.reviews.partner) rows.push(['vp|'+n+'|'+i,v.reviews.partner.outcome==='approved'?'Partner approve':'Partner revise']);
+    });
+    if(g.status==='approved') rows.push(['ok'+K,'Approved']);
+    return rows;
+  }
+  var STEPS=[['sent','Apple sent'],['apple-ok','Apple approve'],['apple-rev','Apple revise'],['partner-sent','Partner sent'],['partner-ok','Partner approve'],['partner-rev','Partner revise']];
+  function stepBtns(p,n,cls){
+    return STEPS.filter(function(x){ return E.can(S,per(),'logStep',p.id,n,x[0]); }).map(function(x){ return '<button type="button" class="'+(cls||'t2add')+(/rev$/.test(x[0])?' rev':'')+'" data-act="logStep" data-pid="'+p.id+'" data-n="'+n+'" data-party="'+x[0]+'">＋ '+x[1]+'</button>'; }).join('');
+  }
   function t2Row(p){
     var g=E.currentStage(p), dn=E.done(p), open=U.t2open===p.id, h=E.health(p);
     var cr=p.stages.some(function(x){ return x.status==='changes_requested'; });
@@ -1720,10 +1944,10 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<td>'+t2Health(p)+'</td>'+
       '<td><button type="button" class="xb" data-t2="x|'+p.id+'" aria-expanded="'+open+'" aria-label="'+(open?'Hide':'Show')+' all dates for '+esc(p.store)+'">'+IC.chev+'</button></td></tr>';
     if(!open) return row;
-    var cards=[[1,'1 · Layout',[['expLayout','Due'],['startLayout','Start'],['okLayout','Approved']]],[2,'2 · IDK',[['expIdk','Due'],['startIdk','Start'],['okIdk','Approved']]],[3,'3 · FDK',[['expFdk','Due'],['startFdk','Start'],['okFdk','Approved']]],[4,'4 · Handover',[['onePage','1-page'],['constr','Schedule'],['install','Install']]],[5,'5 · Open & Claim',[['opens','Opens'],['sff','SFF']]],[6,'Portal',null]];
+    var cards=[[1,'1 · Layout',stageRows(p,1)],[2,'2 · IDK',stageRows(p,2)],[3,'3 · FDK',stageRows(p,3)],[4,'4 · Handover',[['onePage','1-page'],['constr','Schedule'],['install','Install']]],[5,'5 · Open & Claim',[['opens','Opens'],['sff','SFF']]],[6,'Portal',null]];
     var xs=cards.map(function(c){
       var cur=!dn&&(c[0]===g.n||(c[0]===5&&g.n===6)), body;
-      if(c[2]) body=c[2].map(function(k){ var m=E.mval(p,k[0]); var ds=/^exp/.test(k[0])&&!p.hold?E.dueState(p,k[0]):null; var v=m?((m.outcome==='changes'?'<span class="cr" title="Changes requested">↺</span> ':'')+(ds?'<b class="dl-'+ds+'">'+t2Date(p,k[0],m.at)+'</b>':t2Date(p,k[0],m.at))):'<span class="t2nil">–</span>'; return '<div class="kv2"><span>'+k[1]+'</span><span>'+v+'</span></div>'; }).join('');
+      if(c[2]) body=c[2].map(function(k){ var m=E.mval(p,k[0]); var ds=/^exp/.test(k[0])&&!p.hold?E.dueState(p,k[0]):null; var v=m?((m.outcome==='changes'?'<span class="cr" title="'+esc(m.note?'Revise: '+m.note:'Revise')+'">↺</span> ':'')+(ds?'<b class="dl-'+ds+'">'+t2Date(p,k[0],m.at)+'</b>':t2Date(p,k[0],m.at))):'<span class="t2nil">–</span>'; return '<div class="kv2"><span>'+k[1]+'</span><span>'+v+'</span></div>'; }).join('')+(c[0]<=3?(function(){ var ab=stepBtns(p,c[0]); return ab?'<div class="kv2 adds">'+ab+'</div>':''; })():'');
       else body='<div class="kv2"><span>Waiting on</span><span>'+esc(waitLabel(p))+'</span></div><div class="kv2"><span>Health</span><span>'+t2Health(p)+'</span></div>';
       return '<div class="xc'+(cur?' cur':'')+'" style="--sc:var(--s'+(c[0]<=6?c[0]:1)+')"><div class="xch">'+(c[0]<6||c[2]?'<i></i>':'')+c[1]+'</div>'+body+'</div>';
     }).join('');
@@ -1805,13 +2029,13 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
         if(g.n<=3) return p.stages[g.n-2].status==='approved'?(X?'Whitespace will start '+sn+'.':'Ready to start.'):'Starts when '+E.STAGES[g.n-2]+' is approved.';
         return 'Starts when '+E.STAGES[g.n-2]+' is '+(g.n===4?'approved':'done')+'.';
       case 'in_progress':
-        if(g.n<=3) return X?'Whitespace is working on '+sn+'.':(g.n===1&&!E.real(g.startAt)?'The start date was never recorded. ':'')+'Next: approve '+E.SHORT[g.n-1]+' when it is done.';
+        if(g.n<=3) return X?'Whitespace is working on '+sn+'.':(g.n===1&&!E.real(g.startAt)?'The start date was never recorded. ':'')+'Next: record '+(g.status==='changes_requested'&&E.last(g)&&E.last(g).nextTo==='partner'?'the date it is sent to the Partner':g.status==='with_reviewers'?(E.last(g)&&E.last(g).reviews.apple?(E.last(g).psentAt?'the Partner reply':'the date it is sent to the Partner'):'the Apple reply'):'the date it is sent to Apple')+'.';
         if(g.n===4){ var left=g.items.filter(function(i){ return !i.doneAt; }).length; return X?'Whitespace is issuing '+left+' handover document'+(left>1?'s':'')+'.':'Next: issue '+left+' handover document'+(left>1?'s':'')+'.'; }
         if(g.n===5) return X?'Waiting for the store to open.':'Next: record the store opening.';
         return X?'Whitespace will file the SFF claim.':'Next: record the SFF claim.';
-      case 'internal_review': return X?'Whitespace is reviewing the next version internally.':v.internal==='pending'?'Next: internal review of v'+v.v+'.':'Next: approve '+E.SHORT[g.n-1]+' when it is done.';
-      case 'changes_requested': var by=lastChanger(g); return X?'Whitespace is revising after the change request.':'Next: approve '+E.SHORT[g.n-1]+' when it is done.';
-      case 'with_reviewers': if(!X) return 'Next: approve '+E.SHORT[g.n-1]+' when it is done.'; if(!X&&v&&v.token){ var nxs=(g.n<3?E.STAGES[g.n]:'Handover'); if(!v.reviews.apple) return 'Step 1 of 3 · Sent to Apple. Waiting for their reply on v'+v.v+' (due within '+E.SLA+' working day). Share the review link below.'; if(!v.reviews.partner) return v.ptoken?'Step 2 of 3 · Apple approved. Sent to the Partner, waiting for their reply. Share the Partner link below.':'Step 2 of 3 · Apple approved v'+v.v+'. Next: send it to the Partner for approval.'; return 'Step 3 of 3 · Apple and the Partner approved v'+v.v+'. Confirm to close '+E.STAGES[g.n-1]+' and start '+nxs+'.'; }
+      case 'internal_review': return X?'Whitespace is reviewing the next version internally.':v.internal==='pending'?'Next: internal review of v'+v.v+'.':'Next: record '+(g.status==='changes_requested'&&E.last(g)&&E.last(g).nextTo==='partner'?'the date it is sent to the Partner':g.status==='with_reviewers'?(E.last(g)&&E.last(g).reviews.apple?(E.last(g).psentAt?'the Partner reply':'the date it is sent to the Partner'):'the Apple reply'):'the date it is sent to Apple')+'.';
+      case 'changes_requested': var by=lastChanger(g); return X?'Whitespace is revising after the change request.':'Next: record '+(g.status==='changes_requested'&&E.last(g)&&E.last(g).nextTo==='partner'?'the date it is sent to the Partner':g.status==='with_reviewers'?(E.last(g)&&E.last(g).reviews.apple?(E.last(g).psentAt?'the Partner reply':'the date it is sent to the Partner'):'the Apple reply'):'the date it is sent to Apple')+'.';
+      case 'with_reviewers': if(!X) return 'Next: record '+(g.status==='changes_requested'&&E.last(g)&&E.last(g).nextTo==='partner'?'the date it is sent to the Partner':g.status==='with_reviewers'?(E.last(g)&&E.last(g).reviews.apple?(E.last(g).psentAt?'the Partner reply':'the date it is sent to the Partner'):'the Apple reply'):'the date it is sent to Apple')+'.'; if(!X&&v&&v.token){ var nxs=(g.n<3?E.STAGES[g.n]:'Handover'); if(!v.reviews.apple) return 'Step 1 of 3 · Sent to Apple. Waiting for their reply on v'+v.v+' (due within '+E.SLA+' working day). Share the review link below.'; if(!v.reviews.partner) return v.ptoken?'Step 2 of 3 · Apple approved. Sent to the Partner, waiting for their reply. Share the Partner link below.':'Step 2 of 3 · Apple approved v'+v.v+'. Next: send it to the Partner for approval.'; return 'Step 3 of 3 · Apple and the Partner approved v'+v.v+'. Confirm to close '+E.STAGES[g.n-1]+' and start '+nxs+'.'; }
         var pe=E.pend(g); if(pe.indexOf(k)>=0) return 'Waiting on you to review v'+v.v+'.'; var w=E.waitingOn(p); return 'Waiting on '+pe.map(function(x){ return E.WHO[x]; }).join(' and ')+' to review v'+v.v+(w.workdays!==null&&w.workdays>E.SLA?'. Overdue: the reply was due within '+E.SLA+' working day.':'. Reply is due within '+E.SLA+' working day of sending. Weekends and Thai public holidays don’t count.')+' Record each reply here.';
       case 'approved': return 'Approved '+fmtD(g.closedAt)+' by Apple and the Partner.';
       case 'done': return 'Done '+fmtD(g.closedAt)+'.';
@@ -1844,10 +2068,10 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<h3 class="dsub">Other documents</h3>'+(ex?'<div class="docs">'+ex+'</div>':'<p class="small">None yet. Press + Add to keep a Google Drive link here.</p>')+'</div></section>';
   }
   function milestonesPanel(p){
-    var groups=[['Layout',['expLayout','startLayout','okLayout']],['IDK',['expIdk','startIdk','okIdk']],['FDK',['expFdk','startFdk','okFdk']],['Handover',['onePage','constr','install']],['Open & claim',['opens','sff']]];
-    var lab={}; COLS.forEach(function(c){ lab[c[0]]=colName(c); }); lab.startIdk='Start IDK'; lab.okLayout='Layout approved'; lab.okIdk='IDK approved'; lab.okFdk='FDK approved'; lab.expLayout='Layout due'; lab.expIdk='IDK due'; lab.expFdk='FDK due';
+    var SR=[1,2,3].map(function(n){ return stageRows(p,n); }); var groups=[['Layout',SR[0].map(function(r){ return r[0]; })],['IDK',SR[1].map(function(r){ return r[0]; })],['FDK',SR[2].map(function(r){ return r[0]; })],['Handover',['onePage','constr','install']],['Open & claim',['opens','sff']]];
+    var lab={}; COLS.forEach(function(c){ lab[c[0]]=colName(c); }); lab.startIdk='Start IDK'; lab.okLayout='Layout approved'; lab.okIdk='IDK approved'; lab.okFdk='FDK approved'; SR.forEach(function(rs){ rs.forEach(function(r){ if(/^v[sapt]\|/.test(r[0])) lab[r[0]]=r[1]; }); }); lab.expLayout='Layout due'; lab.expIdk='IDK due'; lab.expFdk='FDK due';
     return '<section class="panel"><div class="ph"><h2>Milestones</h2><span class="small">The tracker’s date columns for this store</span></div><div class="pbd"><div class="mg">'+groups.map(function(g){
-      return '<div><h3>'+esc(g[0])+'</h3><dl class="kv">'+g[1].map(function(k){ var m=E.mval(p,k); return '<dt>'+esc(lab[k])+'</dt><dd>'+(m?(m.outcome==='changes'?'↺ ':'')+esc(m.at==='ND'?'✓ date not recorded':fmtD(m.at))+(m.outcome==='changes'?' <span class="small">changes requested</span>':'')+(m.est?' <span class="small">estimate</span>':''):'<span class="small">—</span>')+'</dd>'; }).join('')+'</dl></div>';
+      return '<div><h3>'+esc(g[0])+'</h3><dl class="kv">'+g[1].map(function(k){ var m=E.mval(p,k); return '<dt>'+esc(lab[k])+'</dt><dd>'+(m?(m.outcome==='changes'?'↺ ':'')+esc(m.at==='ND'?'✓ date not recorded':fmtD(m.at))+(m.outcome==='changes'?' <span class="small">revise</span>':'')+(m.est?' <span class="small">estimate</span>':''):'<span class="small">—</span>')+'</dd>'; }).join('')+'</dl></div>';
     }).join('')+'</div></div></section>';
   }
   /* Main button on the store page: starts the next step when it can, otherwise opens the current stage. */
@@ -1930,7 +2154,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     A('startProject','Start Layout','p',null,1); A('setStart','Enter the start date','p');
     A('start','Start '+sn,'p');
     var pre='';
-    A('approveStage','Approve '+sn,'p');
+    STEPS.forEach(function(x){ A('logStep',x[1],/rev$/.test(x[0])?'':'p',x[0]); });
     if(g.n===4&&g.items) g.items.forEach(function(i){ if(!i.doneAt) A('issueDoc','Issue '+i.name,'p',i.i); });
     A('recordOpen','Record store opening','p'); A('recordSff','Record SFF claim','p');
     if(!b.length&&g.n===1&&g.status==='not_started') return '<span class="small">Check the Store Brief and CAD file in Store documents first.</span>';
@@ -1940,7 +2164,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   /* Key dates with the tracker's colours and a countdown. */
   function dayDiff(d){ var x=d.split('-'), t=E.TODAY.split('-'); return Math.round((Date.UTC(+x[0],x[1]-1,+x[2])-Date.UTC(+t[0],t[1]-1,+t[2]))/864e5); }
   function keyDates(p){
-    var K=[['Layout due','expLayout','okLayout','Layout approved'],['IDK due','expIdk','okIdk','IDK approved'],['FDK due','expFdk','okFdk','FDK approved'],['Target opening','target',null,'Store opened']];
+    var K=[['Layout due','expLayout','sentLayout','Layout sent'],['IDK due','expIdk','sentIdk','IDK sent'],['FDK due','expFdk','sentFdk','FDK sent'],['Target opening','target',null,'Store opened']];
     return '<div class="kds"><h3 class="dsub" style="margin:2px 0 4px;padding-top:0;border-top:0">Key dates</h3>'+K.map(function(k){
       var m=k[1]==='target'?(p.target?{at:p.target}:null):E.mval(p,k[1]);
       var fin=k[1]==='target'?p.stages[4].status==='done':!!E.mval(p,k[2]);
@@ -1951,7 +2175,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   }
   function detailsPanel(p){
     var rows=[['Apple ID',p.appleId||'—'],['SFO',p.sfo||'—'],['Client',rname(p)],['Country',cname(p)],['SDK or RDK',p.kit?E.KITS[p.kit]:'Not set'],['Target opening',p.target?fmtD(p.target):'Not set'],['Created',fmtD(E.createdOf(p))],['Project start',E.startDate(p)?fmtD(E.startDate(p)):'Not started yet']];
-    var ed=E.can(S,per(),'editStore',p.id,1)?'<div class="nbtns"><button class="btn sm ghost" data-act="resetProgress" data-pid="'+p.id+'" data-n="1">Reset progress</button><button class="btn sm" data-act="editStore" data-pid="'+p.id+'" data-n="1">Edit</button></div>':'';
+    var ed=E.can(S,per(),'editStore',p.id,1)?'<div class="nbtns">'+(E.can(S,per(),'deleteJob',p.id,1)?'<button class="btn sm crit" data-del="'+p.id+'">Delete project</button>':'')+'<button class="btn sm" data-act="editStore" data-pid="'+p.id+'" data-n="1">Edit</button></div>':'';
     return '<section class="panel"><div class="ph"><h2>Store details</h2>'+ed+'</div><div class="pbd"><dl class="kv">'+rows.map(function(r){ return '<dt>'+esc(r[0])+'</dt><dd>'+esc(r[1])+'</dd>'; }).join('')+'</dl></div></section>';
   }
   function vProject(p){
@@ -1998,7 +2222,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   function actionsHTML(p,g){
     var b=[], v=E.last(g);
     function A(action,label,cls,item){ if(E.can(S,per(),action,p.id,g.n,item)) b.push('<button class="btn '+(cls||'')+'" data-act="'+action+'" data-pid="'+p.id+'" data-n="'+g.n+'"'+(item?(typeof item==='string'?' data-party="'+item+'"':' data-item="'+item+'"'):'')+'>'+esc(label)+'</button>'); }
-    A('startProject','Start the project','p'); A('setStart','Enter the start date','p'); A('approveStage','Approve '+E.SHORT[g.n-1],'p');
+    A('startProject','Start the project','p'); A('setStart','Enter the start date','p'); STEPS.forEach(function(x){ A('logStep',x[1],/rev$/.test(x[0])?'':'p',x[0]); });
     A('start','Start '+E.SHORT[g.n-1],'p');
     A('submit','Submit v'+(g.versions.length+1),'p');
     if(v){ A('ddApprove','Approve v'+v.v,'p'); A('ddReturn','Return to Designer'); A('send','Send v'+v.v+' to Apple and Partner','p'); ['apple','partner'].forEach(function(k){ A('recordApprove',E.WHO[k]+' approved','p',k); A('recordChanges',E.WHO[k]+' requested changes','',k); }); }
@@ -2130,7 +2354,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     var r=E.act(S,per(),action,q);
     if(!r.ok){ toast(r.msg,'err'); return false; }
     if(CLOUD) cloudSync();
-    toast(r.msg,'ok'); if(r.pid){ go('project',r.pid); return true; } render(); return true;
+    toast(r.msg,'ok'); if(r.pid&&!r.deleted){ go('project',r.pid); return true; } render(); return true;
   }
 
   /* ---------- modal ---------- */
@@ -2180,6 +2404,10 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       case 'setKit': t='SDK or RDK'; b='<label class="fld" for="f-kit">Kit type<select id="f-kit" name="f-kit" data-req><option value="">Choose</option>'+['SDK','RDK'].map(function(o){ return '<option value="'+o+'"'+(p.kit===o?' selected':'')+'>'+esc(E.KITS[o])+'</option>'; }).join('')+'</select></label>'+hint('RDK includes a render. SDK does not. Shown in the SDK or RDK column of the tracker.'); ok='Save'; break;
       case 'startProject': t='Start the project'; b=fldDate('f-date','Project start date',E.TODAY)+hint('This is the first day of the project. IDK is due 2 weeks later. FDK is due 1 week after the IDK is approved. The Designer then works on the layout.'); ok='Start project'; break;
       case 'setStart': t='Enter the start date'; b=fldDate('f-date','Project start date',E.TODAY)+hint('The tracker has no start date for this store. IDK is due 2 weeks after it.'); ok='Save start date'; break;
+      case 'logStep': { var lb={sent:'Apple sent',"partner-sent":'Partner sent',"apple-ok":'Apple approve',"apple-rev":'Apple revise',"partner-ok":'Partner approve',"partner-rev":'Partner revise'}[item]||'Date', rv=/rev$/.test(item);
+        t=lb+' · '+nm+(item==='sent'?' v'+(g.status==='changes_requested'||!v||v.sentAt?(g.versions.length+1):v.v):(v?' v'+v.v:''));
+        b=fldDate('f-date',lb+' date',E.TODAY)+(rv?fld('f-note','What needs to change (optional)','textarea',''):'')+(item==='partner-rev'?'<fieldset class="rt"><legend>Next version goes to</legend><label class="rt-opt"><input type="radio" name="f-route" value="apple" checked><span><b>Apple again</b><small>Next: Apple sent v'+(v?v.v+1:2)+', then Apple approve and Partner</small></span></label><label class="rt-opt"><input type="radio" name="f-route" value="partner"><span><b>Partner only</b><small>Next: Partner sent v'+(v?v.v+1:2)+'. Apple’s approval still counts</small></span></label></fieldset>':'')+hint(item==='partner-ok'?'Apple and the Partner have both approved: this closes '+nm+(g.n<3?' and starts '+E.STAGES[g.n]+' on this date.':'. Handover documents are next.'):item==='apple-ok'?'Next: record the date it goes to the Partner.':item==='partner-sent'?(g.status==='changes_requested'?'Partner-only round: Apple’s approval of v'+(v?v.v:1)+' still counts. ':'')+'Then record the Partner reply.':rv?'Then record when the revised version goes out.':'Then record Apple’s reply.');
+        ok='Save'; break; }
       case 'approveStage': t='Approve '+nm; b=fldDate('f-date','Approval date',E.TODAY)+fld('f-link','Approved file link (optional)','input','',false,'https://drive.google.com/...')+hint(g.n<3?'This closes '+nm+' and starts '+E.STAGES[g.n]+' on the approval date.':'This closes '+nm+'. Handover documents are next.')+hint('A link you add is kept in Store documents.'); ok='Approve'; break;
       case 'recordApprove': if(item==='partner'){ t='Approve '+nm+' v'+v.v+' and start '+(g.n<3?E.STAGES[g.n]:'Handover'); b=fldDate('f-date','Approval date',E.TODAY)+fld('f-note','Note (optional)','textarea','')+hint('Apple has approved. This closes '+nm+' and starts the next stage today.'); ok='Approve & start'; break; }
         t='Record: '+E.WHO[item]+' approved '+nm+' v'+v.v; b=fldDate('f-date','Date of their reply',E.TODAY)+fld('f-note','Note (optional)','textarea','')+hint('When both Apple and the Partner have approved, the stage closes and the next one is ready.'); ok='Record approval'; break;
@@ -2237,9 +2465,10 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   dlg.addEventListener('close',function(){ dlg.classList.remove('wide'); });
   /* Every save asks Yes / No first. No keeps the form open with what was typed. */
   var cfm=document.getElementById('cfm'), cfmGo=null;
-  function confirmThen(title,detail,fn){
+  function confirmThen(title,detail,fn,o){
     document.getElementById('cfm-t').textContent=title; document.getElementById('cfm-d').textContent=detail||'';
-    cfmGo=fn; cfm.showModal(); document.getElementById('cfm-yes').focus();
+    var yb=document.getElementById('cfm-yes'); o=o||{}; yb.textContent=o.yes||'Yes, save'; yb.className='btn '+(o.crit?'crit':'p');
+    cfmGo=fn; cfm.showModal(); document.getElementById(o.crit?'cfm-no':'cfm-yes').focus();
   }
   document.getElementById('cfm-yes').addEventListener('click',function(){ var fn=cfmGo; cfmGo=null; cfm.close(); if(fn) fn(); });
   document.getElementById('cfm-no').addEventListener('click',function(){ cfmGo=null; cfm.close(); });
@@ -2249,7 +2478,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   dlgf.addEventListener('change',function(e){ if(e.target.id!=='f-jcountry') return; var c=e.target.value, a=document.getElementById('est-idk'), b=document.getElementById('est-fdk'); var l=document.getElementById('est-lay'); if(l) l.textContent=fmtD(E.addWorkdays(E.TODAY,5,c)); if(a) a.textContent=fmtD(E.addWorkdays(E.TODAY,10,c)); if(b) b.textContent=fmtD(E.addWorkdays(E.TODAY,15,c)); });
   dlgf.addEventListener('submit',function(e){
     e.preventDefault(); if(!pending) return;
-    var fd=new FormData(dlgf), q={pid:pending.pid,n:pending.n,item:pending.item,note:fd.get('f-note')||'',link:fd.get('f-link')||'',text:fd.get('f-text')||'',date:fd.get('f-date')||'',appleId:fd.get('f-appleId')||'',sfo:fd.get('f-sfo')||'',client:fd.get('f-client')||'',country:fd.get('f-jcountry')||'',store:fd.get('f-store')||'',target:fd.get('f-target')||'',kit:fd.get('f-kit')||'',links:fd.getAll('f-links'),docs:[1,2,3].map(function(i){ var lk=String(fd.get('f-doc'+i+'-link')||'').trim(); return {status:fd.get('f-doc'+i+'-ok')?'verified':lk?'received':'requested',link:lk}; })};
+    var fd=new FormData(dlgf), q={pid:pending.pid,n:pending.n,item:pending.item,note:fd.get('f-note')||'',route:fd.get('f-route')||'',link:fd.get('f-link')||'',text:fd.get('f-text')||'',date:fd.get('f-date')||'',appleId:fd.get('f-appleId')||'',sfo:fd.get('f-sfo')||'',client:fd.get('f-client')||'',country:fd.get('f-jcountry')||'',store:fd.get('f-store')||'',target:fd.get('f-target')||'',kit:fd.get('f-kit')||'',links:fd.getAll('f-links'),docs:[1,2,3].map(function(i){ var lk=String(fd.get('f-doc'+i+'-link')||'').trim(); return {status:fd.get('f-doc'+i+'-ok')?'verified':lk?'received':'requested',link:lk}; })};
     var a=pending.action, tt=(document.getElementById('dlg-title')||{}).textContent||'Save', pp=q.pid?E.P(S,q.pid):null;
     confirmThen(a==='createJob'?'Create job for '+(q.store||'this store')+'?':tt+'?', a==='createJob'?'It goes into the Tracker with Created = '+fmtD(E.TODAY)+'.':(pp?pp.store:''), function(){ pending=null; dlg.close(); doAct(a,q); });
   });
@@ -2258,7 +2487,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
 
   /* ---------- events ---------- */
   document.addEventListener('click',function(e){
-    var el=e.target.closest('[data-go],[data-act],[data-mode],[data-ui],[data-try],[data-tab],[data-health],[data-cal],[data-day],[data-evt],[data-sort],[data-ed],[data-copy],[data-rv],[data-pv],[data-t2]');
+    var el=e.target.closest('[data-go],[data-act],[data-mode],[data-ui],[data-try],[data-tab],[data-health],[data-del],[data-cal],[data-calm],[data-day],[data-evt],[data-sort],[data-ed],[data-copy],[data-rv],[data-pv],[data-t2]');
     if(!el||el.closest('dialog')) { if(U.bell&&!e.target.closest('.bellp')&&!e.target.closest('[data-ui="bell"]')){ U.bell=false; render(); } return; }
     if(el.dataset.t2){ var a2=el.dataset.t2.split('|');
       if(a2[0]==='x'){ U.t2open=U.t2open===a2[1]?null:a2[1]; render(); return; }
@@ -2276,12 +2505,17 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     if(el.dataset.ed){ pickDate(el); return; }
     if(el.dataset.sort){ var sk=el.dataset.sort; U.sort=U.sort.k===sk?{k:sk,dir:U.sort.dir==='asc'?'desc':'asc'}:{k:sk,dir:sk==='target'?'asc':'desc'}; render(); return; }
     if(el.dataset.go){ var a=el.dataset.go.split('|'); go(a[0],a[1],a[2]); return; }
-    if(el.dataset.evt){ U.cal.type=U.cal.type===el.dataset.evt?'':el.dataset.evt; render(); return; }
+    if(el.dataset.evt){ var hd=Array.isArray(U.cal.hide)?U.cal.hide:[], ek=el.dataset.evt; U.cal.hide=ek==='all'?[]:hd.indexOf(ek)>=0?hd.filter(function(x){ return x!==ek; }):hd.concat([ek]); render(); return; }
+    if(el.dataset.calm){ U.cal.mode=el.dataset.calm; if(U.cal.mode==='week'&&U.cal.sel.slice(0,7)!==U.cal.y+'-'+pad2(U.cal.m+1)) U.cal.sel=U.cal.y+'-'+pad2(U.cal.m+1)+'-01'; render(); return; }
+    if(el.dataset.cal&&U.cal.mode==='week'&&el.dataset.cal!=='today'){ U.cal.sel=addDays(U.cal.sel,el.dataset.cal==='prev'?-7:7); U.cal.y=+U.cal.sel.slice(0,4); U.cal.m=+U.cal.sel.slice(5,7)-1; render(); return; }
     if(el.dataset.cal){ var cm=el.dataset.cal; if(cm==='prev'){ U.cal.m--; if(U.cal.m<0){ U.cal.m=11; U.cal.y--; } } else if(cm==='next'){ U.cal.m++; if(U.cal.m>11){ U.cal.m=0; U.cal.y++; } } else { U.cal.y=+E.TODAY.slice(0,4); U.cal.m=+E.TODAY.slice(5,7)-1; U.cal.sel=E.TODAY; } render(); return; }
-    if(el.dataset.day){ U.cal.sel=el.dataset.day; render(); return; }
+    if(el.dataset.day){ U.cal.sel=el.dataset.day; if(U.cal.mode!=='week'){ U.cal.y=+U.cal.sel.slice(0,4); U.cal.m=+U.cal.sel.slice(5,7)-1; } render(); return; }
     if(el.dataset.health){ U.filt.health=U.filt.health===el.dataset.health?'':el.dataset.health; render(); return; }
     if(el.dataset.tab){ U.tab=el.dataset.tab; render(); return; }
     if(el.dataset.mode){ var m=el.dataset.mode.split('|'); U.modes[m[0]]=m[1]; render(); return; }
+    if(el.dataset.del){ var xp=E.P(S,el.dataset.del); if(!xp) return; var xid=xp.id;
+      confirmThen('Delete '+xp.store+'?','Apple ID '+(xp.appleId||'—')+' · SFO '+(xp.sfo||'—')+' · '+cname(xp)+'. This removes the store and all its dates, documents and notes for everyone. It can’t be undone.',function(){ if(doAct('deleteJob',{pid:xid,n:1})){ U.pid=null; U.n=null; U.t2open=null; go('tracker2'); } },{yes:'Yes, delete',crit:true});
+      return; }
     if(el.dataset.act){ var ac=el.dataset.act, q={pid:el.dataset.pid||null,n:+el.dataset.n||0,item:el.dataset.party?el.dataset.party:el.dataset.item?+el.dataset.item:null}; if(DIRECT[ac]){ var dp=q.pid?E.P(S,q.pid):null; confirmThen((el.textContent||'Confirm').trim()+'?',dp?dp.store:'',function(){ doAct(ac,q); }); } else openModal(ac,q.pid,q.n,q.item); return; }
     if(el.dataset.try){ var t=el.dataset.try.split('|'), st=E.scenarios[+t[0]].steps[+t[1]]; U.bell=false; if(window.innerWidth<1180) U.tryOpen=false; go(st.go.view,st.go.pid,st.go.n); return; }
     switch(el.dataset.ui){
@@ -2344,6 +2578,8 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
         if(REV[p.id]==null) jobs.push(sb.from('pm_projects').insert({id:p.id,data:p}).select('rev').single().then(function(r){ if(r.error) throw r.error; REV[p.id]=r.data.rev; SNAP[p.id]=js; }));
         else { var rv=REV[p.id]; jobs.push(sb.from('pm_projects').update({data:p,rev:rv+1}).eq('id',p.id).eq('rev',rv).select('rev').then(function(r){ if(r.error) throw r.error; if(!r.data||!r.data.length){ var c=new Error('conflict'); c.conflict=true; throw c; } REV[p.id]=r.data[0].rev; SNAP[p.id]=js; })); }
       });
+      Object.keys(REV).forEach(function(id){ if(S.projects.some(function(p){ return p.id===id; })) return;
+        jobs.push(sb.from('pm_projects').delete().eq('id',id).then(function(r){ if(r.error) throw r.error; delete REV[id]; delete SNAP[id]; })); });
       return Promise.all(jobs).then(function(){
         var links=[], j2=[];
         S.projects.forEach(function(p){ p.stages.forEach(function(g){ if(g.n>3) return; g.versions.forEach(function(v){ [['apple',v.token],['partner',v.ptoken]].forEach(function(x){ if(x[1]&&!LINKS[x[1]]){ LINKS[x[1]]=1; links.push({token:x[1],project_id:p.id,stage:g.n,version:v.v,party:x[0]}); } }); }); }); });
