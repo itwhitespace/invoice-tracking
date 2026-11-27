@@ -2564,7 +2564,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   }
   /* Tracker date cells: click opens the browser's calendar on the cell; the modal is the fallback. */
   var picker=document.createElement('input'); picker.type='date'; picker.id='cellpick'; picker.tabIndex=-1; picker.setAttribute('aria-hidden','true');
-  picker.style.cssText='position:fixed;opacity:0;pointer-events:none;border:0;padding:0;margin:0;z-index:-1';
+  picker.style.cssText='position:fixed;opacity:0;pointer-events:none;border:0;padding:0;margin:0;z-index:2147483000;background:transparent;color:transparent';
   document.body.appendChild(picker);
   picker.addEventListener('change',function(){ var d=picker.dataset; if(!picker.value||picker.value===d.val) return; var v=picker.value, pp=E.P(S,d.pid); confirmThen('Change the date to '+v.split('-').reverse().join('/')+'?',pp?pp.store:'',function(){ doAct('setDate',{pid:d.pid,n:1,item:d.key,date:v}); }); });
   function pickDate(cell){
