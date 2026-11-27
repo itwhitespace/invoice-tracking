@@ -2,7 +2,7 @@
 <html lang="en">
 <meta name="robots" content="noindex,nofollow">
 <meta charset="utf-8">
-<title>APP CORE Tracking</title>
+<title>APP CORE Tracker</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -107,6 +107,9 @@ main{min-width:0;display:flex;flex-direction:column;gap:16px}
 .sub{color:var(--muted);margin-top:6px;max-width:68ch}
 .crumb{font-size:12.5px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .crumb button{border:0;background:none;padding:0;color:var(--accent);cursor:pointer;font-weight:600}
+.crumbrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.backb{gap:6px}
+.backb span{font-size:16px;line-height:1}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:2px;gap:2px}
 .seg button{border:0;background:transparent;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
 .seg button svg{width:14px;height:14px}
@@ -488,7 +491,7 @@ button.tile{cursor:pointer}
 .tile2:hover{border-color:var(--tc)}
 .tile2[aria-pressed="true"]{border-color:var(--tc);box-shadow:inset 0 0 0 1px var(--tc),0 2px 10px rgba(16,24,40,.08)}
 .tile2:focus-visible{outline:2px solid var(--v2-pri);outline-offset:2px}
-.t2card{background:var(--v2-card);border:1px solid var(--v2-line);border-radius:12px;overflow:hidden}
+.t2card{background:var(--v2-card);border:1px solid var(--v2-line);border-radius:12px;overflow:clip}
 .t2bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px;border-bottom:1px solid var(--v2-line)}
 .t2bar .sp-flex{flex:1}
 /* ===== Calendar redesign (c2) ===== */
@@ -586,16 +589,20 @@ button.tile{cursor:pointer}
 .t2leg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px 24px;padding:16px;background:var(--v2-xp);border-bottom:1px solid var(--v2-line);font-size:13px;color:var(--v2-ink2)}
 .t2leg h3{font:600 11px/1 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--v2-mute);margin:0 0 8px}
 .t2leg p{margin:0 0 6px}
-.t2wrap{overflow-x:auto}
-table.t2{border-collapse:separate;border-spacing:0;width:100%;min-width:1738px;table-layout:fixed;font-size:13.5px}
-.t2 th{background:var(--v2-head);font:600 12px/1.2 'IBM Plex Sans',sans-serif;text-transform:uppercase;letter-spacing:.04em;color:var(--v2-mute);text-align:left;padding:12px 14px;border-bottom:1px solid var(--v2-line);white-space:nowrap}
-.t2 td{padding:12px 14px;border-bottom:1px solid var(--v2-row);vertical-align:middle;background:var(--v2-card);color:var(--v2-ink)}
+.t2wrap{overflow:clip}
+.t2wrap.scrollx{overflow-x:auto}
+.t2card>.t2bar{position:sticky;top:var(--toph,0px);z-index:6;background:var(--v2-card)}
+.t2wrap:not(.scrollx) .t2 thead th{position:sticky;top:calc(var(--toph,0px) + var(--t2bh,0px));z-index:4}
+.t2wrap:not(.scrollx) .t2 thead th.c-cr,.t2wrap:not(.scrollx) .t2 thead th.c-store{z-index:5}
+table.t2{border-collapse:separate;border-spacing:0;width:100%;min-width:1110px;table-layout:fixed;font-size:13.5px}
+.t2 th{background:var(--v2-head);font:600 11.5px/1.25 'IBM Plex Sans',sans-serif;text-transform:uppercase;letter-spacing:.04em;color:var(--v2-mute);text-align:left;padding:11px 10px;border-bottom:1px solid var(--v2-line)}
+.t2 td{padding:11px 10px;border-bottom:1px solid var(--v2-row);vertical-align:middle;background:var(--v2-card);color:var(--v2-ink)}
 .t2 tr.r:hover td{background:var(--v2-hover)}
 .t2 .c-cr{position:sticky;left:0;z-index:2}
-.t2 td.c-cr{box-shadow:inset 4px 0 0 var(--hb);padding-left:18px}
-.t2 .c-store{position:sticky;left:124px;z-index:2;box-shadow:1px 0 0 var(--v2-line)}
+.t2 td.c-cr{box-shadow:inset 4px 0 0 var(--hb);padding-left:14px}
+.t2 .c-store{position:sticky;left:104px;z-index:2;box-shadow:1px 0 0 var(--v2-line)}
 .t2 th.c-store,.t2 th.c-cr{z-index:3}
-.t2 th.c-cr{padding-left:18px}
+.t2 th.c-cr{padding-left:14px}
 .t2 td.c-co{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sn2w{display:flex;align-items:center;gap:6px;min-width:0}
 .sn2{all:unset;cursor:pointer;font-weight:700;font-size:14px;color:var(--v2-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px}
@@ -604,7 +611,7 @@ table.t2{border-collapse:separate;border-spacing:0;width:100%;min-width:1738px;t
 .ids2{font:500 11.5px/1.3 var(--f-mono);color:var(--v2-mute);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ids2 abbr{text-decoration:none;cursor:help}
 .cr{color:var(--d-risk);font-weight:700}
-.t2ed{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;border-radius:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.t2ed{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:13px;border-radius:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .t2ed .edi{display:inline-flex;color:var(--cal-hover,#E8710A)}
 .t2ed .edi svg{width:13px;height:13px}
 .t2ed:hover .edi{transform:scale(1.15)}
@@ -618,29 +625,30 @@ table.t2{border-collapse:separate;border-spacing:0;width:100%;min-width:1738px;t
 .dl-l{margin:0 0 3px}
 .now-s{font:700 12px/1.2 'IBM Plex Sans',sans-serif}
 .now-t{font-size:13.5px;margin-top:3px;color:var(--v2-ink)}
-.dl-d{font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+.dl-d{font-weight:700;font-size:13.5px;font-variant-numeric:tabular-nums}
 .dl-ok{color:var(--d-ok)} .dl-risk{color:var(--d-risk)} .dl-late{color:var(--d-late)}
 .dl-d.est{font-style:italic}
 .estc{display:inline-block;font:600 10.5px/1 var(--f-mono);font-style:normal;padding:2px 5px;border-radius:4px;background:var(--v2-chip);color:var(--v2-mute);vertical-align:1px}
 .dkg{display:grid;grid-template-columns:repeat(2,max-content);gap:4px}
-.dk2{display:inline-flex;align-items:center;gap:3px;font:600 11.5px/1 'IBM Plex Sans',sans-serif;padding:4px 7px;border-radius:6px;white-space:nowrap}
+.dk2{display:inline-flex;align-items:center;gap:2px;font:600 11px/1 'IBM Plex Sans',sans-serif;padding:3px 5px;border-radius:6px;white-space:nowrap}
 .dk2.ok{background:var(--hb-on_track);color:var(--hf-on_track)}
 .dk2.chk{background:var(--hb-at_risk);color:var(--hf-at_risk)}
 .dk2.todo{background:var(--v2-chip);color:var(--v2-mute)}
 .t2 td.wt{color:var(--v2-ink2)}
-.hp{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font:600 12px/1.2 'IBM Plex Sans',sans-serif;white-space:nowrap}
+.hp{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;font:600 11.5px/1.2 'IBM Plex Sans',sans-serif;white-space:nowrap}
 .hp::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
 .hp-on_track{background:var(--hb-on_track);color:var(--hf-on_track)} .hp-on_track::before{background:var(--h-on_track)}
 .hp-at_risk{background:var(--hb-at_risk);color:var(--hf-at_risk)} .hp-at_risk::before{background:var(--h-at_risk)}
 .hp-delayed{background:var(--hb-delayed);color:var(--hf-delayed)} .hp-delayed::before{background:var(--h-delayed)}
 .hp-on_hold{background:var(--hb-on_hold);color:var(--hf-on_hold)} .hp-on_hold::before{background:var(--h-on_hold)}
 .hp-completed{background:var(--hb-completed);color:var(--hf-completed)} .hp-completed::before{background:var(--h-completed)}
-.xb{all:unset;box-sizing:border-box;cursor:pointer;width:36px;height:36px;border:1px solid var(--v2-line);border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--v2-ink2);background:var(--v2-card)}
+.xb{all:unset;box-sizing:border-box;cursor:pointer;width:30px;height:30px;border:1px solid var(--v2-line);border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--v2-ink2);background:var(--v2-card)}
 .xb svg{width:16px;height:16px;transition:transform .15s}
 .xb[aria-expanded="true"] svg{transform:rotate(180deg)}
 .xb:focus-visible{outline:2px solid var(--v2-pri);outline-offset:2px}
 .t2 tr.xr td{background:var(--v2-xp);padding:14px}
-.x6{display:grid;grid-template-columns:repeat(6,minmax(190px,1fr));gap:12px}
+.x6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+@media (max-width:1300px){ .x6{grid-template-columns:repeat(3,minmax(0,1fr))} }
 .xc{background:var(--v2-card);border:1px solid var(--v2-line);border-radius:12px;padding:12px 14px;display:grid;gap:8px;align-content:start}
 .xc.cur{border-color:var(--sc);box-shadow:inset 0 0 0 1px var(--sc)}
 .xch{display:flex;align-items:center;gap:8px;font:700 13px/1.2 'IBM Plex Sans',sans-serif}
@@ -758,7 +766,9 @@ dialog.wide .db{max-height:min(68vh,640px);overflow:auto}
 .rv b{font-size:13.5px}
 .kv.wide{grid-template-columns:max-content minmax(0,1fr)}
 .mg{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px 24px}
-.mg h3{font:600 10.5px/1 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.mg h3{display:flex;align-items:center;gap:7px;font:700 12px/1 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink);margin-bottom:10px}
+.mg h3::before{content:"";width:9px;height:9px;border-radius:3px;background:var(--mgc,var(--muted));flex:none}
+.mg>div:nth-child(1){--mgc:var(--g1)} .mg>div:nth-child(2){--mgc:var(--g2)} .mg>div:nth-child(3){--mgc:var(--g3)} .mg>div:nth-child(4){--mgc:var(--g4)} .mg>div:nth-child(5){--mgc:var(--g5)}
 
 /* calendar */
 .cal-h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -808,8 +818,8 @@ var ENGINE = (function () {
   /* SAMPLE_DATA: true loads the 18 demo stores from the PDF tracker; false starts empty for real testing. */
   var SAMPLE_DATA = false;
   var VERSION = 8, TODAY = (function(){ var d=new Date(); return d.getFullYear()+'-'+(d.getMonth()<9?'0':'')+(d.getMonth()+1)+'-'+(d.getDate()<10?'0':'')+d.getDate(); })(), SLA = 1;
-  var STAGES = ['Layout Proposal','IDK Review','FDK Review','Handover','Store Opens','SFF Claims'];
-  var SHORT = ['Layout','IDK','FDK','Handover','Opens','SFF'];
+  var STAGES = ['Layout Proposal','IDK Review','FDK Review','Construction Phase','Store Opens','SFF Claims'];
+  var SHORT = ['Layout','IDK','FDK','Construction','Opens','SFF'];
   var KEYS = ['layout','idk','fdk','handover','opens','sff'];
   var STATUS = {not_started:'Not started',in_progress:'In progress',internal_review:'Internal review',with_reviewers:'Sent for review',changes_requested:'Changes requested',approved:'Approved',done:'Done'};
   var HEALTH = {on_track:'On track',at_risk:'At risk',delayed:'Delayed',on_hold:'On hold',completed:'Completed'};
@@ -1055,7 +1065,7 @@ var ENGINE = (function () {
         case 'changes_requested': { var lr=last(g); return 'Revising · v'+(lr?lr.v+1:1)+' to '+(lr&&lr.nextTo==='partner'?'Partner':'Apple'); }
       }
     }
-    if(g.n===4){ var c=g.items.filter(function(i){ return i.doneAt; }).length; return 'Handover '+c+'/3'; }
+    if(g.n===4){ var c=g.items.filter(function(i){ return i.doneAt; }).length; return 'Construction '+c+'/3'; }
     if(g.n===5) return 'Ready to open';
     return 'Opened · SFF claim to file';
   }
@@ -1218,9 +1228,7 @@ var ENGINE = (function () {
     if((action==='comment'||action==='updateLatest') && !String(q.text||'').trim()) return fail('Write something first.');
     var dt=String(q.date||TODAY).trim();
     if((action==='startProject'||action==='setStart'||action==='approveStage'||action==='logStep'||action==='recordApprove'||action==='recordChanges'||action==='setDate') && (!/^\d{4}-\d{2}-\d{2}$/.test(dt) || isNaN(d2n(dt)) || n2d(d2n(dt))!==dt)) return fail('Enter a valid date.');
-    if((action==='recordApprove'||action==='recordChanges'||action==='approveStage') && dt>TODAY) return fail('An approval can’t be dated in the future.');
     if(action==='logStep'){
-      if(dt>TODAY) return fail('This date can\u2019t be in the future.');
       if(q.item==='sent'){ if(real(g.startAt)&&dt<g.startAt.slice(0,10)) return fail('The sent date is before this stage started ('+g.startAt.slice(0,10)+').'); var pv=lastSentV(g); if(pv){ var pr=pv.reviews.partner||pv.reviews.apple; if(pr&&real(pr.at)&&dt<pr.at.slice(0,10)) return fail('The sent date is before the last revise ('+pr.at.slice(0,10)+').'); } }
       else { if(real(v.sentAt)&&dt<v.sentAt.slice(0,10)) return fail('This date is before Apple sent ('+v.sentAt.slice(0,10)+').'); if(q.item.indexOf('partner')===0&&real(v.reviews.apple.at)&&dt<v.reviews.apple.at.slice(0,10)) return fail('This date is before Apple approved ('+v.reviews.apple.at.slice(0,10)+').'); if(q.item==='partner-sent'&&g.status==='changes_requested'&&v.reviews.partner&&real(v.reviews.partner.at)&&dt<v.reviews.partner.at.slice(0,10)) return fail('This date is before the Partner revise ('+v.reviews.partner.at.slice(0,10)+').'); if(q.item!=='partner-sent'&&q.item.indexOf('partner')===0&&real(v.psentAt)&&dt<v.psentAt.slice(0,10)) return fail('This date is before Partner sent ('+v.psentAt.slice(0,10)+').'); }
     }
@@ -1331,8 +1339,8 @@ var ENGINE = (function () {
         if(who3==='apple') return {ok:true,msg:'Apple approved v'+v.v+' on '+dt+'. Next: Partner sent.'};
         g.status='approved'; g.closedAt=later(v.reviews.apple.at,dt); g.since=at; nx=p.stages[g.n];
         nx.status='in_progress'; nx.since=at; if(g.n<3) nx.startAt=g.closedAt;
-        notify(s,['des','dd','bd'],nm+' approved by Apple and the Partner for '+p.store+'. '+(g.n===3?'Handover documents are next.':STAGES[g.n]+' has started.'),p.id,g.n,false);
-        return {ok:true,msg:'Partner approved on '+dt+'. '+nm+' is approved. '+(g.n===3?'Handover is next.':STAGES[g.n]+' has started.')};
+        notify(s,['des','dd','bd'],nm+' approved by Apple and the Partner for '+p.store+'. '+(g.n===3?'Construction Phase is next.':STAGES[g.n]+' has started.'),p.id,g.n,false);
+        return {ok:true,msg:'Partner approved on '+dt+'. '+nm+' is approved. '+(g.n===3?'Construction Phase is next.':STAGES[g.n]+' has started.')};
       }
       case 'approveStage': {
         /* Single-person flow: the Admin records that the stage is approved, with its date. The next stage starts on that date. */
@@ -1340,8 +1348,8 @@ var ENGINE = (function () {
         nx.status='in_progress'; nx.since=at; if(g.n<3) nx.startAt=dt;
         var alk=String(q.link||'').trim();
         if(alk){ p.extra=p.extra||[]; p.extra.push({id:++s.seq,name:nm+' (approved)',link:alk,at:dt}); }
-        notify(s,['des','dd','bd'],nm+' approved for '+p.store+'. '+(g.n===3?'Handover documents are next.':STAGES[g.n]+' has started.'),p.id,g.n,false);
-        return {ok:true,msg:nm+' approved on '+dt+'. '+(g.n===3?'Handover is next.':STAGES[g.n]+' has started.')};
+        notify(s,['des','dd','bd'],nm+' approved for '+p.store+'. '+(g.n===3?'Construction Phase is next.':STAGES[g.n]+' has started.'),p.id,g.n,false);
+        return {ok:true,msg:nm+' approved on '+dt+'. '+(g.n===3?'Construction Phase is next.':STAGES[g.n]+' has started.')};
       }
       case 'sendPartner':
         v.ptoken=newToken(); v.pnote=note; v.psentAt=TODAY; g.since=at;
@@ -1349,8 +1357,8 @@ var ENGINE = (function () {
       case 'confirmStage':
         g.status='approved'; g.closedAt=later(v.reviews.apple.at,v.reviews.partner.at); g.since=at; nx=p.stages[g.n];
         nx.status='in_progress'; nx.since=at; if(g.n<3) nx.startAt=TODAY;
-        notify(s,['des','dd','bd'],nm+' approved by Apple and the Partner. '+(g.n===3?'Handover documents are next.':STAGES[g.n]+' has started.'),p.id,g.n,false);
-        return {ok:true,msg:nm+' confirmed. '+(g.n===3?'Handover is next.':STAGES[g.n]+' has started.')};
+        notify(s,['des','dd','bd'],nm+' approved by Apple and the Partner. '+(g.n===3?'Construction Phase is next.':STAGES[g.n]+' has started.'),p.id,g.n,false);
+        return {ok:true,msg:nm+' confirmed. '+(g.n===3?'Construction Phase is next.':STAGES[g.n]+' has started.')};
       case 'sendReview': {
         var lks=(q.links||[]).map(function(x){ return String(x||'').trim(); }).filter(Boolean);
         var nv2=V(g.versions.length+1,TODAY,null,null,{at:at,link:lks[0]||null,links:lks,note:note,internal:'approved',by:'admin'});
@@ -1418,7 +1426,7 @@ var ENGINE = (function () {
           if(!ap) T('record','Waiting on Apple · '+sn+' v'+v.v,'Review link sent '+(real(v.sentAt)?v.sentAt:''));
           else if(ap.outcome==='approved'&&!v.ptoken&&!pa) T('sendpart','Send '+sn+' v'+v.v+' to Partner','Apple approved'+(ap.note?': '+ap.note:''));
           else if(ap.outcome==='approved'&&!pa) T('record','Waiting on Partner · '+sn+' v'+v.v,'Partner link sent '+(v.psentAt||''));
-          else if(pa&&pa.outcome==='approved') T('approve','Confirm '+sn+' v'+v.v+' and start '+(g.n<3?SHORT[g.n]:'Handover'),'Apple and Partner approved'+(pa.note?' · Partner: '+pa.note:''));
+          else if(pa&&pa.outcome==='approved') T('approve','Confirm '+sn+' v'+v.v+' and start '+(g.n<3?SHORT[g.n]:'Construction Phase'),'Apple and Partner approved'+(pa.note?' · Partner: '+pa.note:''));
         }
       }); });
     }
@@ -1514,7 +1522,7 @@ var ENGINE = (function () {
     ]},
     {id:'s4',title:'From FDK to the SFF claim',sub:'iBOX @ Lippo Mall Kemang · FDK Review onward',steps:[
       {text:'As Coordinator, record that Apple approved the FDK.',persona:'coord',go:{view:'stage',pid:'lippo',n:3},done:function(s){ return rvOf(s,'lippo',3,'apple','approved'); }},
-      {text:'As Coordinator, record that the Partner approved the FDK. Handover starts.',persona:'coord',go:{view:'stage',pid:'lippo',n:3},done:function(s){ return st(s,'lippo',3).status==='approved'; }},
+      {text:'As Coordinator, record that the Partner approved the FDK. Construction Phase starts.',persona:'coord',go:{view:'stage',pid:'lippo',n:3},done:function(s){ return st(s,'lippo',3).status==='approved'; }},
       {text:'As Coordinator, issue the three handover documents.',persona:'coord',go:{view:'stage',pid:'lippo',n:4},done:function(s){ return st(s,'lippo',4).status==='done'; }},
       {text:'As Coordinator, record the store opening.',persona:'coord',go:{view:'stage',pid:'lippo',n:5},done:function(s){ return st(s,'lippo',5).status==='done'; }},
       {text:'As Coordinator, record the SFF claim. The project is completed.',persona:'coord',go:{view:'stage',pid:'lippo',n:6},done:function(s){ return st(s,'lippo',6).status==='done'; }}
@@ -1607,7 +1615,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     var unread=S.notes.filter(function(x){ return (per()==='admin'||x.to.indexOf(per())>=0) && x.read.indexOf(per())<0; }).length;
     var opts=function(side){ return E.PERSONAS.filter(function(x){ return x.side===side; }).map(function(x){ return '<option value="'+x.id+'"'+(x.id===per()?' selected':'')+'>'+esc(x.role)+'</option>'; }).join(''); };
     return '<header class="top"><div class="top-in gut wide">'+
-      '<div class="brand"><img class="logo" src="'+LOGO+'" alt="Whitespace Partners"><span class="bsep" aria-hidden="true"></span><span class="bn">APP CORE Tracking</span><span class="tag">'+(CLOUD?'Beta':'Prototype A.2')+'</span></div>'+
+      '<div class="brand"><img class="logo" src="'+LOGO+'" alt="Whitespace Partners"><span class="bsep" aria-hidden="true"></span><span class="bn">APP CORE Tracker</span><span class="tag">'+(CLOUD?'Beta':'Prototype A.2')+'</span></div>'+
       '<div class="tools"><button class="btn ib" data-ui="bell" aria-label="Notifications, '+unread+' unread" aria-expanded="'+U.bell+'">'+IC.bell+(unread?'<span class="badge">'+unread+'</span>':'')+'</button>'+
       (CLOUD?'':'<button class="btn" data-ui="try" aria-expanded="'+U.tryOpen+'">Try this</button>')+
       '</div></div></header>';
@@ -1651,7 +1659,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     ['opens','Opens','or','Store Opens'],['sff','SFF','or','SFF Claims'],['wait','Waiting on','pt'],['health','Health','pt']
   ];
   function colName(c){ return c[3]||c[1]; }
-  var GROUPS=[['Store',4],['Deadlines',3],['Now',1],['Docs',1],['Layout',4],['IDK',3],['FDK',4],['Handover',3],['Open &amp; claim',2],['Portal',2]];
+  var GROUPS=[['Store',4],['Deadlines',3],['Now',1],['Docs',1],['Layout',4],['IDK',3],['FDK',4],['Construction',3],['Open &amp; claim',2],['Portal',2]];
   var DATEKEYS={startLayout:1,expIdk:1,sentLayout:1,apLayout:1,paLayout:1,sentIdk:1,apIdk:1,paIdk:1,startFdk:1,sentFdk:1,apFdk:1,paFdk:1,onePage:1,constr:1,install:1,opens:1,sff:1};
   function sortProjects(list){ var co=Object.keys(E.COUNTRIES); return list.slice().sort(function(a,b){ var d=co.indexOf(a.country)-co.indexOf(b.country); return d||S.projects.indexOf(a)-S.projects.indexOf(b); }); }
   /* Tracker sort: Created or Target Opening Date; empty dates always go last. */
@@ -1813,11 +1821,11 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<div><h2>'+title+'</h2><p class="sub">'+sub+'</p></div>'+switcher('home')+toolbar('')+projectsView(list,'home');
   }
   /* ---------- calendar (default page) ---------- */
-  var EV={start:['Start','var(--g2)'],due:['Due date','var(--h-late)'],approved:['Stage approved','var(--h-done)'],sent:['Sent','var(--s-cli)'],apple:['Apple review','var(--s-app)'],partner:['Partner review','var(--g8)'],sla:['Reply due (SLA)','var(--h-risk)'],handover:['Handover','var(--g4)'],open:['Store opens','var(--g6)'],target:['Target opening','var(--nav-2)'],sff:['SFF claim','var(--h-done)']};
+  var EV={start:['Start','var(--g2)'],due:['Due date','var(--h-late)'],approved:['Stage approved','var(--h-done)'],sent:['Sent','var(--s-cli)'],apple:['Apple review','var(--s-app)'],partner:['Partner review','var(--g8)'],sla:['Reply due (SLA)','var(--h-risk)'],handover:['Construction','var(--g4)'],open:['Store opens','var(--g6)'],target:['Target opening','var(--nav-2)'],sff:['SFF claim','var(--h-done)']};
   function shortName(p){ var n=p.store; var i=n.indexOf('@'); return (i>=0?n.slice(i+1):n).replace(/^\s+/,'').slice(0,28); }
   function pad2(x){ return (x<10?'0':'')+x; }
   /* ================= Calendar (redesign): same events as before, Tracker look ================= */
-  var EV2={start:['Start','#2F6FDE'],due:['Due date','#DC2F45'],approved:['Stage approved','#16A34A'],sent:['Sent','#E07B0B'],apple:['Apple review','#5B6B8C'],partner:['Partner review','#C8478F'],handover:['Handover','#14967F'],open:['Store opens','#2E9E4F'],target:['Target opening','#171A33'],sff:['SFF claim','#0B6E44']};
+  var EV2={start:['Start','#2F6FDE'],due:['Due date','#DC2F45'],approved:['Stage approved','#16A34A'],sent:['Sent','#E07B0B'],apple:['Apple review','#5B6B8C'],partner:['Partner review','#C8478F'],handover:['Construction','#14967F'],open:['Store opens','#2E9E4F'],target:['Target opening','#171A33'],sff:['SFF claim','#0B6E44']};
   var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'], WDAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   /* Display names only. Which days are holidays still comes from the engine (HOL, HOLX, substitute days). */
   var HOLNAME={'01-01':'New Year’s Day','04-06':'Chakri Day','04-13':'Songkran','04-14':'Songkran','04-15':'Songkran','05-01':'Labour Day','05-04':'Coronation Day','06-03':'Queen’s Birthday','07-28':'King’s Birthday','08-12':'Mother’s Day','10-13':'King Bhumibol Memorial Day','10-23':'Chulalongkorn Day','12-05':'Father’s Day','12-10':'Constitution Day','12-31':'New Year’s Eve'};
@@ -1888,7 +1896,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<div class="c2main"><section class="c2card" aria-label="Calendar">'+bar+show+body+'</section><aside class="c2side">'+dayBox+attBox+'</aside></div></div>';
   }
   /* ================= Tracker V2: same data and actions as Tracker, redesigned table ================= */
-  var T2STAGE=['Layout','IDK','FDK','Handover','Opens','SFF'];
+  var T2STAGE=['Layout','IDK','FDK','Construction','Opens','SFF'];
   function t2Rows(){
     var f=U.filt;
     var base=E.visibleProjects(S,per()).filter(function(p){ return (!f.country||p.country===f.country)&&(!f.reseller||p.client===f.reseller)&&qmatch(p.store+' '+rname(p)+' '+cname(p)+' '+p.appleId+' '+p.sfo); });
@@ -1944,7 +1952,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<td>'+t2Health(p)+'</td>'+
       '<td><button type="button" class="xb" data-t2="x|'+p.id+'" aria-expanded="'+open+'" aria-label="'+(open?'Hide':'Show')+' all dates for '+esc(p.store)+'">'+IC.chev+'</button></td></tr>';
     if(!open) return row;
-    var cards=[[1,'1 · Layout',stageRows(p,1)],[2,'2 · IDK',stageRows(p,2)],[3,'3 · FDK',stageRows(p,3)],[4,'4 · Handover',[['onePage','1-page'],['constr','Schedule'],['install','Install']]],[5,'5 · Open & Claim',[['opens','Opens'],['sff','SFF']]],[6,'Portal',null]];
+    var cards=[[1,'1 · Layout',stageRows(p,1)],[2,'2 · IDK',stageRows(p,2)],[3,'3 · FDK',stageRows(p,3)],[4,'4 · Construction Phase',[['onePage','1-page'],['constr','Schedule'],['install','Install']]],[5,'5 · Open & Claim',[['opens','Opens'],['sff','SFF']]],[6,'Portal',null]];
     var xs=cards.map(function(c){
       var cur=!dn&&(c[0]===g.n||(c[0]===5&&g.n===6)), body;
       if(c[2]) body=c[2].map(function(k){ var m=E.mval(p,k[0]); var ds=/^exp/.test(k[0])&&!p.hold?E.dueState(p,k[0]):null; var v=m?((m.outcome==='changes'?'<span class="cr" title="'+esc(m.note?'Revise: '+m.note:'Revise')+'">↺</span> ':'')+(ds?'<b class="dl-'+ds+'">'+t2Date(p,k[0],m.at)+'</b>':t2Date(p,k[0],m.at))):'<span class="t2nil">–</span>'; return '<div class="kv2"><span>'+k[1]+'</span><span>'+v+'</span></div>'; }).join('')+(c[0]<=3?(function(){ var ab=stepBtns(p,c[0]); return ab?'<div class="kv2 adds">'+ab+'</div>':''; })():'');
@@ -1971,7 +1979,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     var body;
     if(mode==='pipeline') body=list.length?projPipeline(list):'';
     else if(mode==='kanban') body=list.length?projKanban(list):'';
-    else body=list.length?'<div class="t2wrap"><table class="t2"><colgroup><col style="width:124px"><col style="width:240px"><col style="width:120px"><col style="width:120px"><col style="width:196px"><col style="width:188px"><col style="width:156px"><col style="width:176px"><col style="width:132px"><col style="width:118px"><col style="width:56px"></colgroup>'+
+    else body=list.length?'<div class="t2wrap"><table class="t2"><colgroup><col style="width:104px"><col style="width:176px"><col style="width:82px"><col style="width:100px"><col style="width:92px"><col style="width:124px"><col style="width:104px"><col style="width:112px"><col style="width:88px"><col style="width:90px"><col style="width:44px"></colgroup>'+
       '<thead><tr><th class="c-cr">'+t2Sort('created','Created')+'</th><th class="c-store">Store</th><th>Country</th><th>'+t2Sort('target','Target')+'</th><th>Stage progress</th><th>Now</th><th>Next deadline</th><th>Docs · Kit</th><th>Waiting on</th><th>Health</th><th><span class="sr">Expand</span></th></tr></thead><tbody>'+list.map(t2Row).join('')+'</tbody></table></div>':'';
     if(!list.length) body='<div class="t2empty">'+(all.length||f.health?'No stores match these filters.':'No stores yet. Press Create job to add the first one.')+'</div>';
     var foot='<div class="t2foot"><span>Showing '+list.length+' of '+E.visibleProjects(S,per()).length+' stores</span><span>Dates are dd/mm/yyyy</span></div>';
@@ -2035,7 +2043,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
         return X?'Whitespace will file the SFF claim.':'Next: record the SFF claim.';
       case 'internal_review': return X?'Whitespace is reviewing the next version internally.':v.internal==='pending'?'Next: internal review of v'+v.v+'.':'Next: record '+(g.status==='changes_requested'&&E.last(g)&&E.last(g).nextTo==='partner'?'the date it is sent to the Partner':g.status==='with_reviewers'?(E.last(g)&&E.last(g).reviews.apple?(E.last(g).psentAt?'the Partner reply':'the date it is sent to the Partner'):'the Apple reply'):'the date it is sent to Apple')+'.';
       case 'changes_requested': var by=lastChanger(g); return X?'Whitespace is revising after the change request.':'Next: record '+(g.status==='changes_requested'&&E.last(g)&&E.last(g).nextTo==='partner'?'the date it is sent to the Partner':g.status==='with_reviewers'?(E.last(g)&&E.last(g).reviews.apple?(E.last(g).psentAt?'the Partner reply':'the date it is sent to the Partner'):'the Apple reply'):'the date it is sent to Apple')+'.';
-      case 'with_reviewers': if(!X) return 'Next: record '+(g.status==='changes_requested'&&E.last(g)&&E.last(g).nextTo==='partner'?'the date it is sent to the Partner':g.status==='with_reviewers'?(E.last(g)&&E.last(g).reviews.apple?(E.last(g).psentAt?'the Partner reply':'the date it is sent to the Partner'):'the Apple reply'):'the date it is sent to Apple')+'.'; if(!X&&v&&v.token){ var nxs=(g.n<3?E.STAGES[g.n]:'Handover'); if(!v.reviews.apple) return 'Step 1 of 3 · Sent to Apple. Waiting for their reply on v'+v.v+' (due within '+E.SLA+' working day). Share the review link below.'; if(!v.reviews.partner) return v.ptoken?'Step 2 of 3 · Apple approved. Sent to the Partner, waiting for their reply. Share the Partner link below.':'Step 2 of 3 · Apple approved v'+v.v+'. Next: send it to the Partner for approval.'; return 'Step 3 of 3 · Apple and the Partner approved v'+v.v+'. Confirm to close '+E.STAGES[g.n-1]+' and start '+nxs+'.'; }
+      case 'with_reviewers': if(!X) return 'Next: record '+(g.status==='changes_requested'&&E.last(g)&&E.last(g).nextTo==='partner'?'the date it is sent to the Partner':g.status==='with_reviewers'?(E.last(g)&&E.last(g).reviews.apple?(E.last(g).psentAt?'the Partner reply':'the date it is sent to the Partner'):'the Apple reply'):'the date it is sent to Apple')+'.'; if(!X&&v&&v.token){ var nxs=(g.n<3?E.STAGES[g.n]:'Construction Phase'); if(!v.reviews.apple) return 'Step 1 of 3 · Sent to Apple. Waiting for their reply on v'+v.v+' (due within '+E.SLA+' working day). Share the review link below.'; if(!v.reviews.partner) return v.ptoken?'Step 2 of 3 · Apple approved. Sent to the Partner, waiting for their reply. Share the Partner link below.':'Step 2 of 3 · Apple approved v'+v.v+'. Next: send it to the Partner for approval.'; return 'Step 3 of 3 · Apple and the Partner approved v'+v.v+'. Confirm to close '+E.STAGES[g.n-1]+' and start '+nxs+'.'; }
         var pe=E.pend(g); if(pe.indexOf(k)>=0) return 'Waiting on you to review v'+v.v+'.'; var w=E.waitingOn(p); return 'Waiting on '+pe.map(function(x){ return E.WHO[x]; }).join(' and ')+' to review v'+v.v+(w.workdays!==null&&w.workdays>E.SLA?'. Overdue: the reply was due within '+E.SLA+' working day.':'. Reply is due within '+E.SLA+' working day of sending. Weekends and Thai public holidays don’t count.')+' Record each reply here.';
       case 'approved': return 'Approved '+fmtD(g.closedAt)+' by Apple and the Partner.';
       case 'done': return 'Done '+fmtD(g.closedAt)+'.';
@@ -2068,7 +2076,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       '<h3 class="dsub">Other documents</h3>'+(ex?'<div class="docs">'+ex+'</div>':'<p class="small">None yet. Press + Add to keep a Google Drive link here.</p>')+'</div></section>';
   }
   function milestonesPanel(p){
-    var SR=[1,2,3].map(function(n){ return stageRows(p,n); }); var groups=[['Layout',SR[0].map(function(r){ return r[0]; })],['IDK',SR[1].map(function(r){ return r[0]; })],['FDK',SR[2].map(function(r){ return r[0]; })],['Handover',['onePage','constr','install']],['Open & claim',['opens','sff']]];
+    var SR=[1,2,3].map(function(n){ return stageRows(p,n); }); var groups=[['Layout',SR[0].map(function(r){ return r[0]; })],['IDK',SR[1].map(function(r){ return r[0]; })],['FDK',SR[2].map(function(r){ return r[0]; })],['Construction Phase',['onePage','constr','install']],['Open & claim',['opens','sff']]];
     var lab={}; COLS.forEach(function(c){ lab[c[0]]=colName(c); }); lab.startIdk='Start IDK'; lab.okLayout='Layout approved'; lab.okIdk='IDK approved'; lab.okFdk='FDK approved'; SR.forEach(function(rs){ rs.forEach(function(r){ if(/^v[sapt]\|/.test(r[0])) lab[r[0]]=r[1]; }); }); lab.expLayout='Layout due'; lab.expIdk='IDK due'; lab.expFdk='FDK due';
     return '<section class="panel"><div class="ph"><h2>Milestones</h2><span class="small">The tracker’s date columns for this store</span></div><div class="pbd"><div class="mg">'+groups.map(function(g){
       return '<div><h3>'+esc(g[0])+'</h3><dl class="kv">'+g[1].map(function(k){ var m=E.mval(p,k); return '<dt>'+esc(lab[k])+'</dt><dd>'+(m?(m.outcome==='changes'?'↺ ':'')+esc(m.at==='ND'?'✓ date not recorded':fmtD(m.at))+(m.outcome==='changes'?' <span class="small">revise</span>':'')+(m.est?' <span class="small">estimate</span>':''):'<span class="small">—</span>')+'</dd>'; }).join('')+'</dl></div>';
@@ -2111,7 +2119,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       return '<div class="acard" style="--sc:var(--g'+g.n+')"><div class="ach"><div><button class="lnk" data-go="project|'+p.id+'">'+esc(p.store)+'</button><div class="small">'+esc(cname(p))+' · '+g.n+' · '+esc(E.STAGES[g.n-1])+' · v'+v.v+' sent '+fmtD(v.sentAt)+'</div></div>'+(v.link?drive(v.link):'')+'</div>'+body+'<div class="nbtns">'+btns+'</div></div>'; }
     function act(action,label,cls,p,g,item){ return E.can(S,per(),action,p.id,g.n,item)?'<button class="btn '+(cls||'')+'" data-act="'+action+'" data-pid="'+p.id+'" data-n="'+g.n+'"'+(item?' data-party="'+item+'"':'')+'>'+esc(label)+'</button>':''; }
     function sec(title,sub,list,fn){ return '<section class="panel"><div class="ph"><h2>'+title+' <span class="cnt2">'+list.length+'</span></h2><span class="small">'+sub+'</span></div><div class="pbd">'+(list.length?list.map(fn).join(''):'<p class="small">Nothing here.</p>')+'</div></section>'; }
-    var nextOf=function(g){ return g.n<3?E.SHORT[g.n]:'Handover'; };
+    var nextOf=function(g){ return g.n<3?E.SHORT[g.n]:'Construction Phase'; };
     return head('Approvals','Approvals','Apple replies from the review links land here. Your approval closes the stage and starts the next one.',createBtn())+
       sec('Ready for your approval','Apple approved',a.ready,function(x){ return card(x,appleReply(x.v),act('recordApprove','Approve & start '+nextOf(x.g),'p',x.p,x.g,'partner')+act('recordChanges','Request changes','',x.p,x.g,'partner')); })+
       sec('Changes requested by Apple','Revise and send the next version',a.changes,function(x){ return card(x,appleReply(x.v),act('sendReview','Send '+E.SHORT[x.g.n-1]+' v'+(x.g.versions.length+1)+' to Apple','p',x.p,x.g)); })+
@@ -2180,7 +2188,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
   }
   function vProject(p){
     var X=ext(), g=E.currentStage(p), dn=E.done(p);
-    var h='<div class="crumb">'+(X?'<button data-go="home">Tracker</button>':'<button data-go="tracker2">Tracker</button>')+'<span>›</span><span>'+esc(cname(p))+'</span><span>›</span><span>'+esc(rname(p))+'</span></div>'+
+    var h='<div class="crumbrow"><button type="button" class="btn sm backb" data-go="tracker2"><span aria-hidden="true">‹</span> Back to Tracker</button><div class="crumb">'+(X?'<button data-go="home">Tracker</button>':'<button data-go="tracker2">Tracker</button>')+'<span>›</span><span>'+esc(cname(p))+'</span><span>›</span><span>'+esc(rname(p))+'</span></div></div>'+
       band(esc(cname(p))+' · '+esc(rname(p))+(p.kit?' · '+esc(p.kit):''),esc(p.store),'',(X?'':hChip(p))+'<span class="chip plain">Now: '+esc(E.nowLabel(p,X))+'</span><span class="chip plain">Waiting on '+esc(waitLabel(p))+'</span>','var(--nav-2)','');
     h+=track(p);
     var fl=flags(p);
@@ -2260,7 +2268,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       var a=E.can(S,per(),'issueDoc',p.id,4,i.i)?'<button class="btn sm p" data-act="issueDoc" data-pid="'+p.id+'" data-n="4" data-item="'+i.i+'">Issue</button>':'';
       return '<tr><td class="mono small">'+i.i+'</td><td>'+esc(i.name)+'</td><td>'+(i.doneAt?'<span class="chip ok">Issued '+(i.doneAt==='ND'?'':fmtD(i.doneAt))+'</span>':'<span class="chip warn">Not issued</span>')+'</td><td>'+(i.link?drive(i.link):'<span class="small">—</span>')+'</td><td>'+a+'</td></tr>';
     }).join('');
-    return '<section class="panel"><div class="ph"><h2>Handover documents</h2><span class="small num">'+g.items.filter(function(i){ return i.doneAt; }).length+' of 3 issued</span></div><div style="overflow-x:auto"><table class="t"><thead><tr><th>#</th><th>Document</th><th>Status</th><th>Link</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
+    return '<section class="panel"><div class="ph"><h2>Construction Phase documents</h2><span class="small num">'+g.items.filter(function(i){ return i.doneAt; }).length+' of 3 issued</span></div><div style="overflow-x:auto"><table class="t"><thead><tr><th>#</th><th>Document</th><th>Status</th><th>Link</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
   }
   function milePanel(p,g){
     var t=g.n===5?'Store opening':'SFF claim', lab=g.n===5?'Store Opens':'SFF Claims';
@@ -2307,6 +2315,9 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     var tb=app.querySelector('.top'), sb=app.querySelector('.stick-bar'), sw=app.querySelector('.tw.sw');
     var th=tb&&getComputedStyle(tb).position==='sticky'?tb.offsetHeight:0;
     document.documentElement.style.setProperty('--toph',th+'px');
+    var t2b=app.querySelector('.t2card>.t2bar'), t2w=app.querySelector('.t2wrap');
+    if(t2b) document.documentElement.style.setProperty('--t2bh',t2b.offsetHeight+'px');
+    if(t2w){ var t2t=t2w.querySelector('table'); t2w.classList.toggle('scrollx',!!t2t&&t2t.offsetWidth>t2w.clientWidth+1); }
     if(sw){ var bh=sb?sb.offsetHeight+8:0, below=document.documentElement.scrollHeight-(sw.getBoundingClientRect().bottom+window.scrollY);
       sw.style.maxHeight=Math.max(320,Math.floor(window.innerHeight-th-bh-Math.max(0,below)))+'px'; }
   }
@@ -2406,10 +2417,10 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
       case 'setStart': t='Enter the start date'; b=fldDate('f-date','Project start date',E.TODAY)+hint('The tracker has no start date for this store. IDK is due 2 weeks after it.'); ok='Save start date'; break;
       case 'logStep': { var lb={sent:'Apple sent',"partner-sent":'Partner sent',"apple-ok":'Apple approve',"apple-rev":'Apple revise',"partner-ok":'Partner approve',"partner-rev":'Partner revise'}[item]||'Date', rv=/rev$/.test(item);
         t=lb+' · '+nm+(item==='sent'?' v'+(g.status==='changes_requested'||!v||v.sentAt?(g.versions.length+1):v.v):(v?' v'+v.v:''));
-        b=fldDate('f-date',lb+' date',E.TODAY)+(rv?fld('f-note','What needs to change (optional)','textarea',''):'')+(item==='partner-rev'?'<fieldset class="rt"><legend>Next version goes to</legend><label class="rt-opt"><input type="radio" name="f-route" value="apple" checked><span><b>Apple again</b><small>Next: Apple sent v'+(v?v.v+1:2)+', then Apple approve and Partner</small></span></label><label class="rt-opt"><input type="radio" name="f-route" value="partner"><span><b>Partner only</b><small>Next: Partner sent v'+(v?v.v+1:2)+'. Apple’s approval still counts</small></span></label></fieldset>':'')+hint(item==='partner-ok'?'Apple and the Partner have both approved: this closes '+nm+(g.n<3?' and starts '+E.STAGES[g.n]+' on this date.':'. Handover documents are next.'):item==='apple-ok'?'Next: record the date it goes to the Partner.':item==='partner-sent'?(g.status==='changes_requested'?'Partner-only round: Apple’s approval of v'+(v?v.v:1)+' still counts. ':'')+'Then record the Partner reply.':rv?'Then record when the revised version goes out.':'Then record Apple’s reply.');
+        b=fldDate('f-date',lb+' date',E.TODAY)+(rv?fld('f-note','What needs to change (optional)','textarea',''):'')+(item==='partner-rev'?'<fieldset class="rt"><legend>Next version goes to</legend><label class="rt-opt"><input type="radio" name="f-route" value="apple" checked><span><b>Apple again</b><small>Next: Apple sent v'+(v?v.v+1:2)+', then Apple approve and Partner</small></span></label><label class="rt-opt"><input type="radio" name="f-route" value="partner"><span><b>Partner only</b><small>Next: Partner sent v'+(v?v.v+1:2)+'. Apple’s approval still counts</small></span></label></fieldset>':'')+hint(item==='partner-ok'?'Apple and the Partner have both approved: this closes '+nm+(g.n<3?' and starts '+E.STAGES[g.n]+' on this date.':'. Construction Phase is next.'):item==='apple-ok'?'Next: record the date it goes to the Partner.':item==='partner-sent'?(g.status==='changes_requested'?'Partner-only round: Apple’s approval of v'+(v?v.v:1)+' still counts. ':'')+'Then record the Partner reply.':rv?'Then record when the revised version goes out.':'Then record Apple’s reply.');
         ok='Save'; break; }
-      case 'approveStage': t='Approve '+nm; b=fldDate('f-date','Approval date',E.TODAY)+fld('f-link','Approved file link (optional)','input','',false,'https://drive.google.com/...')+hint(g.n<3?'This closes '+nm+' and starts '+E.STAGES[g.n]+' on the approval date.':'This closes '+nm+'. Handover documents are next.')+hint('A link you add is kept in Store documents.'); ok='Approve'; break;
-      case 'recordApprove': if(item==='partner'){ t='Approve '+nm+' v'+v.v+' and start '+(g.n<3?E.STAGES[g.n]:'Handover'); b=fldDate('f-date','Approval date',E.TODAY)+fld('f-note','Note (optional)','textarea','')+hint('Apple has approved. This closes '+nm+' and starts the next stage today.'); ok='Approve & start'; break; }
+      case 'approveStage': t='Approve '+nm; b=fldDate('f-date','Approval date',E.TODAY)+fld('f-link','Approved file link (optional)','input','',false,'https://drive.google.com/...')+hint(g.n<3?'This closes '+nm+' and starts '+E.STAGES[g.n]+' on the approval date.':'This closes '+nm+'. Construction Phase is next.')+hint('A link you add is kept in Store documents.'); ok='Approve'; break;
+      case 'recordApprove': if(item==='partner'){ t='Approve '+nm+' v'+v.v+' and start '+(g.n<3?E.STAGES[g.n]:'Construction Phase'); b=fldDate('f-date','Approval date',E.TODAY)+fld('f-note','Note (optional)','textarea','')+hint('Apple has approved. This closes '+nm+' and starts the next stage today.'); ok='Approve & start'; break; }
         t='Record: '+E.WHO[item]+' approved '+nm+' v'+v.v; b=fldDate('f-date','Date of their reply',E.TODAY)+fld('f-note','Note (optional)','textarea','')+hint('When both Apple and the Partner have approved, the stage closes and the next one is ready.'); ok='Record approval'; break;
       case 'recordChanges': t=(item==='partner'?'Request changes on ':'Record: Apple requested changes on ')+nm+' v'+v.v; b=fldDate('f-date','Date of their reply',E.TODAY)+fld('f-note','What they asked to change','textarea','',true)+'<div class="strip">This is review round '+(E.rounds(g)+1)+'. The next version goes back to both Apple and the Partner. An approval on v'+v.v+' does not carry over.</div>'; ok='Record change request'; break;
       case 'approve': t='Approve '+nm+' v'+v.v; b=fld('f-note','Note (optional)','textarea','')+hint('Apple and the Partner review separately. When both have approved, the stage closes and the next one is ready.'); ok='Approve'; break;
@@ -2547,7 +2558,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
 
   /* ================= Shared data (Supabase) =================
      Served by Program tracking (/api/pm-config answers): data lives in Supabase and is shared by everyone
-     with the APP CORE Tracking permission; the Apple / Partner review page reads and replies through the
+     with the APP CORE Tracker permission; the Apple / Partner review page reads and replies through the
      pm_review_* database functions. Opened anywhere else (e.g. a local file server) the page keeps the
      browser-only mode. */
   var CLOUD=null, REV={}, SNAP={}, LINKS={}, READ={}, RV=null, UIKEY=KEY+'-ui', syncing=Promise.resolve();
@@ -2625,7 +2636,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     });
   }
   function noAccess(email){
-    return '<main class="rv-main gut"><section class="panel rv-card"><div class="pbd"><h1>No access to APP CORE Tracking</h1><p>Your account'+(email?' ('+esc(email)+')':'')+' doesn’t have the APP CORE Tracking permission yet. Ask an Admin to tick it on the Users page.</p><div class="nbtns"><a class="btn" href="/">Back to Program tracking</a></div></div></section></main>';
+    return '<main class="rv-main gut"><section class="panel rv-card"><div class="pbd"><h1>No access to APP CORE Tracker</h1><p>Your account'+(email?' ('+esc(email)+')':'')+' doesn’t have the APP CORE Tracker permission yet. Ask an Admin to tick it on the Users page.</p><div class="nbtns"><a class="btn" href="/">Back to Program tracking</a></div></div></section></main>';
   }
   function boot(){
     S=E.seed(); U=defUI();
