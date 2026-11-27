@@ -988,7 +988,7 @@ var ENGINE = (function () {
   function clientsOf(p){ return PERSONAS.filter(function(x){ return x.reseller===p.reseller; }).map(function(x){ return x.id; }); }
   function applesOf(p){ return PERSONAS.filter(function(x){ return x.countries && x.countries.indexOf(p.country)>=0; }).map(function(x){ return x.id; }); }
   function extOf(p,k){ return k==='partner'?clientsOf(p):applesOf(p); }
-  function done(p){ return p.stages[5].status==='done'; }
+  function done(p){ return p.stages.every(function(g){ return g.status==='approved'||g.status==='done'; }); }
   function closedStage(g){ return g.status==='approved'||g.status==='done'; }
   function progress(p){ var c=0; p.stages.forEach(function(g){ if(closedStage(g)) c++; }); return {closed:c,inScope:p.stages.length}; }
   function currentStage(p){ for (var i=0;i<p.stages.length;i++) if(!closedStage(p.stages[i])) return p.stages[i]; return p.stages[p.stages.length-1]; }
@@ -1211,7 +1211,7 @@ var ENGINE = (function () {
       case 'cStep': { if(per!=='coord'||g.n!==4||g.status!=='in_progress') return false; var cp=String(item||'').split('|'), ci=g.items[(+cp[0]||0)-1]; if(!ci) return false; var cs=cState(ci);
         if(cp[1]==='recv') return cs==='todo'; if(cp[1]==='sent') return cs==='received'||cs==='revising'; if(cp[1]==='ok'||cp[1]==='rev') return cs==='review'; return false; }
       case 'issueDoc': return per==='coord' && g.n===4 && g.status==='in_progress' && !!g.items[(item||0)-1] && !g.items[item-1].doneAt;
-      case 'recordOpen': return per==='coord' && g.n===5 && g.status==='in_progress';
+      case 'recordOpen': return per==='coord' && g.n===5 && g.status!=='done';
       case 'recordSff': return per==='coord' && g.n===6 && g.status==='in_progress';
       case 'chase': { var w=waitingOn(p); return per==='coord' && (w.who==='Partner'||w.who==='Apple'||w.who==='Both') && g.n===currentStage(p).n; }
       case 'comment': return g.status!=='not_started';
@@ -1339,23 +1339,23 @@ var ENGINE = (function () {
         var nOk=g.items.filter(function(x){ return cState(x)==='approved'; }).length;
         if(nOk===3){
           var lastD=g.items.map(function(x){ return x.doneAt; }).filter(real).sort().pop()||dt;
-          g.status='done'; g.closedAt=lastD; g.doneAt=lastD; nx=p.stages[4]; nx.status='in_progress'; nx.since=at;
+          g.status='done'; g.closedAt=lastD; g.doneAt=lastD; nx=p.stages[4]; if(nx.status==='not_started'){ nx.status='in_progress'; nx.since=at; }
           notify(s,['coord','bd'],'All three Construction documents approved by the Partner for '+p.store+'. The store can open.',p.id,4,false);
-          return {ok:true,msg:'Partner approved '+nm2+'. All 3 are approved, so Store Opens is next.'};
+          return {ok:true,msg:'Partner approved '+nm2+'. All 3 are approved'+(done(p)?', and the project is complete.':p.stages[4].status==='done'?'. Open & Claim is already filled in.':', so Open & Claim is next.')};
         }
         return {ok:true,msg:'Partner approved '+nm2+' on '+dt+'. '+nOk+' of 3 approved.'};
       }
       case 'issueDoc': {
         var di=g.items[q.item-1]; di.doneAt=TODAY; di.link=String(q.link||'').trim()||('Shared › 04 Handover › '+di.name);
         if(g.items.every(function(i){ return i.doneAt; })){
-          g.status='done'; g.closedAt=TODAY; g.doneAt=TODAY; nx=p.stages[4]; nx.status='in_progress'; nx.since=at;
+          g.status='done'; g.closedAt=TODAY; g.doneAt=TODAY; nx=p.stages[4]; if(nx.status==='not_started'){ nx.status='in_progress'; nx.since=at; }
           notify(s,['coord','bd'],'All three handover documents issued for '+p.store+'. The store can open.',p.id,4,false);
           return {ok:true,msg:'Issued. All three handover documents are done, so Store Opens is next.'};
         }
         return {ok:true,msg:'Issued “'+di.name+'”. '+g.items.filter(function(i){ return i.doneAt; }).length+' of 3 handover documents done.'};
       }
       case 'recordOpen':
-        g.status='done'; g.doneAt=dt; g.closedAt=dt; nx=p.stages[5]; nx.status='in_progress'; nx.since=at; nx.startAt=dt;
+        g.status='done'; g.doneAt=dt; g.closedAt=dt; nx=p.stages[5]; if(nx.status==='not_started'){ nx.status='in_progress'; nx.since=at; nx.startAt=dt; }
         notify(s,['bd','des'],p.store+' opened on '+dt,p.id,5,false);
         return {ok:true,msg:'Actual opening date set to '+dt+'. SFF Claims is next.'};
       case 'recordSff':
@@ -1397,8 +1397,8 @@ var ENGINE = (function () {
           return {ok:true,msg:who2(who3)+' revise recorded on '+dt+'. Record the next “'+(v.nextTo==='partner'?'Partner sent':'Apple sent')+'” when v'+(v.v+1)+' goes out.'}; }
         if(who3==='apple') return {ok:true,msg:'Apple approved v'+v.v+' on '+dt+'. Next: Partner sent.'};
         if(g.n===6){ g.status='done'; g.closedAt=later(v.reviews.apple.at,dt); g.doneAt=g.closedAt; g.since=at;
-          notify(s,['bd'],'SFF Claims approved for '+p.store+'. The project is complete.',p.id,6,false);
-          return {ok:true,msg:'Partner approved on '+dt+'. SFF Claims is done and the project is complete.'}; }
+          var fin=done(p); notify(s,['bd'],'SFF Claims approved for '+p.store+'.'+(fin?' The project is complete.':''),p.id,6,false);
+          return {ok:true,msg:'Partner approved on '+dt+'. SFF Claims is done'+(fin?' and the project is complete.':'. The project completes when Construction is done.')}; }
         g.status='approved'; g.closedAt=later(v.reviews.apple.at,dt); g.since=at; nx=p.stages[g.n];
         nx.status='in_progress'; nx.since=at; if(g.n<3) nx.startAt=g.closedAt;
         notify(s,['des','dd','bd'],nm+' approved by Apple and the Partner for '+p.store+'. '+(g.n===3?'Construction is next.':STAGES[g.n]+' has started.'),p.id,g.n,false);
@@ -2261,7 +2261,7 @@ if(!ENGINE.SAMPLE_DATA) ENGINE.scenarios=ENGINE.scenarios.filter(function(x){ re
     A('start','Start '+sn,'p');
     var pre='';
     STEPS.forEach(function(x){ A('logStep',x[1],/rev$/.test(x[0])?'':'p',x[0]); });
-    if(g.n===4&&g.items&&g.status==='in_progress') pre+=cBlock(p,true);
+    if(g.n===4&&g.items&&g.status==='in_progress') pre+=cBlock(p,true)+'<h3 class="dsub">Open &amp; Claim</h3>'+ocBlock(p,true);
     if((g.n===5&&g.status==='in_progress')||(g.n===6&&g.status!=='done'&&g.status!=='not_started')){ pre+=ocBlock(p,true); }
     A('recordOpen','Set Actual Opening date','p');
     if(!b.length&&g.n===1&&g.status==='not_started') return '<span class="small">Check the Store Brief and CAD file in Store documents first.</span>';
